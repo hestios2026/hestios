@@ -1,0 +1,233 @@
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import RedirectResponse, Response
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from typing import Optional
+from datetime import datetime
+import uuid
+import os
+
+from app.core.database import get_db
+from app.api.auth import get_current_user
+from app.core.storage import upload_file, get_presigned_url, delete_file, get_file_content
+from app.models.document import Document
+from app.models.user import User
+
+router = APIRouter(prefix="/documents", tags=["documents"])
+
+ALLOWED_TYPES = {
+    "application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain", "application/zip",
+}
+MAX_SIZE = 50 * 1024 * 1024  # 50 MB
+
+CATEGORIES_FALLBACK = ("contract", "invoice", "offer", "permit", "plan", "photo", "report", "technical", "safety", "certificate", "correspondence", "other")
+
+
+def _valid_categories(db) -> tuple:
+    """Return allowed category keys from DB settings (or fallback)."""
+    try:
+        from app.api.settings import _get_raw_categories
+        cats = _get_raw_categories(db)
+        return tuple(c["key"] for c in cats)
+    except Exception:
+        return CATEGORIES_FALLBACK
+
+
+def _doc_dict(d: Document, include_url=False):
+    result = {
+        "id": d.id,
+        "name": d.name,
+        "description": d.description,
+        "category": d.category,
+        "site_id": d.site_id,
+        "site_name": d.site.name if d.site else None,
+        "employee_id": d.employee_id,
+        "employee_name": f"{d.employee.vorname} {d.employee.nachname}" if d.employee else None,
+        "equipment_id": d.equipment_id,
+        "equipment_name": d.equipment.name if d.equipment else None,
+        "folder_id": d.folder_id,
+        "folder_name": d.folder.name if d.folder else None,
+        "file_key": d.file_key,
+        "file_size": d.file_size,
+        "content_type": d.content_type,
+        "uploaded_by": d.uploaded_by,
+        "uploader_name": d.uploader.full_name if d.uploader else None,
+        "created_at": d.created_at.isoformat() if d.created_at else None,
+        "notes": d.notes,
+    }
+    if include_url:
+        try:
+            result["download_url"] = get_presigned_url(d.file_key)
+        except Exception:
+            result["download_url"] = None
+    return result
+
+
+@router.get("/")
+def list_documents(
+    category: Optional[str] = None,
+    site_id: Optional[int] = None,
+    employee_id: Optional[int] = None,
+    equipment_id: Optional[int] = None,
+    folder_id: Optional[int] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(Document)
+    if category:
+        q = q.filter(Document.category == category)
+    if site_id:
+        q = q.filter(Document.site_id == site_id)
+    if employee_id:
+        q = q.filter(Document.employee_id == employee_id)
+    if equipment_id:
+        q = q.filter(Document.equipment_id == equipment_id)
+    if folder_id is not None:
+        q = q.filter(Document.folder_id == folder_id)
+    if search:
+        q = q.filter(Document.name.ilike(f"%{search}%"))
+    docs = q.order_by(Document.created_at.desc()).all()
+    return [_doc_dict(d) for d in docs]
+
+
+@router.post("/upload/", status_code=201)
+async def upload_document(
+    file: UploadFile = File(...),
+    category: str = Form("other"),
+    description: str = Form(""),
+    site_id: Optional[str] = Form(None),
+    employee_id: Optional[str] = Form(None),
+    equipment_id: Optional[str] = Form(None),
+    folder_id: Optional[str] = Form(None),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    content_type = file.content_type or "application/octet-stream"
+    if content_type not in ALLOWED_TYPES:
+        raise HTTPException(400, f"Tip de fișier nepermis: {content_type}")
+
+    data = await file.read()
+    if len(data) > MAX_SIZE:
+        raise HTTPException(400, "Fișierul depășește limita de 50 MB")
+    if category not in _valid_categories(db):
+        category = "other"
+
+    ext = os.path.splitext(file.filename or "file")[1].lower()
+    file_key = f"{category}/{datetime.utcnow().strftime('%Y/%m')}/{uuid.uuid4().hex}{ext}"
+
+    upload_file(file_key, data, content_type)
+
+    doc = Document(
+        name=file.filename or file_key,
+        description=description or None,
+        category=category,
+        site_id=int(site_id) if site_id else None,
+        employee_id=int(employee_id) if employee_id else None,
+        equipment_id=int(equipment_id) if equipment_id else None,
+        folder_id=int(folder_id) if folder_id else None,
+        file_key=file_key,
+        file_size=len(data),
+        content_type=content_type,
+        uploaded_by=current.id,
+        notes=notes or None,
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return _doc_dict(doc, include_url=True)
+
+
+@router.get("/{doc_id}/")
+def get_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    return _doc_dict(d, include_url=True)
+
+
+@router.get("/{doc_id}/download/")
+def download_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    url = get_presigned_url(d.file_key, expires_seconds=300)
+    return RedirectResponse(url=url)
+
+
+@router.get("/{doc_id}/view/")
+def view_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    """Stream file bytes directly from MinIO — no redirect, no CORS/X-Frame-Options issues."""
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    try:
+        data = get_file_content(d.file_key)
+    except Exception:
+        raise HTTPException(500, "Eroare la citirea fișierului")
+    return Response(
+        content=data,
+        media_type=d.content_type,
+        headers={"Content-Disposition": f'inline; filename="{d.name}"'},
+    )
+
+
+@router.get("/{doc_id}/content/")
+def get_document_content(doc_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    if not d.content_type.startswith("text/"):
+        raise HTTPException(400, "Documentul nu este text")
+    try:
+        data = get_file_content(d.file_key)
+        return Response(content=data.decode("utf-8", errors="replace"), media_type="text/plain; charset=utf-8")
+    except Exception:
+        raise HTTPException(500, "Eroare la citirea fișierului")
+
+
+class ContentBody(BaseModel):
+    content: str
+
+
+@router.put("/{doc_id}/content/")
+def update_document_content(
+    doc_id: int,
+    body: ContentBody,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    if not d.content_type.startswith("text/"):
+        raise HTTPException(400, "Documentul nu este text")
+    if current.role not in ("director", "projekt_leiter") and d.uploaded_by != current.id:
+        raise HTTPException(403, "Acces interzis")
+    try:
+        data = body.content.encode("utf-8")
+        upload_file(d.file_key, data, d.content_type)
+        d.file_size = len(data)
+        db.commit()
+        return {"ok": True, "file_size": len(data)}
+    except Exception:
+        raise HTTPException(500, "Eroare la salvarea fișierului")
+
+
+@router.delete("/{doc_id}/")
+def delete_document(doc_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    if current.role not in ("director", "projekt_leiter") and d.uploaded_by != current.id:
+        raise HTTPException(403, "Acces interzis")
+    delete_file(d.file_key)
+    db.delete(d)
+    db.commit()
+    return {"ok": True}

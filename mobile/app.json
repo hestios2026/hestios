@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "HestiOS Raportare",
+    "slug": "hestios-raportare",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "de.hesti-rossmann.raportare"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "package": "de.hesti_rossmann.raportare",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite accesul la cameră pentru a fotografia lucrările."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permite accesul la locație pentru a marca pozițiile lucrărilor."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Permite accesul la galerie pentru a atașa poze.",
+          "savePhotosPermission": "Permite salvarea pozelor."
+        }
+      ]
+    ]
+  }
+}
