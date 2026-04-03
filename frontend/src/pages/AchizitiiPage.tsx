@@ -423,7 +423,7 @@ function OrdersTab() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); loadOrders(e.target.value || undefined); }}
           style={{ ...inp, width: 180 }}>
-          <option value="">Toate statusurile</option>
+          <option value="">{t('hr.allStatuses')}</option>
           <option value="pending">{t('procurement.orderStatus.pending')}</option>
           <option value="approved">{t('procurement.orderStatus.approved')}</option>
           <option value="sent">{t('procurement.orderStatus.sent')}</option>

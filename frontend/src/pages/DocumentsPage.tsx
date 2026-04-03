@@ -13,7 +13,7 @@ import type { Document, Site } from '../types';
 
 const DEFAULT_CATEGORIES: DocCategory[] = [
   { key: 'contract',  label: 'Contract',    color: '#1d4ed8', icon: '📄' },
-  { key: 'invoice',   label: 'Factură',     color: '#7c3aed', icon: '🧾' },
+  { key: 'invoice',   label: 'Rechnung',    color: '#7c3aed', icon: '🧾' },
   { key: 'other',     label: 'Altele',      color: '#64748b', icon: '📁' },
 ];
 
@@ -66,6 +66,7 @@ function CreateFolderModal({ sites, onCreated, onClose }: {
   onCreated: (folder: FolderItem) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [siteId, setSiteId] = useState('');
   const [description, setDescription] = useState('');
@@ -73,7 +74,7 @@ function CreateFolderModal({ sites, onCreated, onClose }: {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { toast.error('Numele folderului este obligatoriu'); return; }
+    if (!name.trim()) { toast.error(t('documentsExtra.folderNameRequired')); return; }
     setSaving(true);
     try {
       const folder = await createFolder({
@@ -81,10 +82,10 @@ function CreateFolderModal({ sites, onCreated, onClose }: {
         site_id: siteId ? parseInt(siteId) : undefined,
         description: description.trim() || undefined,
       });
-      toast.success('Folder creat');
+      toast.success(t('documentsExtra.folderCreated'));
       onCreated(folder);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Eroare la creare folder');
+      toast.error(err?.response?.data?.detail || t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -97,43 +98,43 @@ function CreateFolderModal({ sites, onCreated, onClose }: {
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ ...card, padding: 28, width: 420, maxWidth: '90vw' }}>
         <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>
-          Folder nou
+          {t('documentsExtra.folderNew')}
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>Nume folder *</label>
+            <label style={lbl}>{t('documentsExtra.folderName')}</label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
               style={inp}
-              placeholder="ex: Contracte 2025"
+              placeholder={t('documentsExtra.folderNamePlaceholder')}
               autoFocus
               required
             />
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>Client (șantier)</label>
+            <label style={lbl}>{t('documentsExtra.folderClient')}</label>
             <select value={siteId} onChange={e => setSiteId(e.target.value)} style={inp}>
-              <option value="">Fără client</option>
+              <option value="">{t('documentsExtra.folderNoClient')}</option>
               {sites.map(s => (
                 <option key={s.id} value={s.id}>{s.kostenstelle} — {s.name}</option>
               ))}
             </select>
           </div>
           <div style={{ marginBottom: 20 }}>
-            <label style={lbl}>Descriere (opțional)</label>
+            <label style={lbl}>{t('documentsExtra.folderDescription')}</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               style={{ ...inp, height: 72, resize: 'vertical' }}
-              placeholder="Descriere scurtă..."
+              placeholder={t('documents.descPlaceholder')}
             />
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="submit" style={{ ...btnPrimary, opacity: saving ? 0.7 : 1 }} disabled={saving}>
-              {saving ? 'Se creează...' : 'Creează folder'}
+              {saving ? t('documentsExtra.folderCreating') : t('documentsExtra.folderCreate')}
             </button>
-            <button type="button" style={btnSecondary} onClick={onClose}>Anulează</button>
+            <button type="button" style={btnSecondary} onClick={onClose}>{t('common.cancel')}</button>
           </div>
         </form>
       </div>
@@ -151,6 +152,7 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
   onFolderRenamed: (folder: FolderItem) => void;
   onFolderDeleted: (folderId: number) => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -166,7 +168,7 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
     const key = f.site_id != null ? String(f.site_id) : '__none__';
     const label = f.site_id != null
       ? (f.site_kostenstelle ? `${f.site_kostenstelle} — ${f.site_name || ''}` : f.site_name || String(f.site_id))
-      : 'Fără client';
+      : t('documentsExtra.folderNoClient');
     if (!siteMap.has(key)) siteMap.set(key, { label, items: [] });
     siteMap.get(key)!.items.push(f);
   }
@@ -199,23 +201,23 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
     }
     try {
       const updated = await renameFolder(folder.id, { name: renameValue.trim() });
-      toast.success('Folder redenumit');
+      toast.success(t('documentsExtra.folderRenamed'));
       onFolderRenamed(updated);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Eroare la redenumire');
+      toast.error(err?.response?.data?.detail || t('common.error'));
     } finally {
       setRenamingId(null);
     }
   }
 
   async function handleDelete(folder: FolderItem) {
-    if (!confirm(`Ștergi folderul "${folder.name}"?`)) return;
+    if (!confirm(t('documentsExtra.folderDeleteConfirm', { name: folder.name }))) return;
     try {
       await deleteFolder(folder.id);
-      toast.success('Folder șters');
+      toast.success(t('documentsExtra.folderDeleted'));
       onFolderDeleted(folder.id);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Eroare la ștergere');
+      toast.error(err?.response?.data?.detail || t('common.error'));
     }
   }
 
@@ -286,14 +288,14 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
           {isHovered && !isRenaming && (
             <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
               <button
-                title="Redenumește"
+                title={t('common.rename')}
                 onClick={e => { e.stopPropagation(); startRename(folder); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, padding: '0 2px', color: '#64748b' }}
               >
                 ✏
               </button>
               <button
-                title="Șterge"
+                title={t('common.delete')}
                 onClick={e => { e.stopPropagation(); handleDelete(folder); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, padding: '0 2px', color: '#ef4444' }}
               >
@@ -314,13 +316,13 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
     }}>
       {/* Header */}
       <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>Foldere</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('documentsExtra.foldersHeader')}</span>
         <button
           onClick={onNewFolder}
-          title="Folder nou"
+          title={t('documentsExtra.folderNew')}
           style={{ ...btnPrimary, padding: '4px 10px', fontSize: 11, borderRadius: 5 }}
         >
-          + Nou
+          {t('documentsExtra.newBtn')}
         </button>
       </div>
 
@@ -338,14 +340,14 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
         >
           <span style={{ fontSize: 14 }}>🗂</span>
           <span style={{ fontSize: 12, fontWeight: 600, color: selectedFolder === null ? '#1d4ed8' : '#374151' }}>
-            Toate documentele
+            {t('documentsExtra.allDocuments')}
           </span>
         </div>
 
         {/* Grouped folders */}
         {grouped.length === 0 && (
           <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: '16px 8px' }}>
-            Niciun folder
+            {t('documentsExtra.noFolders')}
           </div>
         )}
         {grouped.map(group => (
@@ -460,9 +462,9 @@ function UploadForm({ sites, folders, categories, onUploaded, onCancel }: {
           </select>
         </div>
         <div>
-          <label style={lbl}>Folder</label>
+          <label style={lbl}>{t('documentsExtra.folderLabel')}</label>
           <select value={form.folder_id} onChange={e => f('folder_id', e.target.value)} style={inp}>
-            <option value="">Fără folder</option>
+            <option value="">{t('documentsExtra.folderNone')}</option>
             {folders.map(fl => <option key={fl.id} value={fl.id}>{fl.name}</option>)}
           </select>
         </div>

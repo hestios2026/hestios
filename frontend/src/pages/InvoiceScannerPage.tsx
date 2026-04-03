@@ -1,18 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { scanInvoice, confirmInvoice, InvoiceProposal, LineItem } from '../api/invoices';
 import { fetchSites } from '../api/sites';
 import type { Site } from '../types';
 
-const COST_CATEGORIES = [
-  { value: 'materiale',      label: 'Materiale' },
-  { value: 'manopera',       label: 'Manoperă' },
-  { value: 'subcontractori', label: 'Subcontractori' },
-  { value: 'utilaje',        label: 'Utilaje' },
-  { value: 'combustibil',    label: 'Combustibil' },
-  { value: 'transport',      label: 'Transport' },
-  { value: 'alte',           label: 'Alte' },
-];
+const COST_CATEGORY_VALUES = ['materiale', 'manopera', 'subcontractori', 'utilaje', 'combustibil', 'transport', 'alte'];
 
 const inp: React.CSSProperties = {
   padding: '7px 10px', borderRadius: 6, border: '1px solid #d1d5db',
@@ -33,6 +26,7 @@ function LineItemsEditor({ items, currency, onChange }: {
   currency: string;
   onChange: (items: LineItem[]) => void;
 }) {
+  const { t } = useTranslation();
   function update(i: number, field: keyof LineItem, val: string) {
     const next = items.map((it, idx) => {
       if (idx !== i) return it;
@@ -56,7 +50,7 @@ function LineItemsEditor({ items, currency, onChange }: {
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 80px 70px 100px 100px 32px', gap: 6, marginBottom: 6 }}>
-        {['Descriere', 'Cant.', 'U.M.', 'Preț/u.', 'Total', ''].map(h => (
+        {[t('invoiceScanner.colDescription'), t('invoiceScanner.colQty'), t('invoiceScanner.colUnit'), t('invoiceScanner.colUnitPrice'), t('invoiceScanner.colTotal'), ''].map(h => (
           <div key={h} style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{h}</div>
         ))}
       </div>
@@ -73,7 +67,7 @@ function LineItemsEditor({ items, currency, onChange }: {
         </div>
       ))}
       <button onClick={addRow} style={{ marginTop: 4, padding: '5px 14px', borderRadius: 6, border: '1px dashed #d1d5db', background: '#f8fafc', color: '#64748b', fontSize: 12, cursor: 'pointer' }}>
-        + Linie nouă
+        {t('invoiceScanner.addLine')}
       </button>
     </div>
   );
@@ -82,6 +76,7 @@ function LineItemsEditor({ items, currency, onChange }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function InvoiceScannerPage() {
+  const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -100,7 +95,7 @@ export function InvoiceScannerPage() {
 
   async function handleFile(file: File) {
     if (!file.type.includes('pdf') && !file.type.startsWith('image/')) {
-      toast.error('Doar PDF sau imagini'); return;
+      toast.error(t('invoiceScanner.onlyPdfImages')); return;
     }
     setSelectedFile(file);
     setProposal(null);
@@ -109,9 +104,9 @@ export function InvoiceScannerPage() {
     try {
       const result = await scanInvoice(file);
       setProposal(result);
-      toast.success('Factură analizată');
+      toast.success(t('invoiceScanner.analyzed'));
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Eroare la scanare');
+      toast.error(err?.response?.data?.detail || t('common.error'));
     } finally {
       setScanning(false);
     }
@@ -136,14 +131,14 @@ export function InvoiceScannerPage() {
 
   async function handleConfirm() {
     if (!proposal) return;
-    if (!siteId) { toast.error('Selectează un șantier'); return; }
+    if (!siteId) { toast.error(t('invoiceScanner.selectSite')); return; }
     setConfirming(true);
     try {
       const result = await confirmInvoice(proposal, parseInt(siteId), category, saveDoc);
       setDone(result);
-      toast.success('Cost înregistrat cu succes');
+      toast.success(t('invoiceScanner.costRegisteredSuccess'));
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Eroare la confirmare');
+      toast.error(err?.response?.data?.detail || t('common.error'));
     } finally {
       setConfirming(false);
     }
@@ -156,22 +151,22 @@ export function InvoiceScannerPage() {
   return (
     <div className="page-root" style={{ maxWidth: 1100 }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', margin: 0 }}>Scanare facturi</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', margin: 0 }}>{t('invoiceScanner.title')}</h1>
         <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-          Încarcă un PDF sau imagine — datele sunt extrase automat cu OCR + Claude AI
+          {t('invoiceScanner.subtitle')}
         </div>
       </div>
 
       {/* Success state */}
       {done && (
         <div style={{ ...card, borderLeft: '4px solid #059669', marginBottom: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#059669', marginBottom: 8 }}>Cost înregistrat</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#059669', marginBottom: 8 }}>{t('invoiceScanner.costRegistered')}</div>
           <div style={{ fontSize: 13, color: '#374151' }}>
-            ID Cost: <strong>#{done.cost_id}</strong>
-            {done.doc_id && <> · Document salvat: <strong>#{done.doc_id}</strong></>}
+            {t('invoiceScanner.costId')}: <strong>#{done.cost_id}</strong>
+            {done.doc_id && <> · {t('invoiceScanner.documentSaved')}: <strong>#{done.doc_id}</strong></>}
           </div>
           <button onClick={reset} style={{ marginTop: 14, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-            Scanează altă factură
+            {t('invoiceScanner.scanAnother')}
           </button>
         </div>
       )}
@@ -199,20 +194,20 @@ export function InvoiceScannerPage() {
               {scanning ? (
                 <div>
                   <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1d4ed8' }}>Se analizează factura...</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>Extragere text + Claude AI</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1d4ed8' }}>{t('invoiceScanner.analyzing')}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{t('invoiceScanner.extracting')}</div>
                 </div>
               ) : selectedFile ? (
                 <div>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{selectedFile.name}</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Click pentru alt fișier</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{t('invoiceScanner.clickOther')}</div>
                 </div>
               ) : (
                 <div>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>
-                    Trage factura aici sau <strong style={{ color: '#1d4ed8' }}>selectează fișier</strong>
+                    {t('invoiceScanner.dragHint')} <strong style={{ color: '#1d4ed8' }}>{t('invoiceScanner.selectFile')}</strong>
                   </div>
                   <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>PDF, JPG, PNG — max 20 MB</div>
                 </div>
@@ -222,29 +217,29 @@ export function InvoiceScannerPage() {
             {/* Assignment */}
             {proposal && !done && (
               <div style={{ ...card, marginTop: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>Atribuire cost</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>{t('invoiceScanner.assignCost')}</div>
                 <div style={{ marginBottom: 10 }}>
-                  <label style={lbl}>Șantier *</label>
+                  <label style={lbl}>{t('invoiceScanner.fieldSite')}</label>
                   <select value={siteId} onChange={e => setSiteId(e.target.value)} style={inp}>
-                    <option value="">— Selectează —</option>
+                    <option value="">{t('common.select')}</option>
                     {sites.filter(s => s.is_baustelle).map(s => (
                       <option key={s.id} value={s.id}>{s.kostenstelle} — {s.name}</option>
                     ))}
                   </select>
                 </div>
                 <div style={{ marginBottom: 10 }}>
-                  <label style={lbl}>Categorie</label>
+                  <label style={lbl}>{t('invoiceScanner.fieldCategory')}</label>
                   <select value={category} onChange={e => setCategory(e.target.value)} style={inp}>
-                    {COST_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    {COST_CATEGORY_VALUES.map(v => <option key={v} value={v}>{t(`sites.categories.${v}` as any)}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                   <input type="checkbox" id="savedoc" checked={saveDoc} onChange={e => setSaveDoc(e.target.checked)} />
-                  <label htmlFor="savedoc" style={{ fontSize: 13, color: '#374151', cursor: 'pointer' }}>Salvează PDF în Documente</label>
+                  <label htmlFor="savedoc" style={{ fontSize: 13, color: '#374151', cursor: 'pointer' }}>{t('invoiceScanner.savePdf')}</label>
                 </div>
                 <button onClick={handleConfirm} disabled={confirming || !siteId}
                   style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: !siteId ? '#e2e8f0' : '#059669', color: '#fff', fontWeight: 800, fontSize: 14, cursor: !siteId ? 'not-allowed' : 'pointer', opacity: confirming ? 0.7 : 1 }}>
-                  {confirming ? 'Se înregistrează...' : 'Confirmă și înregistrează cost'}
+                  {confirming ? t('invoiceScanner.confirming') : t('invoiceScanner.confirmBtn')}
                 </button>
               </div>
             )}
@@ -256,32 +251,32 @@ export function InvoiceScannerPage() {
 
               {/* Header fields */}
               <div style={card}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>Date factură</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>{t('invoiceScanner.invoiceData')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
                   <div>
-                    <label style={lbl}>Furnizor</label>
+                    <label style={lbl}>{t('invoiceScanner.fieldSupplier')}</label>
                     <input value={proposal.supplier_name} onChange={e => p('supplier_name', e.target.value)} style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>Nr. factură</label>
+                    <label style={lbl}>{t('invoiceScanner.fieldInvoiceNr')}</label>
                     <input value={proposal.invoice_nr} onChange={e => p('invoice_nr', e.target.value)} style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>Monedă</label>
+                    <label style={lbl}>{t('invoiceScanner.fieldCurrency')}</label>
                     <select value={proposal.currency} onChange={e => p('currency', e.target.value)} style={inp}>
                       <option>EUR</option><option>RON</option><option>USD</option>
                     </select>
                   </div>
                   <div>
-                    <label style={lbl}>Dată factură</label>
+                    <label style={lbl}>{t('invoiceScanner.fieldDate')}</label>
                     <input type="date" value={proposal.invoice_date || ''} onChange={e => p('invoice_date', e.target.value || null)} style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>Scadență</label>
+                    <label style={lbl}>{t('invoiceScanner.fieldDueDate')}</label>
                     <input type="date" value={proposal.due_date || ''} onChange={e => p('due_date', e.target.value || null)} style={inp} />
                   </div>
                   <div>
-                    <label style={lbl}>TVA (%)</label>
+                    <label style={lbl}>{t('invoiceScanner.fieldVAT')}</label>
                     <input type="number" value={proposal.vat_rate} onChange={e => {
                       const vat_rate = parseFloat(e.target.value) || 0;
                       const vat_amount = proposal.subtotal * (vat_rate / 100);
@@ -290,14 +285,14 @@ export function InvoiceScannerPage() {
                   </div>
                 </div>
                 <div>
-                  <label style={lbl}>Observații</label>
+                  <label style={lbl}>{t('invoiceScanner.fieldNotes')}</label>
                   <input value={proposal.notes} onChange={e => p('notes', e.target.value)} style={inp} />
                 </div>
               </div>
 
               {/* Line items */}
               <div style={card}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>Linii factură</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>{t('invoiceScanner.lineItems')}</div>
                 <LineItemsEditor items={proposal.line_items} currency={proposal.currency} onChange={recalcTotals} />
               </div>
 
@@ -305,7 +300,7 @@ export function InvoiceScannerPage() {
               <div style={{ ...card, display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ minWidth: 280 }}>
                   {[
-                    ['Subtotal', proposal.subtotal],
+                    [t('invoiceScanner.subtotal'), proposal.subtotal],
                     [`TVA ${proposal.vat_rate}%`, proposal.vat_amount],
                   ].map(([label, val]) => (
                     <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13, color: '#64748b' }}>

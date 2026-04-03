@@ -8,7 +8,7 @@ export function PlaceholderPage({ pageKey }: { pageKey: string }) {
       <div style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
         {t(`nav.${pageKey}`)}
       </div>
-      <div style={{ fontSize: 14 }}>În curs de dezvoltare / In Entwicklung / Under development</div>
+      <div style={{ fontSize: 14 }}>{t('placeholderExtra.underDevelopment')}</div>
     </div>
   );
 }

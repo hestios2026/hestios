@@ -108,7 +108,7 @@ function EntryForm({ sites, initial, onSave, onCancel }: EntryFormProps) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={lbl}>{t('aufmass.fieldDescription')} *</label>
           <textarea required value={form.description} onChange={e => f('description', e.target.value)}
-            style={{ ...inp, height: 72, resize: 'vertical' }} placeholder="Descrierea detaliată a lucrării executate..." />
+            style={{ ...inp, height: 72, resize: 'vertical' }} placeholder={t('aufmass.descriptionPlaceholder')} />
         </div>
         <div>
           <label style={lbl}>{t('aufmass.fieldUnit')}</label>

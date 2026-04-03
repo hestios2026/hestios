@@ -28,6 +28,7 @@ const ICON_OPTIONS = ['📄','🧾','📝','✅','📐','🖼','📊','⚙️','
 const COLOR_PRESETS = ['#1d4ed8','#7c3aed','#f97316','#d97706','#0891b2','#16a34a','#dc2626','#6366f1','#ef4444','#0d9488','#64748b','#94a3b8','#e11d48','#0284c7'];
 
 function DocumentCategoriesSection() {
+  const { t } = useTranslation();
   const [cats, setCats] = useState<DocCategory[]>([]);
   const [saving, setSaving] = useState(false);
   const [newCat, setNewCat] = useState({ key: '', label: '', color: '#1d4ed8', icon: '📁' });
@@ -41,20 +42,20 @@ function DocumentCategoriesSection() {
     setSaving(true);
     try {
       await saveDocumentCategories(cats);
-      toast.success('Categorii salvate');
+      toast.success(t('settingsExtra.categoriesSaved'));
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Eroare la salvare');
+      toast.error(e?.response?.data?.detail || t('common.error'));
     } finally { setSaving(false); }
   }
 
   function handleAdd() {
     if (!newCat.key.trim() || !newCat.label.trim()) {
-      toast.error('Cheia și eticheta sunt obligatorii');
+      toast.error(t('settingsExtra.keyRequired'));
       return;
     }
     const key = newCat.key.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
     if (cats.find(c => c.key === key)) {
-      toast.error('Există deja o categorie cu această cheie');
+      toast.error(t('settingsExtra.keyExists'));
       return;
     }
     setCats(p => [...p, { ...newCat, key }]);
@@ -80,7 +81,7 @@ function DocumentCategoriesSection() {
   return (
     <div style={{ marginBottom: 28 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, paddingBottom: 6, borderBottom: '1px solid #e2e8f0' }}>
-        Categorii Documente
+        {t('settingsExtra.docCategories')}
       </div>
 
       {/* Existing categories */}
@@ -128,19 +129,19 @@ function DocumentCategoriesSection() {
         </select>
         <input type="color" value={newCat.color} onChange={e => setNewCat(p => ({ ...p, color: e.target.value }))}
           style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #d1d5db', cursor: 'pointer', padding: 1 }} />
-        <input placeholder="Etichetă (ex: Proiect)" value={newCat.label} onChange={e => setNewCat(p => ({ ...p, label: e.target.value }))}
+        <input placeholder={t('settingsExtra.labelPlaceholder')} value={newCat.label} onChange={e => setNewCat(p => ({ ...p, label: e.target.value }))}
           style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
-        <input placeholder="cheie (ex: project)" value={newCat.key} onChange={e => setNewCat(p => ({ ...p, key: e.target.value }))}
+        <input placeholder={t('settingsExtra.keyPlaceholder')} value={newCat.key} onChange={e => setNewCat(p => ({ ...p, key: e.target.value }))}
           style={{ width: 120, padding: '5px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, fontFamily: 'monospace' }} />
         <button onClick={handleAdd}
           style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          + Adaugă
+          {t('settingsExtra.addCategory')}
         </button>
       </div>
 
       {/* Color presets */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 14 }}>
-        <span style={{ fontSize: 11, color: '#94a3b8' }}>Culori rapide:</span>
+        <span style={{ fontSize: 11, color: '#94a3b8' }}>{t('settingsExtra.quickColors')}</span>
         {COLOR_PRESETS.map(col => (
           <div key={col} onClick={() => setNewCat(p => ({ ...p, color: col }))}
             style={{ width: 18, height: 18, borderRadius: '50%', background: col, cursor: 'pointer', border: newCat.color === col ? '2px solid #1e293b' : '2px solid transparent' }} />
@@ -149,7 +150,7 @@ function DocumentCategoriesSection() {
 
       <button onClick={handleSave} disabled={saving}
         style={{ padding: '8px 22px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-        {saving ? 'Se salvează...' : 'Salvează categoriile'}
+        {saving ? t('common.saving') : t('settingsExtra.saveCategories')}
       </button>
     </div>
   );
@@ -157,6 +158,7 @@ function DocumentCategoriesSection() {
 
 
 function ConnectionTypesSection() {
+  const { t } = useTranslation();
   const [types, setTypes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [newVal, setNewVal] = useState('');
@@ -166,19 +168,19 @@ function ConnectionTypesSection() {
   }, []);
 
   async function handleSave() {
-    if (!types.length) { toast.error('Lista nu poate fi goală'); return; }
+    if (!types.length) { toast.error(t('settingsExtra.listEmpty')); return; }
     setSaving(true);
     try {
       await saveConnectionTypes(types);
-      toast.success('Tipuri branșament salvate');
-    } catch { toast.error('Eroare la salvare'); }
+      toast.success(t('settingsExtra.typesSaved'));
+    } catch { toast.error(t('common.error')); }
     finally { setSaving(false); }
   }
 
   function addType() {
     const v = newVal.trim();
     if (!v) return;
-    if (types.includes(v)) { toast.error('Există deja'); return; }
+    if (types.includes(v)) { toast.error(t('settingsExtra.alreadyExists')); return; }
     setTypes(p => [...p, v]);
     setNewVal('');
   }
@@ -188,7 +190,7 @@ function ConnectionTypesSection() {
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: 24 }}>
-      <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>Tipuri branșament (Programări)</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>{t('settingsExtra.connTypes')}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
         {types.map((tp, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -210,15 +212,15 @@ function ConnectionTypesSection() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <input value={newVal} onChange={e => setNewVal(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addType())}
-          placeholder="Tip nou..." style={{ ...inp2, width: 200 }} />
+          placeholder={t('settingsExtra.typeNew')} style={{ ...inp2, width: 200 }} />
         <button onClick={addType}
           style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          + Adaugă
+          {t('settingsExtra.addType')}
         </button>
       </div>
       <button onClick={handleSave} disabled={saving}
         style={{ padding: '8px 22px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-        {saving ? 'Se salvează...' : 'Salvează tipurile'}
+        {saving ? t('common.saving') : t('settingsExtra.saveTypes')}
       </button>
     </div>
   );
@@ -270,7 +272,7 @@ export function SettingsPage() {
             </div>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={lbl}>{t('settings.companyAddress')}</label>
-              <input value={form.company_address || ''} placeholder="Stradă, număr" onChange={e => f('company_address', e.target.value)} style={inp} />
+              <input value={form.company_address || ''} placeholder={t('common.streetPlaceholder')} onChange={e => f('company_address', e.target.value)} style={inp} />
             </div>
             <div>
               <label style={lbl}>{t('settings.companyCity')}</label>

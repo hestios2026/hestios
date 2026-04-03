@@ -269,10 +269,10 @@ export function UsersPage() {
                 <label htmlFor="notif_wa" style={{ fontSize: 13, cursor: 'pointer' }}>{t('users.notifyWhatsapp')}</label>
               </div>
               <div>
-                <label style={lbl}>PIN Aplicație Mobilă</label>
+                <label style={lbl}>{t('usersExtra.mobilePinLabel')}</label>
                 <input
                   value={editForm.mobile_pin}
-                  placeholder="4 cifre (ex: 1234)"
+                  placeholder={t('usersExtra.mobilePinPlaceholder')}
                   maxLength={6}
                   onChange={e => {
                     const v = e.target.value.replace(/\D/g, '');
@@ -281,7 +281,7 @@ export function UsersPage() {
                   style={inp}
                 />
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
-                  PIN folosit de angajat în aplicația de teren. Lasă gol pentru a dezactiva accesul mobil.
+                  {t('usersExtra.mobilePinHint')}
                 </div>
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>

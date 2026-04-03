@@ -34,19 +34,19 @@ const STATUS_COLORS: Record<string, [string, string]> = {
 const COST_CATEGORIES = ['manopera','materiale','subcontractori','utilaje','combustibil','transport','alte'];
 
 const TB_LABELS: Record<string, string> = {
-  poze_inainte:     'Poze Înainte',
+  poze_inainte:     'Fotos Vorher',
   teratest:         'Teratest',
-  semne_circulatie: 'Semne Circulație',
-  liefer_scheine:   'Liefer Scheine',
-  montaj_nvt_pdp:   'Montaj NVT/PDP/MFG',
+  semne_circulatie: 'Verkehrszeichen',
+  liefer_scheine:   'Lieferscheine',
+  montaj_nvt_pdp:   'Montage NVT/PDP/MFG',
   hp_plus:          'HP+',
   ha:               'HA',
-  reparatie:        'Reparație',
-  tras_teava:       'Tras Țeavă',
-  groapa:           'Groapă',
-  traversare:       'Traversare',
-  sapatura:         'Săpătură',
-  raport_zilnic:    'Raport Zilnic',
+  reparatie:        'Reparatur',
+  tras_teava:       'Rohreinzug',
+  groapa:           'Grube',
+  traversare:       'Querung',
+  sapatura:         'Erdarbeit',
+  raport_zilnic:    'Tagesbericht',
 };
 
 function printTagesbericht(entries: any[], siteName: string) {
@@ -485,7 +485,7 @@ export function SitesPage() {
                 border: '1px solid #e2e8f0', display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap',
               }}>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Status</label>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('common.status')}</label>
                   <select value={editSiteForm.status} onChange={e => setEditSiteForm(p => ({ ...p, status: e.target.value }))}
                     style={{ ...inp, width: 160 }}>
                     <option value="active">{t('sites.status.active')}</option>
@@ -654,7 +654,7 @@ export function SitesPage() {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                   <select value={tbFilterType} onChange={e => setTbFilterType(e.target.value)}
                     style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b' }}>
-                    <option value="">Toate tipurile</option>
+                    <option value="">{t('tagesbericht.allTypes')}</option>
                     {['poze_inainte','teratest','semne_circulatie','liefer_scheine','montaj_nvt_pdp',
                       'hp_plus','ha','reparatie','tras_teava','groapa','traversare','sapatura','raport_zilnic'
                     ].map(wt => (
@@ -667,7 +667,7 @@ export function SitesPage() {
                   {(tbFilterType || tbFilterDate) && (
                     <button onClick={() => { setTbFilterType(''); setTbFilterDate(''); }}
                       style={{ padding: '7px 14px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#64748b' }}>
-                      Resetează
+                      {t('common.reset')}
                     </button>
                   )}
                   <div style={{ marginLeft: 'auto' }}>
@@ -682,7 +682,7 @@ export function SitesPage() {
                 {showPdfExport && (
                   <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 380, maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Selectează tipurile pentru PDF</div>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t('tagesbericht.selectTypesForPdf')}</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
                         {Object.keys(pdfFields).map(wt => (
                           <label key={wt} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
@@ -705,11 +705,11 @@ export function SitesPage() {
                             setShowPdfExport(false);
                           }}
                           style={{ flex: 1, padding: '9px', borderRadius: 7, border: 'none', background: '#F97316', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                          Generează PDF
+                          {t('tagesbericht.generatePdf')}
                         </button>
                         <button onClick={() => setShowPdfExport(false)}
                           style={{ padding: '9px 16px', borderRadius: 7, border: '1px solid #e2e8f0', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
-                          Anulează
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </div>
@@ -723,7 +723,7 @@ export function SitesPage() {
                     (!tbFilterDate || e.created_at?.startsWith(tbFilterDate))
                   );
                   if (!filtered.length) {
-                    return <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>Niciun raport găsit.</div>;
+                    return <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>{t('tagesbericht.noReports')}</div>;
                   }
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -764,7 +764,7 @@ export function SitesPage() {
                               {/* Photos */}
                               {entry.photos?.length > 0 && (
                                 <>
-                                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>FOTOGRAFII ({entry.photos.length})</div>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>{t('tagesbericht.photos', { count: entry.photos.length })}</div>
                                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                     {entry.photos.map((ph: any) => (
                                       <div key={ph.id} style={{ position: 'relative' }}>

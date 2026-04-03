@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { bzpApi, BzpProject, BzpRow } from '../api/bauzeitenplan';
 import client from '../api/client';
 
@@ -119,6 +120,7 @@ function GanttBar({
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export function BauzeitenplanPage() {
+  const { t } = useTranslation();
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSite, setSelectedSite] = useState<number | ''>('');
   const [projects, setProjects] = useState<BzpProject[]>([]);
@@ -169,7 +171,7 @@ export function BauzeitenplanPage() {
   };
 
   const handleCreateProject = async () => {
-    if (!selectedSite || !npName) { toast.error('Selectează șantier și introdu un nume'); return; }
+    if (!selectedSite || !npName) { toast.error(t('bauzeitenplan.selectSiteAndName')); return; }
     try {
       const p = await bzpApi.createProject({
         site_id: selectedSite as number,
@@ -177,12 +179,12 @@ export function BauzeitenplanPage() {
         baubeginn: npBaubeginn || undefined,
         bauende: npBauende || undefined,
       });
-      toast.success('Proiect creat');
+      toast.success(t('bauzeitenplan.projectCreated'));
       setShowNewProject(false);
       setNpName(''); setNpFirma(''); setNpBaubeginn(''); setNpBauende('');
       await loadProjects(selectedSite as number);
       openProject(p.id);
-    } catch { toast.error('Eroare la creare'); }
+    } catch { toast.error(t('bauzeitenplan.errorCreate')); }
   };
 
   const handleAddRow = async () => {
@@ -195,8 +197,8 @@ export function BauzeitenplanPage() {
       setActiveProject(prev => prev ? { ...prev, rows: [...(prev.rows || []), updated] } : prev);
       setShowNewRow(false);
       setRowForm({ gewerk: 'Tiefbau', hh: false, hc: false, is_group_header: false });
-      toast.success('Rând adăugat');
-    } catch { toast.error('Eroare'); }
+      toast.success(t('bauzeitenplan.rowAdded'));
+    } catch { toast.error(t('common.error')); }
   };
 
   const handleUpdateRow = async () => {
@@ -208,19 +210,19 @@ export function BauzeitenplanPage() {
         rows: prev.rows?.map(r => r.id === updated.id ? updated : r),
       } : prev);
       setEditingRow(null);
-      toast.success('Salvat');
-    } catch { toast.error('Eroare'); }
+      toast.success(t('common.success'));
+    } catch { toast.error(t('common.error')); }
   };
 
   const handleDeleteRow = async (rowId: number) => {
-    if (!confirm('Ștergi rândul?')) return;
+    if (!confirm(t('bauzeitenplan.rowDeleteConfirm'))) return;
     try {
       await bzpApi.deleteRow(rowId);
       setActiveProject(prev => prev ? {
         ...prev, rows: prev.rows?.filter(r => r.id !== rowId),
       } : prev);
-      toast.success('Șters');
-    } catch { toast.error('Eroare'); }
+      toast.success(t('bauzeitenplan.rowDeleted'));
+    } catch { toast.error(t('common.error')); }
   };
 
   const openWeeklyModal = (row: BzpRow, weekDate: string) => {
@@ -243,8 +245,8 @@ export function BauzeitenplanPage() {
         ...prev, rows: prev.rows?.map(r => r.id === updated.id ? updated : r),
       } : prev);
       setWeeklyModal(null);
-      toast.success('Salvat');
-    } catch { toast.error('Eroare'); }
+      toast.success(t('common.success'));
+    } catch { toast.error(t('common.error')); }
   };
 
   // Compute timeline span
@@ -263,19 +265,19 @@ export function BauzeitenplanPage() {
   return (
     <div style={{ padding: 24, maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', margin: 0 }}>Bauzeitenplan</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', margin: 0 }}>{t('bauzeitenplan.title')}</h2>
 
         <select
           value={selectedSite}
           onChange={e => { setSelectedSite(e.target.value ? Number(e.target.value) : ''); setActiveProject(null); }}
           style={selectStyle}
         >
-          <option value="">Șantier selectați...</option>
+          <option value="">{t('bauzeitenplan.selectSite')}</option>
           {sites.map(s => <option key={s.id} value={s.id}>{s.kostenstelle} — {s.name}</option>)}
         </select>
 
         {selectedSite && (
-          <button onClick={() => setShowNewProject(true)} style={btnOrange}>+ Proiect nou</button>
+          <button onClick={() => setShowNewProject(true)} style={btnOrange}>{t('bauzeitenplan.newProject')}</button>
         )}
       </div>
 
@@ -309,7 +311,7 @@ export function BauzeitenplanPage() {
 
       {selectedSite && projects.length === 0 && !activeProject && (
         <div style={{ color: '#94A3B8', fontSize: 14, padding: '40px 0', textAlign: 'center' }}>
-          Niciun Bauzeitenplan pentru acest șantier. Creează unul.
+          {t('bauzeitenplan.noProjects')}
         </div>
       )}
 
@@ -318,11 +320,11 @@ export function BauzeitenplanPage() {
         <div>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-            <button onClick={() => setActiveProject(null)} style={btnGhost}>‹ Înapoi</button>
+            <button onClick={() => setActiveProject(null)} style={btnGhost}>{t('bauzeitenplan.back')}</button>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1E293B' }}>{activeProject.name}</h3>
             {activeProject.firma && <span style={{ color: '#64748B', fontSize: 13 }}>{activeProject.firma}</span>}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowNewRow(true)} style={btnOrange}>+ Rând</button>
+              <button onClick={() => setShowNewRow(true)} style={btnOrange}>{t('bauzeitenplan.addRow')}</button>
               <a
                 href={`/api/bauzeitenplan/projects/${activeProject.id}/export/excel/?token=${token}`}
                 target="_blank"
@@ -352,7 +354,7 @@ export function BauzeitenplanPage() {
 
           {/* Gantt Table */}
           {loading ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Se încarcă...</div>
+            <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>{t('bauzeitenplan.loading')}</div>
           ) : (
             <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: 10 }}>
               <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: '100%' }}>
@@ -367,7 +369,7 @@ export function BauzeitenplanPage() {
                         <span style={{ fontWeight: 400, fontSize: 9 }}>{w.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>
                       </th>
                     ))}
-                    <th style={thStyle}>Aktion</th>
+                    <th style={thStyle}>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -441,11 +443,11 @@ export function BauzeitenplanPage() {
 
       {/* ── New Project Modal ── */}
       {showNewProject && (
-        <Modal title="Proiect nou" onClose={() => setShowNewProject(false)} onSave={handleCreateProject}>
-          <Field label="Nume proiect *">
+        <Modal title={t('bauzeitenplan.newProjectTitle')} onClose={() => setShowNewProject(false)} onSave={handleCreateProject}>
+          <Field label={t('bauzeitenplan.fieldProjectName')}>
             <input style={inputStyle} value={npName} onChange={e => setNpName(e.target.value)} placeholder="ex: Niederkasssel Rheidt" />
           </Field>
-          <Field label="Firma">
+          <Field label={t('bauzeitenplan.fieldFirma')}>
             <input style={inputStyle} value={npFirma} onChange={e => setNpFirma(e.target.value)} placeholder="ex: Constructel" />
           </Field>
           <div style={{ display: 'flex', gap: 12 }}>
@@ -462,7 +464,7 @@ export function BauzeitenplanPage() {
       {/* ── New/Edit Row Modal ── */}
       {(showNewRow || editingRow) && (
         <Modal
-          title={editingRow ? 'Editează rând' : 'Rând nou'}
+          title={editingRow ? t('bauzeitenplan.editRowTitle') : t('bauzeitenplan.newRowTitle')}
           onClose={() => { setShowNewRow(false); setEditingRow(null); setRowForm({ gewerk: 'Tiefbau', hh: false, hc: false, is_group_header: false }); }}
           onSave={editingRow ? handleUpdateRow : handleAddRow}
         >
@@ -470,7 +472,7 @@ export function BauzeitenplanPage() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
               <input type="checkbox" checked={rowForm.is_group_header || false}
                 onChange={e => setRowForm(f => ({ ...f, is_group_header: e.target.checked }))} />
-              Grupă (header)
+              {t('bauzeitenplan.isGroupHeader')}
             </label>
           </div>
           {!rowForm.is_group_header && (
@@ -525,7 +527,7 @@ export function BauzeitenplanPage() {
             </>
           )}
           {rowForm.is_group_header && (
-            <Field label="Denumire grupă">
+            <Field label={t('bauzeitenplan.fieldGroupName')}>
               <input style={inputStyle} value={rowForm.hk_nvt || ''} onChange={e => setRowForm(f => ({ ...f, hk_nvt: e.target.value }))} placeholder="ex: BA 1 — Trasse Nord" />
             </Field>
           )}
@@ -566,6 +568,7 @@ export function BauzeitenplanPage() {
 function Modal({ title, onClose, onSave, children }: {
   title: string; onClose: () => void; onSave: () => void; children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
@@ -578,8 +581,8 @@ function Modal({ title, onClose, onSave, children }: {
         <div style={{ fontSize: 16, fontWeight: 700, color: '#1E293B', marginBottom: 20 }}>{title}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-          <button onClick={onClose} style={btnGhost}>Anulare</button>
-          <button onClick={onSave} style={btnOrange}>Salvează</button>
+          <button onClick={onClose} style={btnGhost}>{t('bauzeitenplan.modalCancel')}</button>
+          <button onClick={onSave} style={btnOrange}>{t('bauzeitenplan.modalSave')}</button>
         </div>
       </div>
     </div>

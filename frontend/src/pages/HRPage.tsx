@@ -496,7 +496,7 @@ export function HRPage({ user }: Props) {
                       </div>
                       <div><label style={lbl}>{t('hr.dateOfBirth')} *</label><input type="date" required value={form.geburtsdatum} onChange={e => f('geburtsdatum', e.target.value)} style={inp} /></div>
                       <div><label style={lbl}>{t('hr.placeOfBirth')}</label><input value={form.geburtsort} onChange={e => f('geburtsort', e.target.value)} style={inp} /></div>
-                      <div><label style={lbl}>Nationalität</label><input value={form.nationalitaet} placeholder="ex: Română" onChange={e => f('nationalitaet', e.target.value)} style={inp} /></div>
+                      <div><label style={lbl}>Nationalität</label><input value={form.nationalitaet} onChange={e => f('nationalitaet', e.target.value)} style={inp} /></div>
                       <div>
                         <label style={lbl}>{t('hr.maritalStatus')}</label>
                         <select value={form.familienstand} onChange={e => f('familienstand', e.target.value)} style={inp}>
@@ -510,7 +510,7 @@ export function HRPage({ user }: Props) {
                       <div><label style={lbl}>Telefon (WhatsApp)</label><input value={form.telefon} placeholder="+49..." onChange={e => f('telefon', e.target.value)} style={inp} /></div>
                       <div><label style={lbl}>PLZ</label><input value={form.plz} placeholder="z.B. 73230" onChange={e => f('plz', e.target.value)} style={inp} /></div>
                       <div style={{ gridColumn: '1/-1' }}><label style={lbl}>{t('common.address')} (DE)</label><input value={form.adresse} placeholder="Straße, Nr., PLZ, Ort" onChange={e => f('adresse', e.target.value)} style={inp} /></div>
-                      <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Heimatadresse (Herkunftsland)</label><input value={form.heimatadresse} placeholder="Adresa din țara de origine" onChange={e => f('heimatadresse', e.target.value)} style={inp} /></div>
+                      <div style={{ gridColumn: '1/-1' }}><label style={lbl}>Heimatadresse (Herkunftsland)</label><input value={form.heimatadresse} placeholder={t('common.homeAddress')} onChange={e => f('heimatadresse', e.target.value)} style={inp} /></div>
 
                       {sectionHdr('Notfallkontakt')}
                       <div><label style={lbl}>Name</label><input value={form.notfallkontakt_name} onChange={e => f('notfallkontakt_name', e.target.value)} style={inp} /></div>

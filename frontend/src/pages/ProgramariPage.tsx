@@ -230,7 +230,7 @@ export function ProgramariPage() {
               </div>
               <div style={{ gridColumn: '1/-1' }}>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('common.address')} *</label>
-                <input required value={form.address} placeholder="Stradă, număr" onChange={e => f('address', e.target.value)} style={inp} />
+                <input required value={form.address} placeholder={t('common.streetPlaceholder')} onChange={e => f('address', e.target.value)} style={inp} />
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('hausanschluss.city')}</label>

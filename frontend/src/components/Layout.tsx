@@ -375,7 +375,7 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
                 <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
               </svg>
             </span>
-            <span style={{ fontSize: 9, fontWeight: 400, color: '#475569', letterSpacing: 0.3 }}>Mai mult</span>
+            <span style={{ fontSize: 9, fontWeight: 400, color: '#475569', letterSpacing: 0.3 }}>{t('dashboardExtra.showMore')}</span>
           </button>
         </div>
       )}

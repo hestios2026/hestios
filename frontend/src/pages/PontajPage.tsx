@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchEmployees } from '../api/employees';
 import { fetchPontaj, fetchTeamAssignments, setTeamAssignments } from '../api/timesheets';
 import client from '../api/client';
@@ -39,6 +40,7 @@ interface PontajEntry {
 }
 
 export function PontajPage() {
+  const { t } = useTranslation();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [mobileUsers, setMobileUsers] = useState<MobileUser[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -75,15 +77,15 @@ export function PontajPage() {
   }, [selectedLead, assignments]);
 
   const handleSaveAssignment = async () => {
-    if (!selectedLead) { toast.error('Selectează un șef de echipă'); return; }
+    if (!selectedLead) { toast.error(t('pontaj.selectTeamLeadError')); return; }
     setSavingAssign(true);
     try {
       await setTeamAssignments(selectedLead as number, selectedEmpIds);
       const updated = await fetchTeamAssignments();
       setAssignments(updated);
-      toast.success('Echipa a fost salvată');
+      toast.success(t('pontaj.teamSaved'));
     } catch {
-      toast.error('Eroare la salvare');
+      toast.error(t('pontaj.errorSave'));
     } finally {
       setSavingAssign(false);
     }
@@ -123,7 +125,7 @@ export function PontajPage() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', marginBottom: 24 }}>Pontaj Echipă</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', marginBottom: 24 }}>{t('pontaj.title')}</h2>
 
       {/* ── Team Assignment Section ── */}
       <div style={{
@@ -131,19 +133,19 @@ export function PontajPage() {
         padding: 20, marginBottom: 28,
       }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#64748B', letterSpacing: 1, marginBottom: 16, textTransform: 'uppercase' }}>
-          Asignare Echipă
+          {t('pontaj.teamAssignment')}
         </h3>
 
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* Team lead selector */}
           <div style={{ minWidth: 220 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 6 }}>ȘEF DE ECHIPĂ</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 6 }}>{t('pontaj.teamLead')}</div>
             <select
               value={selectedLead}
               onChange={e => setSelectedLead(e.target.value ? Number(e.target.value) : '')}
               style={{ width: '100%', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B', background: '#fff' }}
             >
-              <option value="">Selectează...</option>
+              <option value="">{t('pontaj.selectTeamLead')}</option>
               {mobileUsers.map(u => (
                 <option key={u.id} value={u.id}>{u.full_name}</option>
               ))}
@@ -154,7 +156,7 @@ export function PontajPage() {
           {selectedLead !== '' && (
             <div style={{ flex: 1, minWidth: 300 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 6 }}>
-                MUNCITORI ({selectedEmpIds.length} selectați)
+                {t('pontaj.workers', { count: selectedEmpIds.length })}
               </div>
               <div style={{
                 border: '1px solid #E2E8F0', borderRadius: 6, maxHeight: 200, overflowY: 'auto',
@@ -188,7 +190,7 @@ export function PontajPage() {
                   fontWeight: 600, cursor: 'pointer', opacity: savingAssign ? 0.6 : 1,
                 }}
               >
-                {savingAssign ? 'Salvare...' : 'Salvează Echipa'}
+                {savingAssign ? t('pontaj.saving') : t('pontaj.saveTeam')}
               </button>
             </div>
           )}
@@ -205,7 +207,7 @@ export function PontajPage() {
                   borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#64748B',
                 }}>
                   <span style={{ fontWeight: 600, color: '#1E293B' }}>{u.full_name}</span>
-                  {' — '}{count} muncitor{count !== 1 ? 'i' : ''}
+                  {' — '}{count !== 1 ? t('pontaj.workerCountPlural', { count }) : t('pontaj.workerCount', { count })}
                 </div>
               );
             })}
@@ -217,30 +219,30 @@ export function PontajPage() {
       <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 10, padding: 20 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>DE LA</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>{t('pontaj.dateFrom')}</div>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
               style={{ padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B' }} />
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>PÂNĂ LA</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>{t('pontaj.dateTo')}</div>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
               style={{ padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B' }} />
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>ȘEF ECHIPĂ</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>{t('pontaj.teamLeadFilter')}</div>
             <select value={filterLead} onChange={e => setFilterLead(e.target.value ? Number(e.target.value) : '')}
               style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B', background: '#fff' }}>
-              <option value="">Toți</option>
+              <option value="">{t('pontaj.allLeads')}</option>
               {mobileUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
           </div>
         </div>
 
         {loadingPontaj ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>Se încarcă...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>{t('common.loading')}</div>
         ) : sortedDates.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#94A3B8', fontSize: 14 }}>
-            Niciun pontaj în perioada selectată.
+            {t('pontaj.noEntries')}
           </div>
         ) : (
           sortedDates.map(d => (
@@ -250,17 +252,19 @@ export function PontajPage() {
                 padding: '8px 12px', background: '#F8FAFC',
                 borderRadius: 6, marginBottom: 2, borderLeft: '3px solid #F97316',
               }}>
-                {formatDate(d)} — {byDate[d].length} muncitor{byDate[d].length !== 1 ? 'i' : ''}
+                {byDate[d].length !== 1
+                  ? t('pontaj.dateWorkersPlural', { date: formatDate(d), count: byDate[d].length })
+                  : t('pontaj.dateWorkers', { date: formatDate(d), count: byDate[d].length })}
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#F1F5F9' }}>
-                    <th style={th}>MUNCITOR</th>
-                    <th style={th}>STATUS</th>
-                    <th style={th}>START</th>
-                    <th style={th}>STOP</th>
-                    <th style={th}>ORE</th>
-                    <th style={th}>MOTIV ABSENȚĂ</th>
+                    <th style={th}>{t('pontaj.colWorker')}</th>
+                    <th style={th}>{t('pontaj.colStatus')}</th>
+                    <th style={th}>{t('pontaj.colStart')}</th>
+                    <th style={th}>{t('pontaj.colStop')}</th>
+                    <th style={th}>{t('pontaj.colHours')}</th>
+                    <th style={th}>{t('pontaj.colAbsenceReason')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,7 +278,7 @@ export function PontajPage() {
                           background: e.entry_type === 'work' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)',
                           color: e.entry_type === 'work' ? '#16a34a' : '#ef4444',
                         }}>
-                          {e.entry_type === 'work' ? 'Prezent' : 'Absent'}
+                          {e.entry_type === 'work' ? t('pontaj.present') : t('pontaj.absent')}
                         </span>
                       </td>
                       <td style={td}>{e.ora_start ?? '—'}</td>

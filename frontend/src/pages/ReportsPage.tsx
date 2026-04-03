@@ -271,7 +271,7 @@ function ProgramariTab({ sites }: { sites: Site[] }) {
   // Group by date
   const grouped: Record<string, any[]> = {};
   data.forEach(p => {
-    const d = p.scheduled_date ? p.scheduled_date.slice(0, 10) : 'fără dată';
+    const d = p.scheduled_date ? p.scheduled_date.slice(0, 10) : t('common.noDate');
     if (!grouped[d]) grouped[d] = [];
     grouped[d].push(p);
   });
