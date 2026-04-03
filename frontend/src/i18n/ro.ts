@@ -71,6 +71,7 @@ export default {
     hausanschluss: 'Programări',
     tagesbericht: 'Tagesbericht',
     pontaj: 'Pontaj',
+    bauzeitenplan: 'Bauzeitenplan',
     users: 'Utilizatori',
     settings: 'Setări',
     logout: 'Deconectare',

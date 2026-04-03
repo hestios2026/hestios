@@ -20,6 +20,7 @@ import { TagesberichtPage } from './pages/TagesberichtPage';
 import { PontajPage } from './pages/PontajPage';
 import { LVCatalogPage } from './pages/LVCatalogPage';
 import { InvoiceScannerPage } from './pages/InvoiceScannerPage';
+import { BauzeitenplanPage } from './pages/BauzeitenplanPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import type { User } from './types';
 
@@ -51,6 +52,7 @@ export default function App() {
       case 'tagesbericht':  return <TagesberichtPage userRole={user!.role} />;
       case 'pontaj':        return <PontajPage />;
       case 'lv':            return <LVCatalogPage />;
+      case 'bauzeitenplan': return <BauzeitenplanPage />;
       case 'hausanschluss': return <ProgramariPage />;
       case 'users':         return <UsersPage />;
       case 'settings':      return <SettingsPage />;

@@ -10,6 +10,7 @@ from app.api import folders
 from app.api import invoices
 from app.api import situatii
 from app.api import tagesbericht
+from app.api import bauzeitenplan
 
 
 def _run_migrations():
@@ -109,6 +110,43 @@ def _run_migrations():
         "ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS ora_start VARCHAR(5)",
         "ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS ora_stop VARCHAR(5)",
         "ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS team_lead_id INTEGER REFERENCES users(id)",
+        # Bauzeitenplan
+        "CREATE TABLE IF NOT EXISTS bzp_projects ("
+        "  id SERIAL PRIMARY KEY,"
+        "  site_id INTEGER REFERENCES sites(id) NOT NULL,"
+        "  name VARCHAR(300) NOT NULL,"
+        "  firma VARCHAR(200),"
+        "  baubeginn DATE,"
+        "  bauende DATE,"
+        "  created_at TIMESTAMPTZ DEFAULT NOW(),"
+        "  updated_at TIMESTAMPTZ"
+        ")",
+        "CREATE TABLE IF NOT EXISTS bzp_rows ("
+        "  id SERIAL PRIMARY KEY,"
+        "  project_id INTEGER REFERENCES bzp_projects(id) ON DELETE CASCADE NOT NULL,"
+        "  vorhaben_nr VARCHAR(50),"
+        "  hk_nvt VARCHAR(100),"
+        "  gewerk VARCHAR(50),"
+        "  hh BOOLEAN DEFAULT FALSE,"
+        "  hc BOOLEAN DEFAULT FALSE,"
+        "  tb_soll_m FLOAT,"
+        "  date_start DATE,"
+        "  date_end DATE,"
+        "  tb_ist_m FLOAT DEFAULT 0,"
+        "  ha_gebaut INTEGER DEFAULT 0,"
+        "  verzug_kw INTEGER DEFAULT 0,"
+        "  bemerkung TEXT,"
+        "  sort_order INTEGER DEFAULT 0,"
+        "  is_group_header BOOLEAN DEFAULT FALSE,"
+        "  color VARCHAR(20)"
+        ")",
+        "CREATE TABLE IF NOT EXISTS bzp_weekly ("
+        "  id SERIAL PRIMARY KEY,"
+        "  row_id INTEGER REFERENCES bzp_rows(id) ON DELETE CASCADE NOT NULL,"
+        "  week_date DATE NOT NULL,"
+        "  meters FLOAT DEFAULT 0,"
+        "  note VARCHAR(200)"
+        ")",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -177,7 +215,8 @@ app.include_router(timesheets.router,    prefix="/api")
 app.include_router(contracts.router,     prefix="/api")
 app.include_router(lv.router,            prefix="/api")
 app.include_router(situatii.router,      prefix="/api")
-app.include_router(tagesbericht.router,  prefix="/api")
+app.include_router(tagesbericht.router,    prefix="/api")
+app.include_router(bauzeitenplan.router,  prefix="/api")
 
 
 @app.get("/")
