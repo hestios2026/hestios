@@ -571,7 +571,7 @@ function Modal({ title, onClose, onSave, children }: {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
       zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
     }} onClick={onClose}>
-      <div style={{
+      <div data-modal style={{
         background: '#fff', borderRadius: 12, padding: 24, width: 520, maxWidth: '95vw',
         boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
       }} onClick={e => e.stopPropagation()}>

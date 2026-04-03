@@ -72,6 +72,9 @@ function useIsTablet() {
   return isTablet;
 }
 
+// Bottom nav items — 5 most important for mobile
+const BOTTOM_NAV_KEYS = ['dashboard', 'sites', 'tagesbericht', 'pontaj', 'hausanschluss'];
+
 export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
   const { t, i18n } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
@@ -320,10 +323,62 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
         </div>
 
         {/* Page content */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div style={{ flex: 1, overflow: 'auto', paddingBottom: isMobile ? 64 : 0 }}>
           {children}
         </div>
       </div>
+
+      {/* ── Mobile bottom navigation bar ── */}
+      {isMobile && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 900,
+          background: '#0F172A', borderTop: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', height: 60,
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.25)',
+        }}>
+          {BOTTOM_NAV_KEYS.filter(k => visibleNav.some(n => n.key === k)).map(key => {
+            const active = page === key;
+            const IconComp = icons[key] ?? icons.settings;
+            return (
+              <button
+                key={key}
+                onClick={() => navigate(key)}
+                style={{
+                  flex: 1, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 3,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  borderTop: active ? '2px solid #F97316' : '2px solid transparent',
+                  paddingTop: 2,
+                }}
+              >
+                <span style={{ width: 20, height: 20, color: active ? '#F97316' : '#475569' }}>
+                  <IconComp />
+                </span>
+                <span style={{ fontSize: 9, fontWeight: active ? 700 : 400, color: active ? '#F97316' : '#475569', letterSpacing: 0.3 }}>
+                  {t(`nav.${key}`).slice(0, 10)}
+                </span>
+              </button>
+            );
+          })}
+          {/* "More" button → opens drawer */}
+          <button
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 3,
+              background: 'none', border: 'none', cursor: 'pointer',
+              borderTop: '2px solid transparent',
+            }}
+          >
+            <span style={{ width: 20, height: 20, color: '#475569' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
+                <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+              </svg>
+            </span>
+            <span style={{ fontSize: 9, fontWeight: 400, color: '#475569', letterSpacing: 0.3 }}>Mai mult</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

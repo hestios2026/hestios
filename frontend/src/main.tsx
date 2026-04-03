@@ -99,6 +99,41 @@ style.textContent = `
     button { min-height: 36px; }
     input, select, textarea { font-size: 16px !important; } /* prevents iOS zoom */
   }
+
+  /* ── Tables always scroll on mobile ── */
+  @media (max-width: 767px) {
+    table { min-width: 480px; }
+    /* Auto-wrap any table that doesn't already have an overflow parent */
+    table:not([data-no-wrap]) {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      max-width: 100%;
+    }
+  }
+
+  /* ── Modal responsive — full width on mobile ── */
+  @media (max-width: 767px) {
+    [data-modal] {
+      width: 95vw !important;
+      max-height: 88vh !important;
+      overflow-y: auto !important;
+    }
+  }
+
+  /* ── Utility: mobile card stacking ── */
+  .mobile-stack { display: flex; gap: 16px; flex-wrap: wrap; }
+  .mobile-stack > * { flex: 1 1 260px; }
+
+  /* ── Reduce padding on mobile globally ── */
+  @media (max-width: 767px) {
+    .page-inner { padding: 14px !important; }
+  }
+
+  /* ── Safe area for iOS home indicator ── */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .ios-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  }
 `;
 document.head.appendChild(style);
 
