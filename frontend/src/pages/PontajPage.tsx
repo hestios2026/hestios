@@ -61,7 +61,7 @@ export function PontajPage() {
 
   // Load employees + mobile users on mount
   useEffect(() => {
-    fetchEmployees({ active_only: true }).then((data: Employee[]) => setEmployees(data.filter(e => e.is_active)));
+    fetchEmployees().then((data: Employee[]) => setEmployees(data.filter(e => e.is_active)));
     client.get('/users/').then(r => {
       const users: MobileUser[] = r.data.filter((u: MobileUser) => u.mobile_pin);
       setMobileUsers(users);
