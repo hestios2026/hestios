@@ -16,8 +16,16 @@ from app.api import bauzeitenplan
 def _run_migrations():
     """Idempotent schema migrations — runs at startup."""
     import logging
-    from app.core.database import engine
+    from app.core.database import engine, Base
     from sqlalchemy import text
+    # import all models so Base knows about them
+    import app.models.user, app.models.site, app.models.cost, app.models.equipment
+    import app.models.employee, app.models.hausanschluss, app.models.supplier
+    import app.models.aufmass, app.models.facturare, app.models.document
+    import app.models.notification, app.models.setting, app.models.lv
+    import app.models.daily_report, app.models.timesheet, app.models.folder
+    import app.models.tagesbericht, app.models.bauzeitenplan
+    Base.metadata.create_all(bind=engine)
     logger = logging.getLogger(__name__)
     migrations = [
         # Folder support
