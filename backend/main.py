@@ -25,8 +25,11 @@ def _run_migrations():
     import app.models.notification, app.models.setting, app.models.lv
     import app.models.daily_report, app.models.timesheet, app.models.folder
     import app.models.tagesbericht, app.models.bauzeitenplan
-    Base.metadata.create_all(bind=engine)
     logger = logging.getLogger(__name__)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logger.warning(f"create_all skipped: {e}")
     migrations = [
         # Folder support
         "CREATE TABLE IF NOT EXISTS folders ("
