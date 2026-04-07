@@ -156,13 +156,13 @@ def _run_migrations():
         "  note VARCHAR(200)"
         ")",
     ]
-    with engine.connect() as conn:
-        for sql in migrations:
-            try:
+    for sql in migrations:
+        try:
+            with engine.connect() as conn:
                 conn.execute(text(sql))
-            except Exception as e:
-                logger.warning(f"Migration skipped: {e}")
-        conn.commit()
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"Migration skipped: {e}")
     logger.info("Migrations applied")
 
 
