@@ -262,9 +262,8 @@ def _office_file_token(doc_id: int) -> str:
 @router.get("/{doc_id}/office-file/")
 def office_file_serve(doc_id: int, sig: str, db: Session = Depends(get_db)):
     """Serve document bytes to OnlyOffice — authenticated via HMAC token, no user auth needed."""
+    import hmac as _hmac, hashlib, time, urllib.parse
     expected = _office_file_token(doc_id)
-    # Also accept previous 2h window
-    import hmac as _hmac, hashlib, time
     secret = os.environ.get("SECRET_KEY", "dev_secret")
     ts_prev = str(int(time.time()) // 7200 - 1)
     expected_prev = _hmac.new(secret.encode(), f"{doc_id}:{ts_prev}".encode(), hashlib.sha256).hexdigest()
@@ -277,10 +276,11 @@ def office_file_serve(doc_id: int, sig: str, db: Session = Depends(get_db)):
         data = get_file_content(d.file_key)
     except Exception:
         raise HTTPException(500, "Eroare la citirea fișierului")
+    safe_name = urllib.parse.quote(d.name, safe='')
     return Response(
         content=data,
         media_type=d.content_type,
-        headers={"Content-Disposition": f'inline; filename="{d.name}"'},
+        headers={"Content-Disposition": f"inline; filename*=UTF-8''{safe_name}"},
     )
 
 
