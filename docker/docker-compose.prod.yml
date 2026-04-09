@@ -6,6 +6,7 @@ services:
     image: postgres:16-alpine
     container_name: hestios-db
     restart: unless-stopped
+    env_file: ../.env.prod
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -24,10 +25,11 @@ services:
     image: minio/minio:latest
     container_name: hestios-minio
     restart: unless-stopped
+    env_file: ../.env.prod
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-      MINIO_SERVER_URL: http://${DOMAIN}:9000
+      MINIO_SERVER_URL: http://erp.hesti-rossmann.de:9000
     ports:
       - "9000:9000"   # S3 API — presigned URLs point here
       - "9001:9001"   # MinIO console (close after setup)
