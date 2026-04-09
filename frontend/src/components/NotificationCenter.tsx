@@ -77,8 +77,9 @@ export function NotificationCenter({ onNavigate }: Props) {
         onClick={openPanel}
         style={{
           position: 'relative', background: 'none', border: 'none',
-          cursor: 'pointer', fontSize: 20, padding: '4px 8px',
-          borderRadius: 8, color: open ? '#22C55E' : '#64748b',
+          cursor: 'pointer', fontSize: 18, padding: '4px 8px',
+          borderRadius: 8, color: open ? '#22C55E' : 'rgba(255,255,255,0.35)',
+          transition: 'color 150ms ease',
         }}
         title={t('notifications.tooltip')}
       >
@@ -108,24 +109,26 @@ export function NotificationCenter({ onNavigate }: Props) {
       {/* Dropdown */}
       {open && (
         <div style={{
-          position: 'absolute', right: 0, top: 42, width: 360,
+          position: 'absolute', right: 0, top: 44, width: 360,
           maxHeight: 480, zIndex: 100,
-          background: '#fff', borderRadius: 12,
-          boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
           overflow: 'hidden', display: 'flex', flexDirection: 'column',
         }}>
           {/* Header */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '12px 16px', borderBottom: '1px solid #e2e8f0', flexShrink: 0,
+            padding: '11px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0,
           }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: '#0f172a' }}>
+            <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
               {unreadCount > 0 ? t('notifications.titleWithCount', { count: unreadCount }) : t('notifications.title')}
             </span>
             {unreadCount > 0 && (
               <button onClick={markAll} style={{
-                background: 'none', border: 'none', color: '#64748b',
-                fontSize: 12, cursor: 'pointer',
+                background: 'none', border: 'none', color: 'var(--text-2)',
+                fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-body)',
               }}>
                 {t('notifications.markAllRead')}
               </button>
@@ -135,44 +138,47 @@ export function NotificationCenter({ onNavigate }: Props) {
           {/* List */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {notifs.length === 0 && (
-              <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
                 {t('notifications.noNotifications')}
               </div>
             )}
             {notifs.map(n => {
-              const style = NOTIF_STYLE[n.type] || { icon: '📌', color: '#64748b', bg: '#f8fafc' };
+              const style = NOTIF_STYLE[n.type] || { icon: '📌', color: '#64748b', bg: 'var(--surface-3)' };
               return (
                 <div
                   key={n.id}
                   onClick={() => handleClick(n)}
                   style={{
-                    display: 'flex', gap: 12, padding: '12px 16px',
-                    background: n.is_read ? '#fff' : style.bg,
-                    borderLeft: `3px solid ${n.is_read ? 'transparent' : style.color}`,
-                    borderBottom: '1px solid #f8fafc',
+                    display: 'flex', gap: 12, padding: '11px 14px',
+                    background: n.is_read ? 'transparent' : 'rgba(255,255,255,0.02)',
+                    borderLeft: `2px solid ${n.is_read ? 'transparent' : style.color}`,
+                    borderBottom: '1px solid var(--border-light)',
                     cursor: n.target_page ? 'pointer' : 'default',
-                    transition: 'background 0.1s',
+                    transition: 'background 120ms ease',
                   }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = n.is_read ? 'transparent' : 'rgba(255,255,255,0.02)')}
                 >
-                  <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.2 }}>{style.icon}</span>
+                  <span style={{ fontSize: 17, flexShrink: 0, lineHeight: 1.2 }}>{style.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      fontSize: 13, fontWeight: n.is_read ? 500 : 700,
-                      color: '#1e293b', lineHeight: 1.3,
+                      fontSize: 12.5, fontWeight: n.is_read ? 500 : 700,
+                      color: 'var(--text)', lineHeight: 1.3,
                     }}>
                       {n.title}
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>
                       {n.body}
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
                       {relativeTime(n.sent_at)}
                     </div>
                   </div>
                   {!n.is_read && (
                     <div style={{
-                      width: 8, height: 8, borderRadius: 4,
-                      background: '#22C55E', flexShrink: 0, marginTop: 4,
+                      width: 7, height: 7, borderRadius: 4,
+                      background: '#22C55E', flexShrink: 0, marginTop: 5,
+                      boxShadow: '0 0 6px rgba(34,197,94,0.5)',
                     }} />
                   )}
                 </div>

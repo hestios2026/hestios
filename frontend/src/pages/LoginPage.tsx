@@ -28,88 +28,122 @@ export function LoginPage({ onLogin }: Props) {
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '11px 14px', borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.09)',
-    background: '#1C2A3D', color: '#E2E8F0',
-    fontSize: 14, outline: 'none', boxSizing: 'border-box',
-    fontFamily: "'Figtree', system-ui, sans-serif",
-    transition: 'border-color 180ms ease',
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0B1120',
+      background: '#070B11',
       display: 'flex',
-      fontFamily: "'Figtree', system-ui, sans-serif",
+      fontFamily: 'var(--font-body)',
+      position: 'relative',
+      overflow: 'hidden',
     }}>
 
-      {/* ── Left brand panel (desktop only) ── */}
+      {/* Background grid pattern */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: `
+          linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '48px 48px',
+        maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)',
+      }} />
+
+      {/* Glow orbs */}
+      <div style={{
+        position: 'absolute', bottom: -200, left: -100,
+        width: 600, height: 600, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(34,197,94,0.07) 0%, transparent 65%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', top: -100, right: -100,
+        width: 500, height: 500, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 65%)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* ── Left brand panel ── */}
       <div className="hide-mobile" style={{
-        width: 400, flexShrink: 0,
-        background: '#0E1729',
+        width: 420, flexShrink: 0,
         borderRight: '1px solid rgba(255,255,255,0.05)',
         display: 'flex', flexDirection: 'column',
-        padding: '48px 44px',
-        position: 'relative', overflow: 'hidden',
+        padding: '52px 48px',
+        position: 'relative',
+        justifyContent: 'space-between',
       }}>
-        {/* Decorative radial glows */}
-        <div style={{
-          position: 'absolute', bottom: -100, right: -100,
-          width: 360, height: 360, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(232,93,4,0.11) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', top: 80, left: -60,
-          width: 240, height: 240, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(26,86,219,0.08) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-        {/* Horizontal accent line */}
-        <div style={{
-          position: 'absolute', top: 0, left: 44, right: 44,
-          height: 2, background: 'linear-gradient(90deg, #22C55E 0%, transparent 100%)',
-        }} />
 
-        {/* Logo */}
-        <div style={{ zIndex: 1, marginBottom: 'auto' }}>
-          <img
-            src="https://hesti-rossmann.de/wp-content/uploads/2026/01/hesti-logo.png"
-            alt="Hesti Rossmann"
-            style={{ height: 40, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
+        {/* Top: Logo */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 11,
+              background: '#22C55E',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 24px rgba(34,197,94,0.35)',
+              flexShrink: 0,
+            }}>
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{
+                color: '#E8EDF5', fontWeight: 800, fontSize: 18,
+                letterSpacing: '-0.03em', lineHeight: 1,
+              }}>HestiOS</div>
+              <div style={{
+                color: 'rgba(255,255,255,0.2)', fontSize: 10,
+                fontWeight: 500, marginTop: 3,
+                letterSpacing: '0.06em', textTransform: 'uppercase',
+              }}>Management System</div>
+            </div>
+          </div>
+
+          {/* Stats preview */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {[
+              { label: 'Șantiere active', value: '—', color: '#22C55E' },
+              { label: 'Utilaje urmărite', value: '—', color: '#3B82F6' },
+              { label: 'Angajați activi', value: '—', color: '#8B5CF6' },
+            ].map((item, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '12px 0',
+                borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+              }}>
+                <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>
+                  {item.label}
+                </span>
+                <span style={{
+                  fontSize: 14, fontWeight: 800, color: item.color,
+                  fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em',
+                }}>{item.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Bottom copy */}
-        <div style={{ zIndex: 1 }}>
+        {/* Bottom: Company info */}
+        <div>
           <div style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
-            color: '#22C55E', textTransform: 'uppercase', marginBottom: 16,
+            fontSize: 12, color: 'rgba(255,255,255,0.15)',
+            lineHeight: 1.8,
           }}>
-            Management System
-          </div>
-          <div style={{
-            fontSize: 30, fontWeight: 800, color: '#F1F5F9',
-            lineHeight: 1.25, marginBottom: 16,
-          }}>
-            Hesti Rossmann<br />
-            <span style={{ color: '#22C55E' }}>GmbH</span>
-          </div>
-          <div style={{ fontSize: 13, color: '#4B5A6E', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 600, color: 'rgba(255,255,255,0.25)', marginBottom: 4 }}>
+              Hesti Rossmann GmbH
+            </div>
             Kirchheim unter Teck<br />
             Tiefbau · Glasfasernetze<br />
             FTTH / FTTB
           </div>
-
           <div style={{
-            marginTop: 40, paddingTop: 24,
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            fontSize: 11, color: '#2C3A4E',
+            marginTop: 20,
+            fontSize: 10, color: 'rgba(255,255,255,0.08)',
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.05em',
           }}>
-            HestiOS v1.0 · Alle Rechte vorbehalten
+            HESTIÖS v1.0 · ALLE RECHTE VORBEHALTEN
           </div>
         </div>
       </div>
@@ -119,47 +153,60 @@ export function LoginPage({ onLogin }: Props) {
         flex: 1,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '40px 24px',
+        position: 'relative',
       }}>
-        <div style={{ width: '100%', maxWidth: 380 }}>
+        <div style={{ width: '100%', maxWidth: 360 }}>
 
-          {/* Mobile logo (shown only on mobile) */}
-          <div className="hide-tablet" style={{ textAlign: 'center', marginBottom: 32 }}>
-            <img
-              src="https://hesti-rossmann.de/wp-content/uploads/2026/01/hesti-logo.png"
-              alt="Hesti Rossmann"
-              style={{ height: 36, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.85 }}
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
+          {/* Mobile logo */}
+          <div className="hide-tablet" style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            marginBottom: 36, justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 9,
+              background: '#22C55E',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 20px rgba(34,197,94,0.3)',
+            }}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.3} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>
+              </svg>
+            </div>
+            <span style={{ color: '#E8EDF5', fontWeight: 800, fontSize: 17, letterSpacing: '-0.025em' }}>HestiOS</span>
           </div>
 
           {/* Heading */}
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: '#F1F5F9', marginBottom: 8, letterSpacing: '-0.02em' }}>
+          <div style={{ marginBottom: 28 }}>
+            <h1 style={{
+              fontSize: 24, fontWeight: 800, color: '#E8EDF5',
+              margin: '0 0 8px', letterSpacing: '-0.03em', lineHeight: 1.1,
+            }}>
               Bun venit
-            </div>
-            <div style={{ fontSize: 14, color: '#4B5A6E' }}>
+            </h1>
+            <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.3)', margin: 0, fontWeight: 400 }}>
               Autentifică-te pentru a continua
-            </div>
+            </p>
           </div>
 
           {/* Language switcher */}
           <div style={{
-            display: 'flex', gap: 3, marginBottom: 28,
-            background: '#141D2E', borderRadius: 9, padding: 3,
-            border: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex', gap: 2, marginBottom: 24,
+            background: 'rgba(255,255,255,0.04)',
+            borderRadius: 8, padding: 3,
+            border: '1px solid rgba(255,255,255,0.07)',
           }}>
             {(['ro','de','en'] as const).map(lng => (
               <button
                 key={lng}
                 onClick={() => { i18n.changeLanguage(lng); localStorage.setItem('hestios_lang', lng); }}
                 style={{
-                  flex: 1, padding: '7px 0', borderRadius: 6, border: 'none',
+                  flex: 1, padding: '6.5px 0', borderRadius: 5, border: 'none',
                   background: i18n.language === lng ? '#22C55E' : 'transparent',
-                  color: i18n.language === lng ? '#fff' : '#4B5A6E',
-                  fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                  transition: 'background 180ms ease, color 180ms ease',
-                  fontFamily: "'Figtree', system-ui, sans-serif",
-                  letterSpacing: '0.04em',
+                  color: i18n.language === lng ? '#fff' : 'rgba(255,255,255,0.28)',
+                  fontWeight: 700, fontSize: 11, cursor: 'pointer',
+                  transition: 'all 150ms ease',
+                  fontFamily: 'var(--font-body)',
+                  letterSpacing: '0.06em',
                 }}
               >{lng.toUpperCase()}</button>
             ))}
@@ -167,71 +214,102 @@ export function LoginPage({ onLogin }: Props) {
 
           <form onSubmit={handleSubmit}>
             {/* Email */}
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 14 }}>
               <label style={{
-                display: 'block', fontSize: 11, fontWeight: 700,
-                color: '#8B9AB3', marginBottom: 7,
-                textTransform: 'uppercase', letterSpacing: '0.07em',
+                display: 'block', fontSize: 10, fontWeight: 700,
+                color: 'rgba(255,255,255,0.3)', marginBottom: 7,
+                textTransform: 'uppercase', letterSpacing: '0.09em',
               }}>
                 {t('auth.email')}
               </label>
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
                 required autoFocus
-                style={inputStyle}
-                onFocus={e => e.target.style.borderColor = '#22C55E'}
-                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.09)'}
                 placeholder="name@hesti-rossmann.de"
+                style={{
+                  width: '100%', padding: '10px 13px', borderRadius: 7,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.04)', color: '#E8EDF5',
+                  fontSize: 13.5, outline: 'none', boxSizing: 'border-box' as const,
+                  fontFamily: 'var(--font-body)',
+                  transition: 'border-color 150ms ease, background 150ms ease',
+                }}
+                onFocus={e => {
+                  e.target.style.borderColor = 'rgba(34,197,94,0.5)';
+                  e.target.style.background = 'rgba(34,197,94,0.04)';
+                }}
+                onBlur={e => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.target.style.background = 'rgba(255,255,255,0.04)';
+                }}
               />
             </div>
 
             {/* Password */}
-            <div style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 22 }}>
               <label style={{
-                display: 'block', fontSize: 11, fontWeight: 700,
-                color: '#8B9AB3', marginBottom: 7,
-                textTransform: 'uppercase', letterSpacing: '0.07em',
+                display: 'block', fontSize: 10, fontWeight: 700,
+                color: 'rgba(255,255,255,0.3)', marginBottom: 7,
+                textTransform: 'uppercase', letterSpacing: '0.09em',
               }}>
                 {t('auth.password')}
               </label>
               <input
                 type="password" value={password} onChange={e => setPassword(e.target.value)}
                 required
-                style={inputStyle}
-                onFocus={e => e.target.style.borderColor = '#22C55E'}
-                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.09)'}
                 placeholder="••••••••"
+                style={{
+                  width: '100%', padding: '10px 13px', borderRadius: 7,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.04)', color: '#E8EDF5',
+                  fontSize: 13.5, outline: 'none', boxSizing: 'border-box' as const,
+                  fontFamily: 'var(--font-body)',
+                  transition: 'border-color 150ms ease, background 150ms ease',
+                }}
+                onFocus={e => {
+                  e.target.style.borderColor = 'rgba(34,197,94,0.5)';
+                  e.target.style.background = 'rgba(34,197,94,0.04)';
+                }}
+                onBlur={e => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.target.style.background = 'rgba(255,255,255,0.04)';
+                }}
               />
             </div>
 
             {error && (
               <div style={{
-                background: 'rgba(180,35,24,0.12)', border: '1px solid rgba(180,35,24,0.25)',
-                borderRadius: 8, padding: '10px 14px', color: '#FDA29B',
-                fontSize: 13, marginBottom: 16,
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                borderRadius: 7, padding: '9px 13px', color: '#FCA5A5',
+                fontSize: 12.5, marginBottom: 14, lineHeight: 1.5,
               }}>{error}</div>
             )}
 
             <button
               type="submit" disabled={loading}
               style={{
-                width: '100%', padding: '13px', borderRadius: 8, border: 'none',
+                width: '100%', padding: '12px', borderRadius: 8, border: 'none',
                 background: loading ? '#15803D' : '#22C55E',
-                color: '#fff', fontSize: 15, fontWeight: 700,
+                color: '#fff', fontSize: 14, fontWeight: 700,
                 cursor: loading ? 'default' : 'pointer',
-                transition: 'background 180ms ease',
-                fontFamily: "'Figtree', system-ui, sans-serif",
+                transition: 'all 150ms ease',
+                fontFamily: 'var(--font-body)',
                 letterSpacing: '-0.01em',
+                boxShadow: loading ? 'none' : '0 0 20px rgba(34,197,94,0.25)',
               }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#16A34A'; }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#22C55E'; }}
+              onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = '#16A34A'; e.currentTarget.style.boxShadow = '0 0 28px rgba(34,197,94,0.35)'; } }}
+              onMouseLeave={e => { if (!loading) { e.currentTarget.style.background = '#22C55E'; e.currentTarget.style.boxShadow = '0 0 20px rgba(34,197,94,0.25)'; } }}
             >
               {loading ? t('common.loading') : t('auth.loginBtn')}
             </button>
           </form>
 
-          <div style={{ marginTop: 28, fontSize: 12, color: '#2C3A4E', textAlign: 'center' }}>
-            HestiOS · Hesti Rossmann GmbH
+          <div style={{
+            marginTop: 28, fontSize: 11, color: 'rgba(255,255,255,0.1)',
+            textAlign: 'center', fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.04em',
+          }}>
+            HESTIÖS · HESTI ROSSMANN GMBH
           </div>
         </div>
       </div>
