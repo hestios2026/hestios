@@ -12,7 +12,7 @@ const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 28 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, paddingBottom: 6, borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#22C55E', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, paddingBottom: 6, borderBottom: '1px solid #e2e8f0' }}>
         {title}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -25,13 +25,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // ─── Document Categories Section ──────────────────────────────────────────────
 
 const ICON_OPTIONS = ['📄','🧾','📝','✅','📐','🖼','📊','⚙️','🦺','🏆','✉️','📁','🗂','📋','📌','🔖','💼','🏗','📦','🔧','🔑','📜'];
-const COLOR_PRESETS = ['#1d4ed8','#7c3aed','#f97316','#d97706','#0891b2','#16a34a','#dc2626','#6366f1','#ef4444','#0d9488','#64748b','#94a3b8','#e11d48','#0284c7'];
+const COLOR_PRESETS = ['#22C55E','#7c3aed','#f97316','#d97706','#0891b2','#16a34a','#dc2626','#6366f1','#ef4444','#0d9488','#64748b','#94a3b8','#e11d48','#0284c7'];
 
 function DocumentCategoriesSection() {
   const { t } = useTranslation();
   const [cats, setCats] = useState<DocCategory[]>([]);
   const [saving, setSaving] = useState(false);
-  const [newCat, setNewCat] = useState({ key: '', label: '', color: '#1d4ed8', icon: '📁' });
+  const [newCat, setNewCat] = useState({ key: '', label: '', color: '#22C55E', icon: '📁' });
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ function DocumentCategoriesSection() {
       return;
     }
     setCats(p => [...p, { ...newCat, key }]);
-    setNewCat({ key: '', label: '', color: '#1d4ed8', icon: '📁' });
+    setNewCat({ key: '', label: '', color: '#22C55E', icon: '📁' });
   }
 
   function handleDelete(idx: number) {
@@ -80,7 +80,7 @@ function DocumentCategoriesSection() {
 
   return (
     <div style={{ marginBottom: 28 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, paddingBottom: 6, borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#22C55E', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14, paddingBottom: 6, borderBottom: '1px solid #e2e8f0' }}>
         {t('settingsExtra.docCategories')}
       </div>
 
@@ -134,7 +134,7 @@ function DocumentCategoriesSection() {
         <input placeholder={t('settingsExtra.keyPlaceholder')} value={newCat.key} onChange={e => setNewCat(p => ({ ...p, key: e.target.value }))}
           style={{ width: 120, padding: '5px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, fontFamily: 'monospace' }} />
         <button onClick={handleAdd}
-          style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
           {t('settingsExtra.addCategory')}
         </button>
       </div>
@@ -149,7 +149,7 @@ function DocumentCategoriesSection() {
       </div>
 
       <button onClick={handleSave} disabled={saving}
-        style={{ padding: '8px 22px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+        style={{ padding: '8px 22px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
         {saving ? t('common.saving') : t('settingsExtra.saveCategories')}
       </button>
     </div>
@@ -214,12 +214,12 @@ function ConnectionTypesSection() {
           onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addType())}
           placeholder={t('settingsExtra.typeNew')} style={{ ...inp2, width: 200 }} />
         <button onClick={addType}
-          style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
           {t('settingsExtra.addType')}
         </button>
       </div>
       <button onClick={handleSave} disabled={saving}
-        style={{ padding: '8px 22px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+        style={{ padding: '8px 22px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
         {saving ? t('common.saving') : t('settingsExtra.saveTypes')}
       </button>
     </div>
@@ -406,7 +406,7 @@ export function SettingsPage() {
         <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
           <button type="submit" style={{
             padding: '10px 28px', borderRadius: 8, border: 'none',
-            background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
           }}>
             {t('settings.saveBtn')}
           </button>

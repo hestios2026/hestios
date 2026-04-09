@@ -46,10 +46,10 @@ interface AufmassEntry {
 const inp: React.CSSProperties = { padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, width: '100%', boxSizing: 'border-box' };
 const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 };
 const card: React.CSSProperties = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: 20 };
-const btnPrimary: React.CSSProperties = { padding: '8px 18px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' };
+const btnPrimary: React.CSSProperties = { padding: '8px 18px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' };
 const btnGhost: React.CSSProperties = { padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#374151' };
 const sectionHdr = (t: string) => (
-  <div style={{ gridColumn: '1/-1', marginTop: 8, paddingBottom: 6, borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 11, color: '#1d4ed8', textTransform: 'uppercase' as const, letterSpacing: 1 }}>{t}</div>
+  <div style={{ gridColumn: '1/-1', marginTop: 8, paddingBottom: 6, borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 11, color: '#22C55E', textTransform: 'uppercase' as const, letterSpacing: 1 }}>{t}</div>
 );
 
 const STATUS_INVOICE: Record<string, { bg: string; color: string }> = {
@@ -101,8 +101,8 @@ export function FacturarePage() {
     <button onClick={() => setMainTab(key)} style={{
       padding: '10px 20px', borderRadius: 0, border: 'none', fontWeight: mainTab === key ? 700 : 400,
       background: 'none', cursor: 'pointer', fontSize: 13,
-      borderBottom: mainTab === key ? '2px solid #1d4ed8' : '2px solid transparent',
-      color: mainTab === key ? '#1d4ed8' : '#64748b',
+      borderBottom: mainTab === key ? '2px solid #22C55E' : '2px solid transparent',
+      color: mainTab === key ? '#22C55E' : '#64748b',
     }}>{label}</button>
   );
 
@@ -177,7 +177,7 @@ function SituatiiTab({ sites }: { sites: Site[] }) {
               <div key={s.id} onClick={() => selectSituatie(s)} style={{
                 padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
                 background: selected?.id === s.id ? '#eff6ff' : '#fff',
-                borderLeft: selected?.id === s.id ? '3px solid #1d4ed8' : '3px solid transparent',
+                borderLeft: selected?.id === s.id ? '3px solid #22C55E' : '3px solid transparent',
               }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{s.title}</div>
                 <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{s.site_name} · KST {s.site_kostenstelle}</div>
@@ -380,7 +380,7 @@ function SituatieDetail({ situatie, onReload }: { situatie: Situatie; onReload: 
               <tfoot>
                 <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f8fafc' }}>
                   <td colSpan={6} style={{ padding: '8px 10px', fontWeight: 700, textAlign: 'right' }}>{t('facturare.totalNetto')}</td>
-                  <td style={{ padding: '8px 10px', fontWeight: 800, color: '#1d4ed8' }}>€{fmt(situatie.total_netto || 0)}</td>
+                  <td style={{ padding: '8px 10px', fontWeight: 800, color: '#22C55E' }}>€{fmt(situatie.total_netto || 0)}</td>
                   {canEdit && <td />}
                 </tr>
               </tfoot>
@@ -462,7 +462,7 @@ function FacturiTab({ sites }: { sites: Site[] }) {
               <div key={inv.id} onClick={() => selectInvoice(inv)} style={{
                 padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
                 background: selected?.id === inv.id ? '#eff6ff' : '#fff',
-                borderLeft: selected?.id === inv.id ? '3px solid #1d4ed8' : '3px solid transparent',
+                borderLeft: selected?.id === inv.id ? '3px solid #22C55E' : '3px solid transparent',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', fontFamily: 'monospace' }}>{inv.invoice_number}</span>
@@ -626,7 +626,7 @@ function CreateInvoiceForm({ type, sites, onSave, onCancel }: { type: 'lucrari' 
             {type === 'lucrari' && einbehalt > 0 && <div style={{ display: 'flex', gap: 40 }}><span style={{ color: '#64748b' }}>Sicherheitseinbehalt {form.sicherheitseinbehalt_pct}%:</span><span style={{ fontWeight: 700, color: '#dc2626' }}>- €{fmt(einbehalt)}</span></div>}
             <div style={{ display: 'flex', gap: 40, borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
               <span style={{ fontWeight: 700 }}>{t('facturare.totalDePlata')}</span>
-              <span style={{ fontWeight: 800, fontSize: 16, color: '#1d4ed8' }}>€{fmt(subTotal + vat - (type === 'lucrari' ? einbehalt : 0))}</span>
+              <span style={{ fontWeight: 800, fontSize: 16, color: '#22C55E' }}>€{fmt(subTotal + vat - (type === 'lucrari' ? einbehalt : 0))}</span>
             </div>
           </div>
         </div>
@@ -782,7 +782,7 @@ function InvoiceDetail({ invoice, onReload }: { invoice: Invoice; onReload: () =
             <tfoot>
               <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f8fafc' }}>
                 <td colSpan={5} style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{t('facturare.totalNetto')}</td>
-                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#1d4ed8' }}>€{fmt(invoice.subtotal)}</td>
+                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#22C55E' }}>€{fmt(invoice.subtotal)}</td>
               </tr>
               {invoice.vat_amount > 0 && (
                 <tr style={{ background: '#f8fafc' }}>

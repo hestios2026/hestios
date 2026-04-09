@@ -14,7 +14,7 @@ const inp: React.CSSProperties = {
 const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 };
 const btnPrimary: React.CSSProperties = {
   padding: '8px 18px', borderRadius: 7, border: 'none',
-  background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+  background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
 };
 const btnSecondary: React.CSSProperties = {
   padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db',
@@ -333,7 +333,7 @@ export function AufmassPage({ user }: { user: User }) {
       {/* KPI strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          [t('aufmass.kpi.total'),     entries.length,                                        '#1d4ed8'],
+          [t('aufmass.kpi.total'),     entries.length,                                        '#22C55E'],
           [t('aufmass.kpi.draft'),     entries.filter(e => e.status === 'draft').length,     '#475569'],
           [t('aufmass.kpi.submitted'), entries.filter(e => e.status === 'submitted').length, '#d97706'],
           [t('aufmass.kpi.approved'),  entries.filter(e => e.status === 'approved').length,  '#16a34a'],
@@ -408,7 +408,7 @@ export function AufmassPage({ user }: { user: User }) {
                     }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', padding: '1px 7px', borderRadius: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#22C55E', background: '#eff6ff', padding: '1px 7px', borderRadius: 4 }}>
                           Pos. {e.position}
                         </span>
                         <StatusBadge status={e.status} />

@@ -126,7 +126,7 @@ export function DocumentViewerModal({ docId, onClose }: Props) {
         )}
         {blobUrl && (
           <button onClick={handleDownload}
-            style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ background: '#22C55E', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
             {t('documents.downloadBtn')}
           </button>
         )}

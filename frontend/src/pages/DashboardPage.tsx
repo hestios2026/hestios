@@ -206,7 +206,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
                     : { bg: '#f1f5f9', fg: '#94a3b8', label: t('sites.status.overhead') };
                   return (
                     <tr key={s.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#1d4ed8', fontFamily: 'monospace' }}>{s.kostenstelle}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#22C55E', fontFamily: 'monospace' }}>{s.kostenstelle}</td>
                       <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{s.name}</td>
                       <td style={{ padding: '12px 16px', fontSize: 12, color: '#64748b' }}>{s.client}</td>
                       <td style={{ padding: '12px 16px' }}>
@@ -239,7 +239,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
               {alerts.length > 5 && (
                 <button
                   onClick={() => setShowAllAlerts(p => !p)}
-                  style={{ width: '100%', marginTop: 6, padding: '6px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 12, color: '#1d4ed8', fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ width: '100%', marginTop: 6, padding: '6px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 12, color: '#22C55E', fontWeight: 600, cursor: 'pointer' }}>
                   {showAllAlerts
                     ? t('dashboard.showLess', 'Arată mai puține')
                     : t('dashboard.moreAlerts', { count: alerts.length - 5 })}
@@ -266,7 +266,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
                    ...(haNoSite.length ? [{ name: t('dashboard.noSiteGroup'), items: haNoSite }] : [])
                 ].map(({ name, items }) => (
                   <div key={name}>
-                    <div style={{ padding: '6px 12px', background: '#f8fafc', fontSize: 10, fontWeight: 700, color: '#1d4ed8', letterSpacing: 0.5 }}>
+                    <div style={{ padding: '6px 12px', background: '#f8fafc', fontSize: 10, fontWeight: 700, color: '#22C55E', letterSpacing: 0.5 }}>
                       {name} <span style={{ color: '#94a3b8', fontWeight: 500 }}>({items.length})</span>
                     </div>
                     {items.map(p => {
@@ -274,7 +274,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
                       const time = p.scheduled_date.split('T')[1]?.slice(0, 5) || '';
                       return (
                         <div key={p.id} style={{ padding: '9px 12px', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#1d4ed8', flexShrink: 0 }}>{time}</span>
+                          <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#22C55E', flexShrink: 0 }}>{time}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.client_name}</div>
                             <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}{p.city ? `, ${p.city}` : ''}</div>

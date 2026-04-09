@@ -165,7 +165,7 @@ export function InvoiceScannerPage() {
             {t('invoiceScanner.costId')}: <strong>#{done.cost_id}</strong>
             {done.doc_id && <> · {t('invoiceScanner.documentSaved')}: <strong>#{done.doc_id}</strong></>}
           </div>
-          <button onClick={reset} style={{ marginTop: 14, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          <button onClick={reset} style={{ marginTop: 14, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
             {t('invoiceScanner.scanAnother')}
           </button>
         </div>
@@ -182,7 +182,7 @@ export function InvoiceScannerPage() {
               onDrop={handleDrop}
               onClick={() => !scanning && fileRef.current?.click()}
               style={{
-                border: `2px dashed ${dragging ? '#1d4ed8' : '#d1d5db'}`,
+                border: `2px dashed ${dragging ? '#22C55E' : '#d1d5db'}`,
                 borderRadius: 12, padding: '40px 24px', textAlign: 'center',
                 cursor: scanning ? 'wait' : 'pointer',
                 background: dragging ? '#eff6ff' : scanning ? '#f8fafc' : '#fff',
@@ -194,7 +194,7 @@ export function InvoiceScannerPage() {
               {scanning ? (
                 <div>
                   <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1d4ed8' }}>{t('invoiceScanner.analyzing')}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#22C55E' }}>{t('invoiceScanner.analyzing')}</div>
                   <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{t('invoiceScanner.extracting')}</div>
                 </div>
               ) : selectedFile ? (
@@ -207,7 +207,7 @@ export function InvoiceScannerPage() {
                 <div>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>
-                    {t('invoiceScanner.dragHint')} <strong style={{ color: '#1d4ed8' }}>{t('invoiceScanner.selectFile')}</strong>
+                    {t('invoiceScanner.dragHint')} <strong style={{ color: '#22C55E' }}>{t('invoiceScanner.selectFile')}</strong>
                   </div>
                   <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>PDF, JPG, PNG — max 20 MB</div>
                 </div>

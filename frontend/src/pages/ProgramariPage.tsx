@@ -26,7 +26,7 @@ interface Programare {
 interface AppUser { id: number; full_name: string; role: string; }
 
 const STATUS_COLORS: Record<string, [string, string]> = {
-  new:         ['#eff6ff', '#1d4ed8'],
+  new:         ['#eff6ff', '#22C55E'],
   scheduled:   ['#fef3c7', '#d97706'],
   in_progress: ['#dbeafe', '#2563eb'],
   done:        ['#d1fae5', '#059669'],
@@ -142,7 +142,7 @@ export function ProgramariPage() {
             <span style={{ fontWeight: 800, fontSize: 15, color: '#1e293b' }}>{t('hausanschluss.title')}</span>
             <button onClick={() => { setShowForm(true); setSelected(null); }} style={{
               padding: '4px 12px', borderRadius: 6, border: 'none',
-              background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+              background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
             }}>+ {t('common.new')}</button>
           </div>
           {/* Filters */}
@@ -182,10 +182,10 @@ export function ProgramariPage() {
                   <div key={item.id} onClick={() => { setSelected(item); setShowForm(false); }} style={{
                     padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
                     background: selected?.id === item.id ? '#eff6ff' : '#fff',
-                    borderLeft: selected?.id === item.id ? '3px solid #1d4ed8' : '3px solid transparent',
+                    borderLeft: selected?.id === item.id ? '3px solid #22C55E' : '3px solid transparent',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: '#1d4ed8', fontFamily: 'monospace' }}>{time}</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#22C55E', fontFamily: 'monospace' }}>{time}</span>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: bg, color: fg }}>
                         {t(`hausanschluss.status.${item.status}`)}
                       </span>
@@ -268,7 +268,7 @@ export function ProgramariPage() {
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('common.save')}
                 </button>
                 <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
@@ -303,7 +303,7 @@ export function ProgramariPage() {
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginTop: 2 }}>
                   {new Date(selected.scheduled_date).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}
                   {' '}
-                  <span style={{ color: '#1d4ed8' }}>{selected.scheduled_date.split('T')[1]?.slice(0, 5)}</span>
+                  <span style={{ color: '#22C55E' }}>{selected.scheduled_date.split('T')[1]?.slice(0, 5)}</span>
                 </div>
               </div>
               <div style={{ background: '#fff', borderRadius: 8, padding: '10px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>

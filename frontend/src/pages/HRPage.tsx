@@ -160,7 +160,7 @@ const lbl: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4,
 };
 const sectionHdr = (title: string) => (
-  <div style={{ gridColumn: '1/-1', marginTop: 8, paddingBottom: 6, borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 12, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 1 }}>
+  <div style={{ gridColumn: '1/-1', marginTop: 8, paddingBottom: 6, borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 12, color: '#22C55E', textTransform: 'uppercase', letterSpacing: 1 }}>
     {title}
   </div>
 );
@@ -386,7 +386,7 @@ export function HRPage({ user }: Props) {
       padding: '7px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
       fontWeight: formTab === key ? 700 : 500,
       background: formTab === key ? '#fff' : 'transparent',
-      color: formTab === key ? '#1d4ed8' : '#64748b',
+      color: formTab === key ? '#22C55E' : '#64748b',
       boxShadow: formTab === key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
     }}>{label}</button>
   );
@@ -394,7 +394,7 @@ export function HRPage({ user }: Props) {
   const mainTabBtn = (key: typeof mainTab, label: string) => (
     <button onClick={() => setMainTab(key)} style={{
       padding: '8px 20px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: mainTab === key ? 700 : 500,
-      background: mainTab === key ? '#1d4ed8' : 'transparent',
+      background: mainTab === key ? '#22C55E' : 'transparent',
       color: mainTab === key ? '#fff' : '#64748b',
       borderRadius: 6,
     }}>{label}</button>
@@ -435,7 +435,7 @@ export function HRPage({ user }: Props) {
                 </span>
                 <button onClick={() => { setShowForm(true); setSelected(null); setFormTab('personal'); }} style={{
                   padding: '4px 12px', borderRadius: 6, border: 'none',
-                  background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                  background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
                 }}>+ {t('common.new')}</button>
               </div>
               <input placeholder={t('hr.searchPlaceholder')} value={filter} onChange={e => setFilter(e.target.value)} style={{ ...inp, fontSize: 12 }} />
@@ -445,7 +445,7 @@ export function HRPage({ user }: Props) {
                 <div key={e.id} onClick={() => { setSelected(e); setShowForm(false); }} style={{
                   padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
                   background: selected?.id === e.id ? '#eff6ff' : '#fff',
-                  borderLeft: selected?.id === e.id ? '3px solid #1d4ed8' : '3px solid transparent',
+                  borderLeft: selected?.id === e.id ? '3px solid #22C55E' : '3px solid transparent',
                   opacity: e.is_active ? 1 : 0.5,
                 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{e.nachname} {e.vorname}</div>
@@ -608,11 +608,11 @@ export function HRPage({ user }: Props) {
                         <button type="button" onClick={() => setFormTab(formTab === 'financiar' ? 'angajare' : 'personal')} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>← {t('common.back')}</button>
                       )}
                       {formTab !== 'financiar' && (
-                        <button type="button" onClick={() => setFormTab(formTab === 'personal' ? 'angajare' : 'financiar')} style={{ padding: '9px 20px', borderRadius: 7, border: 'none', background: '#e0e7ff', color: '#1d4ed8', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('common.next')} →</button>
+                        <button type="button" onClick={() => setFormTab(formTab === 'personal' ? 'angajare' : 'financiar')} style={{ padding: '9px 20px', borderRadius: 7, border: 'none', background: '#e0e7ff', color: '#22C55E', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('common.next')} →</button>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('common.save')}</button>
+                      <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('common.save')}</button>
                       <button type="button" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>{t('common.cancel')}</button>
                     </div>
                   </div>
@@ -632,7 +632,7 @@ export function HRPage({ user }: Props) {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => handleDownloadContract(selected)} style={{
                       padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 11,
-                      background: '#dbeafe', color: '#1d4ed8',
+                      background: '#dbeafe', color: '#22C55E',
                     }}>{t('hr.downloadContract')}</button>
                     <button onClick={() => toggleActive(selected)} style={{
                       padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 11,
@@ -729,7 +729,7 @@ export function HRPage({ user }: Props) {
               <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', minWidth: 100, textAlign: 'center' }}>KW {pontajWeek} / {pontajYear}</span>
               <button onClick={() => setPontajWeek(w => { const nw = w + 1; if (nw > 52) { setPontajYear(y => y + 1); return 1; } return nw; })} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13 }}>→</button>
               <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleImport} style={{ display: 'none' }} />
-              <button onClick={() => fileRef.current?.click()} style={{ padding: '7px 16px', border: 'none', borderRadius: 6, background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{t('hr.importExcel')}</button>
+              <button onClick={() => fileRef.current?.click()} style={{ padding: '7px 16px', border: 'none', borderRadius: 6, background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{t('hr.importExcel')}</button>
             </div>
           </div>
 
@@ -800,7 +800,7 @@ export function HRPage({ user }: Props) {
                         const totalH = weekRows.reduce((s, r) => s + (r.days?.[key]?.hours_regular || 0), 0);
                         return <td key={key} style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700, fontSize: 12, color: '#1e293b' }}>{totalH > 0 ? totalH : '—'}</td>;
                       })}
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#1d4ed8' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: '#22C55E' }}>
                         {weekRows.reduce((s, r) => s + r.total_regular, 0).toFixed(0)}h
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, fontSize: 12, color: '#d97706' }}>
@@ -841,7 +841,7 @@ export function HRPage({ user }: Props) {
                 <option value="approved">{t('hr.leaveStatus.approved')}</option>
                 <option value="rejected">{t('hr.leaveStatus.rejected')}</option>
               </select>
-              <button onClick={() => setShowLeaveForm(true)} style={{ padding: '7px 16px', border: 'none', borderRadius: 6, background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>+ {t('hr.addLeave')}</button>
+              <button onClick={() => setShowLeaveForm(true)} style={{ padding: '7px 16px', border: 'none', borderRadius: 6, background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>+ {t('hr.addLeave')}</button>
             </div>
           </div>
 
@@ -880,7 +880,7 @@ export function HRPage({ user }: Props) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                  <button type="submit" style={{ padding: '8px 20px', border: 'none', borderRadius: 6, background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('common.save')}</button>
+                  <button type="submit" style={{ padding: '8px 20px', border: 'none', borderRadius: 6, background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('common.save')}</button>
                   <button type="button" onClick={() => setShowLeaveForm(false)} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 6, background: '#fff', fontSize: 13, cursor: 'pointer' }}>{t('common.cancel')}</button>
                 </div>
               </form>
@@ -977,7 +977,7 @@ export function HRPage({ user }: Props) {
                       <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12 }}>{p.hours_regular.toFixed(1)}</td>
                       <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12, color: p.hours_overtime > 0 ? '#d97706' : '#94a3b8' }}>{p.hours_overtime > 0 ? p.hours_overtime.toFixed(1) : '—'}</td>
                       <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12, color: p.hours_sick > 0 ? '#854d0e' : '#94a3b8' }}>{p.hours_sick > 0 ? p.hours_sick.toFixed(1) : '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12, color: p.hours_vacation > 0 ? '#1d4ed8' : '#94a3b8' }}>{p.hours_vacation > 0 ? p.hours_vacation.toFixed(1) : '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12, color: p.hours_vacation > 0 ? '#22C55E' : '#94a3b8' }}>{p.hours_vacation > 0 ? p.hours_vacation.toFixed(1) : '—'}</td>
                       <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12 }}>€{p.brutto_regular.toFixed(2)}</td>
                       <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12, color: p.brutto_overtime > 0 ? '#d97706' : '#94a3b8' }}>{p.brutto_overtime > 0 ? `€${p.brutto_overtime.toFixed(2)}` : '—'}</td>
                       <td style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12 }}>€{p.brutto_bauzuschlag.toFixed(2)}</td>
@@ -992,7 +992,7 @@ export function HRPage({ user }: Props) {
                       </td>
                       <td style={{ padding: '10px 10px', textAlign: 'right' }}>
                         {p.status === 'draft' && user.role === 'director' && (
-                          <button onClick={() => handleLockPayroll(p.id)} style={{ padding: '3px 10px', border: 'none', borderRadius: 4, background: '#e0e7ff', color: '#1d4ed8', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>{t('hr.lockPayroll')}</button>
+                          <button onClick={() => handleLockPayroll(p.id)} style={{ padding: '3px 10px', border: 'none', borderRadius: 4, background: '#e0e7ff', color: '#22C55E', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>{t('hr.lockPayroll')}</button>
                         )}
                       </td>
                     </tr>

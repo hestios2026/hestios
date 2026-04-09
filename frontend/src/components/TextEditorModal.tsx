@@ -81,7 +81,7 @@ export function TextEditorModal({ docId, docName, onClose }: Props) {
           onClick={handleSave}
           disabled={saving || !dirty}
           style={{
-            background: dirty ? '#1d4ed8' : '#334155',
+            background: dirty ? '#22C55E' : '#334155',
             border: 'none', color: '#fff', borderRadius: 6,
             padding: '6px 16px', cursor: dirty ? 'pointer' : 'default',
             fontSize: 13, fontWeight: 700, opacity: saving ? 0.7 : 1,

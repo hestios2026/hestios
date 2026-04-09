@@ -18,7 +18,7 @@ const card: React.CSSProperties = {
 };
 const btnPrimary: React.CSSProperties = {
   padding: '7px 16px', borderRadius: 6, border: 'none',
-  background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+  background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
 };
 const btnSecondary: React.CSSProperties = {
   padding: '7px 14px', borderRadius: 6, border: '1px solid #d1d5db',
@@ -94,7 +94,7 @@ function SummaryTab() {
   if (!data) return <div style={{ color: '#94a3b8', padding: 20 }}>{t('reports.loading')}</div>;
 
   const kpis = [
-    { label: t('reports.kpi.activeSites'), value: `${data.sites_active} / ${data.sites_total}`, color: '#1d4ed8' },
+    { label: t('reports.kpi.activeSites'), value: `${data.sites_active} / ${data.sites_total}`, color: '#22C55E' },
     { label: t('reports.kpi.totalCosts'), value: `${data.total_costs.toLocaleString(locale)} EUR`, color: '#dc2626' },
     { label: t('reports.kpi.aufmassApproved'), value: `${data.aufmass_approved.toLocaleString(locale)} EUR`, color: '#16a34a' },
     { label: t('reports.kpi.programariStats'), value: `${data.programari_total} / ${data.programari_done}`, color: '#7c3aed' },
@@ -113,7 +113,7 @@ function SummaryTab() {
       </div>
 
       <div style={{ ...card, padding: 24 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 16 }}>{t('reports.notes')}</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#22C55E', marginBottom: 16 }}>{t('reports.notes')}</div>
         <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8 }}>
           <div>{t('reports.notesCosts')}</div>
           <div>{t('reports.notesAufmass')}</div>
@@ -306,7 +306,7 @@ function ProgramariTab({ sites }: { sites: Site[] }) {
       {/* KPI strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          [t('reports.scheduleCounts.total'), counts.total, '#1d4ed8'],
+          [t('reports.scheduleCounts.total'), counts.total, '#22C55E'],
           [t('reports.scheduleCounts.scheduled'), counts.scheduled, '#d97706'],
           [t('reports.scheduleCounts.done'), counts.done, '#16a34a'],
           [t('reports.scheduleCounts.cancelled'), counts.cancelled, '#dc2626'],
@@ -338,7 +338,7 @@ function ProgramariTab({ sites }: { sites: Site[] }) {
               <tbody>
                 {grouped[d].map(p => (
                   <tr key={p.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '9px 14px', color: '#1d4ed8', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '9px 14px', color: '#22C55E', fontWeight: 700, whiteSpace: 'nowrap' }}>
                       {p.scheduled_date ? new Date(p.scheduled_date).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '—'}
                     </td>
                     <td style={{ padding: '9px 14px', color: '#1e293b', fontWeight: 600 }}>{p.client_name}</td>
@@ -466,7 +466,7 @@ function AufmassTab({ sites }: { sites: Site[] }) {
                     {site.entries.map((e: any) => (
                       <tr key={e.id} style={{ borderTop: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 14px', color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(e.date).toLocaleDateString(locale)}</td>
-                        <td style={{ padding: '8px 14px', color: '#1d4ed8', fontWeight: 700 }}>{e.position}</td>
+                        <td style={{ padding: '8px 14px', color: '#22C55E', fontWeight: 700 }}>{e.position}</td>
                         <td style={{ padding: '8px 14px', color: '#1e293b', maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description}</td>
                         <td style={{ padding: '8px 14px', textAlign: 'right', color: '#475569' }}>{e.quantity}</td>
                         <td style={{ padding: '8px 14px', color: '#64748b' }}>{e.unit}</td>
@@ -525,8 +525,8 @@ export function ReportsPage() {
             style={{
               padding: '10px 24px', border: 'none', background: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: 700,
-              color: tab === tabItem.key ? '#1d4ed8' : '#64748b',
-              borderBottom: tab === tabItem.key ? '2px solid #1d4ed8' : '2px solid transparent',
+              color: tab === tabItem.key ? '#22C55E' : '#64748b',
+              borderBottom: tab === tabItem.key ? '2px solid #22C55E' : '2px solid transparent',
               marginBottom: -2,
             }}>
             {tabItem.label}

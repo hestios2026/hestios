@@ -150,7 +150,7 @@ export function EquipmentPage() {
             </span>
             <button onClick={() => { setShowForm(true); setSelected(null); }} style={{
               padding: '4px 12px', borderRadius: 6, border: 'none',
-              background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+              background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
             }}>+ {t('common.new')}</button>
           </div>
           <input
@@ -167,7 +167,7 @@ export function EquipmentPage() {
               <div key={e.id} onClick={() => selectItem(e)} style={{
                 padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
                 background: selected?.id === e.id ? '#eff6ff' : '#fff',
-                borderLeft: selected?.id === e.id ? '3px solid #1d4ed8' : '3px solid transparent',
+                borderLeft: selected?.id === e.id ? '3px solid #22C55E' : '3px solid transparent',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 3 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{e.name}</span>
@@ -258,7 +258,7 @@ export function EquipmentPage() {
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('common.save')}
                 </button>
                 <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
@@ -294,8 +294,8 @@ export function EquipmentPage() {
                     }}>{STATUS_LABELS[s]}</button>
                   ))}
                   <button onClick={() => setShowMove(!showMove)} style={{
-                    padding: '6px 14px', borderRadius: 20, border: '1px solid #1d4ed8',
-                    background: '#fff', color: '#1d4ed8', fontWeight: 700, fontSize: 11, cursor: 'pointer',
+                    padding: '6px 14px', borderRadius: 20, border: '1px solid #22C55E',
+                    background: '#fff', color: '#22C55E', fontWeight: 700, fontSize: 11, cursor: 'pointer',
                   }}>{t('equipment.moveEquipment')}</button>
                 </div>
               </div>
@@ -338,18 +338,18 @@ export function EquipmentPage() {
                 display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap',
               }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>{t('equipment.moveTo')}</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#22C55E', display: 'block', marginBottom: 4 }}>{t('equipment.moveTo')}</label>
                   <select value={moveForm.to_site_id} onChange={e => setMoveForm(p => ({ ...p, to_site_id: e.target.value }))} style={inp}>
                     <option value="">{t('common.noSite')}</option>
                     {sites.map(s => <option key={s.id} value={s.id}>{s.kostenstelle} – {s.name}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: 1, minWidth: 160 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>{t('equipment.moveReason')}</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#22C55E', display: 'block', marginBottom: 4 }}>{t('equipment.moveReason')}</label>
                   <input value={moveForm.notes} placeholder={t('common.optional')}
                     onChange={e => setMoveForm(p => ({ ...p, notes: e.target.value }))} style={inp} />
                 </div>
-                <button type="submit" style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   {t('common.confirm')}
                 </button>
                 <button type="button" onClick={() => setShowMove(false)} style={{ padding: '8px 14px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
@@ -372,7 +372,7 @@ export function EquipmentPage() {
                   </span>
                   <span style={{ fontSize: 13, flex: 1 }}>
                     <span style={{ color: '#94a3b8' }}>{m.from_site}</span>
-                    <span style={{ margin: '0 8px', color: '#1d4ed8' }}>→</span>
+                    <span style={{ margin: '0 8px', color: '#22C55E' }}>→</span>
                     <span style={{ fontWeight: 700, color: '#1e293b' }}>{m.to_site}</span>
                   </span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>{m.moved_by}</span>

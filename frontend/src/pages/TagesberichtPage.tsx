@@ -50,7 +50,7 @@ const inp: React.CSSProperties = { padding: '7px 10px', borderRadius: 6, border:
 const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 };
 const btn = (bg: string, color = '#fff'): React.CSSProperties => ({ padding: '7px 14px', background: bg, color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600 });
 const sectionTitle = (t: string) => (
-  <div style={{ gridColumn: '1/-1', borderBottom: '2px solid #e2e8f0', paddingBottom: 4, marginTop: 8, fontWeight: 700, fontSize: 11, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 1 }}>
+  <div style={{ gridColumn: '1/-1', borderBottom: '2px solid #e2e8f0', paddingBottom: 4, marginTop: 8, fontWeight: 700, fontSize: 11, color: '#22C55E', textTransform: 'uppercase', letterSpacing: 1 }}>
     {t}
   </div>
 );
@@ -221,7 +221,7 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{t('tagesbericht.title')}</h2>
-        <button style={btn('#1d4ed8')} onClick={openNew}>{t('tagesbericht.newReport')}</button>
+        <button style={btn('#22C55E')} onClick={openNew}>{t('tagesbericht.newReport')}</button>
       </div>
 
       {/* Filters */}
@@ -287,8 +287,8 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
   function FormView() {
     const tabStyle = (active: boolean): React.CSSProperties => ({
       padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: active ? 700 : 400,
-      borderBottom: active ? '2px solid #1d4ed8' : '2px solid transparent',
-      color: active ? '#1d4ed8' : '#64748b', background: 'none', border: 'none',
+      borderBottom: active ? '2px solid #22C55E' : '2px solid transparent',
+      color: active ? '#22C55E' : '#64748b', background: 'none', border: 'none',
     });
 
     return (
@@ -497,7 +497,7 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
         {/* Save */}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
           <button style={btn('#64748b')} onClick={() => setShowForm(false)}>{t('common.cancel')}</button>
-          <button style={btn('#1d4ed8')} onClick={save} disabled={saving}>{saving ? t('common.saving') : t('common.save')}</button>
+          <button style={btn('#22C55E')} onClick={save} disabled={saving}>{saving ? t('common.saving') : t('common.save')}</button>
         </div>
       </div>
     );

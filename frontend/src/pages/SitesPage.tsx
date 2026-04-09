@@ -18,7 +18,7 @@ interface Programare {
 }
 
 const STATUS_COLORS_HA: Record<string, [string, string]> = {
-  new:         ['#eff6ff', '#1d4ed8'],
+  new:         ['#eff6ff', '#22C55E'],
   scheduled:   ['#fef3c7', '#d97706'],
   in_progress: ['#dbeafe', '#2563eb'],
   done:        ['#d1fae5', '#059669'],
@@ -252,7 +252,7 @@ export function SitesPage() {
               <button key={v} onClick={() => { setView(v); setSelected(null); setShowSiteForm(false); setShowKstForm(false); }} style={{
                 flex: 1, padding: '5px 0', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
                 background: view === v ? '#fff' : 'transparent',
-                color: view === v ? '#1d4ed8' : '#64748b',
+                color: view === v ? '#22C55E' : '#64748b',
                 boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
               }}>
                 {v === 'baustellen' ? t('sites.baustellen') : t('sites.kostenstellen')}
@@ -272,7 +272,7 @@ export function SitesPage() {
             else { setShowKstForm(true); setShowSiteForm(false); }
           }} style={{
             padding: '4px 12px', borderRadius: 6, border: 'none',
-            background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+            background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
           }}>+ {t('common.new')}</button>
         </div>
 
@@ -284,17 +284,17 @@ export function SitesPage() {
               <div key={s.id} onClick={() => selectSite(s)} style={{
                 padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
                 background: selected?.id === s.id ? '#eff6ff' : '#fff',
-                borderLeft: selected?.id === s.id ? '3px solid #1d4ed8' : '3px solid transparent',
+                borderLeft: selected?.id === s.id ? '3px solid #22C55E' : '3px solid transparent',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>{s.kostenstelle}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#22C55E' }}>{s.kostenstelle}</span>
                   {view === 'baustellen' ? (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: bg, color: fg }}>
                       {t(`sites.status.${s.status}`)}
                     </span>
                   ) : (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
-                      background: s.is_baustelle ? '#eff6ff' : '#f1f5f9', color: s.is_baustelle ? '#1d4ed8' : '#94a3b8' }}>
+                      background: s.is_baustelle ? '#eff6ff' : '#f1f5f9', color: s.is_baustelle ? '#22C55E' : '#94a3b8' }}>
                       {s.is_baustelle ? t('sites.status.baustelle') : t('sites.status.overhead')}
                     </span>
                   )}
@@ -347,7 +347,7 @@ export function SitesPage() {
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('common.save')}
                 </button>
                 <button type="button" onClick={() => setShowKstForm(false)} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
@@ -415,7 +415,7 @@ export function SitesPage() {
               </div>
 
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('common.save')}
                 </button>
                 <button type="button" onClick={() => setShowSiteForm(false)} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
@@ -466,7 +466,7 @@ export function SitesPage() {
                   {selected.budget > 0 && (
                     <>
                       <div style={{ fontSize: 11, color: '#94a3b8' }}>{t('sites.budget')}</div>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: '#1d4ed8' }}>€{selected.budget.toLocaleString('de-DE')}</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: '#22C55E' }}>€{selected.budget.toLocaleString('de-DE')}</div>
                     </>
                   )}
                   <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{t('sites.totalCosts')}</div>
@@ -505,7 +505,7 @@ export function SitesPage() {
                     onChange={e => setEditSiteForm(p => ({ ...p, end_date: e.target.value }))}
                     style={{ ...inp, width: 160 }} />
                 </div>
-                <button type="submit" style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('common.save')}
                 </button>
               </form>
@@ -546,7 +546,7 @@ export function SitesPage() {
               <>
                 <button onClick={() => setShowCostForm(true)} style={{
                   marginBottom: 16, padding: '8px 18px', borderRadius: 8, border: 'none',
-                  background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                  background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
                 }}>+ {t('sites.addCost')}</button>
 
                 {showCostForm && (
@@ -586,7 +586,7 @@ export function SitesPage() {
                     <div style={{ padding: 24, color: '#94a3b8', textAlign: 'center' }}>{t('common.noEntries')}</div>
                   ) : costs.items.map(c => (
                     <div key={c.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#eff6ff', color: '#22C55E' }}>
                         {t(`sites.categories.${c.category}`)}
                       </span>
                       <span style={{ flex: 1, fontSize: 13, color: '#1e293b' }}>{c.description}</span>
@@ -603,7 +603,7 @@ export function SitesPage() {
               <>
                 <button onClick={() => setShowMatForm(true)} style={{
                   marginBottom: 16, padding: '8px 18px', borderRadius: 8, border: 'none',
-                  background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                  background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
                 }}>+ {t('sites.addMaterial')}</button>
 
                 {showMatForm && (
@@ -639,7 +639,7 @@ export function SitesPage() {
                   ) : materials.map(m => (
                     <div key={m.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{m.material}</span>
-                      <span style={{ fontWeight: 800, fontSize: 14, fontFamily: 'monospace', color: '#1d4ed8' }}>{m.quantity} {m.unit}</span>
+                      <span style={{ fontWeight: 800, fontSize: 14, fontFamily: 'monospace', color: '#22C55E' }}>{m.quantity} {m.unit}</span>
                       <span style={{ fontSize: 11, color: '#94a3b8' }}>{new Date(m.date).toLocaleDateString(locale)}</span>
                     </div>
                   ))}
@@ -801,7 +801,7 @@ export function SitesPage() {
                   return (
                     <div key={p.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ flexShrink: 0, textAlign: 'center', minWidth: 48 }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', fontFamily: 'monospace' }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: '#22C55E', fontFamily: 'monospace' }}>
                           {dt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div style={{ fontSize: 10, color: '#94a3b8' }}>

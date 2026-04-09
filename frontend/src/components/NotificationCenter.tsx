@@ -78,7 +78,7 @@ export function NotificationCenter({ onNavigate }: Props) {
         style={{
           position: 'relative', background: 'none', border: 'none',
           cursor: 'pointer', fontSize: 20, padding: '4px 8px',
-          borderRadius: 8, color: open ? '#1d4ed8' : '#64748b',
+          borderRadius: 8, color: open ? '#22C55E' : '#64748b',
         }}
         title={t('notifications.tooltip')}
       >
@@ -172,7 +172,7 @@ export function NotificationCenter({ onNavigate }: Props) {
                   {!n.is_read && (
                     <div style={{
                       width: 8, height: 8, borderRadius: 4,
-                      background: '#1d4ed8', flexShrink: 0, marginTop: 4,
+                      background: '#22C55E', flexShrink: 0, marginTop: 4,
                     }} />
                   )}
                 </div>

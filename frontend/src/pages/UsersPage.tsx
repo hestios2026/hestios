@@ -18,7 +18,7 @@ interface AppUser {
 
 const ROLE_COLORS: Record<string, [string, string]> = {
   director:       ['#ede9fe', '#7c3aed'],
-  projekt_leiter: ['#dbeafe', '#1d4ed8'],
+  projekt_leiter: ['#dbeafe', '#22C55E'],
   polier:         ['#d1fae5', '#059669'],
   sef_santier:    ['#fef3c7', '#d97706'],
   callcenter:     ['#fce7f3', '#be185d'],
@@ -140,7 +140,7 @@ export function UsersPage() {
           </span>
           <button onClick={() => { setShowForm(true); setSelected(null); setEditMode(false); }} style={{
             padding: '4px 12px', borderRadius: 6, border: 'none',
-            background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+            background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
           }}>{t('users.addUser')}</button>
         </div>
         <div style={{ flex: 1, overflow: 'auto' }}>
@@ -150,7 +150,7 @@ export function UsersPage() {
               <div key={u.id} onClick={() => { setSelected(u); setShowForm(false); setEditMode(false); }} style={{
                 padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
                 background: selected?.id === u.id ? '#eff6ff' : '#fff',
-                borderLeft: selected?.id === u.id ? '3px solid #1d4ed8' : '3px solid transparent',
+                borderLeft: selected?.id === u.id ? '3px solid #22C55E' : '3px solid transparent',
                 opacity: u.is_active ? 1 : 0.5,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -216,7 +216,7 @@ export function UsersPage() {
               </div>
 
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('users.createBtn')}
                 </button>
                 <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
@@ -285,7 +285,7 @@ export function UsersPage() {
                 </div>
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('common.save')}
                 </button>
                 <button type="button" onClick={() => setEditMode(false)} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
