@@ -250,6 +250,40 @@ def _office_file_type(content_type: str) -> str:
     return mapping.get(content_type, "docx")
 
 
+def _office_file_token(doc_id: int) -> str:
+    """Generate a short-lived HMAC token for unauthenticated file download by OnlyOffice."""
+    import hmac as _hmac, hashlib, time
+    secret = os.environ.get("SECRET_KEY", "dev_secret")
+    # Token valid for 2 hours, anchored to the current hour
+    ts = str(int(time.time()) // 7200)
+    return _hmac.new(secret.encode(), f"{doc_id}:{ts}".encode(), hashlib.sha256).hexdigest()
+
+
+@router.get("/{doc_id}/office-file/")
+def office_file_serve(doc_id: int, sig: str, db: Session = Depends(get_db)):
+    """Serve document bytes to OnlyOffice — authenticated via HMAC token, no user auth needed."""
+    expected = _office_file_token(doc_id)
+    # Also accept previous 2h window
+    import hmac as _hmac, hashlib, time
+    secret = os.environ.get("SECRET_KEY", "dev_secret")
+    ts_prev = str(int(time.time()) // 7200 - 1)
+    expected_prev = _hmac.new(secret.encode(), f"{doc_id}:{ts_prev}".encode(), hashlib.sha256).hexdigest()
+    if sig not in (expected, expected_prev):
+        raise HTTPException(403, "Token invalid")
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    try:
+        data = get_file_content(d.file_key)
+    except Exception:
+        raise HTTPException(500, "Eroare la citirea fișierului")
+    return Response(
+        content=data,
+        media_type=d.content_type,
+        headers={"Content-Disposition": f'inline; filename="{d.name}"'},
+    )
+
+
 @router.get("/{doc_id}/office-config/")
 def get_office_config(
     doc_id: int,
@@ -258,6 +292,7 @@ def get_office_config(
 ):
     """Return OnlyOffice editor config JSON for a document."""
     import jwt as pyjwt
+    import time
     d = db.query(Document).filter(Document.id == doc_id).first()
     if not d:
         raise HTTPException(404, "Document negăsit")
@@ -268,10 +303,13 @@ def get_office_config(
     domain = os.environ.get("DOMAIN", "erp.hesti-rossmann.de")
     base_url = f"https://{domain}"
 
-    # Presigned URL for OnlyOffice to download the file
-    download_url = get_presigned_url(d.file_key, expires_seconds=3600)
+    # Use backend-served URL instead of MinIO presigned URL
+    # OnlyOffice downloads via the backend, avoiding S3 auth header conflicts
+    sig = _office_file_token(doc_id)
+    download_url = f"{base_url}/api/documents/{doc_id}/office-file/?sig={sig}"
 
-    doc_key = f"{d.id}_{int(d.created_at.timestamp() if d.created_at else 0)}"
+    # Fresh key each session to avoid stale OnlyOffice state
+    doc_key = f"{d.id}_{int(d.created_at.timestamp() if d.created_at else 0)}_{int(time.time())}"
 
     config = {
         "document": {
