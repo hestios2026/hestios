@@ -12,7 +12,7 @@ import type { Document, Site } from '../types';
 // ─── Constants (fallback — overridden by API) ─────────────────────────────────
 
 const DEFAULT_CATEGORIES: DocCategory[] = [
-  { key: 'contract',  label: 'Contract',    color: '#1d4ed8', icon: '📄' },
+  { key: 'contract',  label: 'Contract',    color: '#22C55E', icon: '📄' },
   { key: 'invoice',   label: 'Rechnung',    color: '#7c3aed', icon: '🧾' },
   { key: 'other',     label: 'Altele',      color: '#64748b', icon: '📁' },
 ];
@@ -26,7 +26,7 @@ const inp: React.CSSProperties = {
 const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 };
 const btnPrimary: React.CSSProperties = {
   padding: '8px 18px', borderRadius: 7, border: 'none',
-  background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+  background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
 };
 const btnSecondary: React.CSSProperties = {
   padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db',
@@ -237,7 +237,7 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
             display: 'flex', alignItems: 'center', gap: 4,
             padding: `5px 8px 5px ${12 + depth * 14}px`,
             borderRadius: 6, cursor: 'pointer',
-            background: isSelected ? '#dbeafe' : isHovered ? '#f1f5f9' : 'transparent',
+            background: isSelected ? 'rgba(34,197,94,0.08)' : isHovered ? '#f1f5f9' : 'transparent',
             marginBottom: 1,
           }}
           onClick={() => {
@@ -270,7 +270,7 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
             />
           ) : (
             <span style={{
-              fontSize: 12, color: isSelected ? '#1d4ed8' : '#1e293b',
+              fontSize: 12, color: isSelected ? '#22C55E' : '#1e293b',
               fontWeight: isSelected ? 700 : 500, flex: 1,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
@@ -334,12 +334,12 @@ function FolderSidebar({ folders, selectedFolder, onSelect, onNewFolder, onFolde
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '6px 8px', borderRadius: 6, cursor: 'pointer', marginBottom: 4,
-            background: selectedFolder === null ? '#dbeafe' : '#f8fafc',
-            border: selectedFolder === null ? '1px solid #bfdbfe' : '1px solid transparent',
+            background: selectedFolder === null ? 'rgba(34,197,94,0.08)' : '#f8fafc',
+            border: selectedFolder === null ? '1px solid rgba(34,197,94,0.3)' : '1px solid transparent',
           }}
         >
           <span style={{ fontSize: 14 }}>🗂</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: selectedFolder === null ? '#1d4ed8' : '#374151' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: selectedFolder === null ? '#22C55E' : '#374151' }}>
             {t('documentsExtra.allDocuments')}
           </span>
         </div>
@@ -422,10 +422,10 @@ function UploadForm({ sites, folders, categories, onUploaded, onCancel }: {
         onDrop={handleDrop}
         onClick={() => fileRef.current?.click()}
         style={{
-          border: `2px dashed ${dragging ? '#1d4ed8' : '#d1d5db'}`,
+          border: `2px dashed ${dragging ? '#22C55E' : '#d1d5db'}`,
           borderRadius: 10, padding: '32px 20px', textAlign: 'center',
           cursor: 'pointer', marginBottom: 20,
-          background: dragging ? '#eff6ff' : '#f8fafc',
+          background: dragging ? '#f0fdf4' : '#f8fafc',
           transition: 'all 0.15s',
         }}
       >
@@ -441,7 +441,7 @@ function UploadForm({ sites, folders, categories, onUploaded, onCancel }: {
         ) : (
           <div>
             <div style={{ fontSize: 32, marginBottom: 8 }}>📂</div>
-            <div style={{ fontSize: 14, color: '#64748b' }}>{t('documents.dragText')} <strong style={{ color: '#1d4ed8' }}>{t('documents.dragSelect')}</strong></div>
+            <div style={{ fontSize: 14, color: '#64748b' }}>{t('documents.dragText')} <strong style={{ color: '#22C55E' }}>{t('documents.dragSelect')}</strong></div>
             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{t('documents.fileTypes')}</div>
           </div>
         )}
@@ -497,7 +497,7 @@ function DocCard({ doc, selected, catMap, onClick }: { doc: Document & { folder_
   return (
     <div onClick={onClick} style={{
       padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
-      background: selected ? '#eff6ff' : '#fff', display: 'flex', gap: 12, alignItems: 'flex-start',
+      background: selected ? 'rgba(34,197,94,0.06)' : '#fff', display: 'flex', gap: 12, alignItems: 'flex-start',
     }}>
       <div style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}>{fileIcon(doc.content_type)}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -597,7 +597,7 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit }: {
           <button style={btnPrimary} onClick={onView}>{t('documents.viewBtn')}</button>
         )}
         {canEdit && (
-          <button style={{ ...btnSecondary, color: '#1d4ed8', fontWeight: 700 }} onClick={onEdit}>{t('documents.editBtn')}</button>
+          <button style={{ ...btnSecondary, color: '#22C55E', fontWeight: 700 }} onClick={onEdit}>{t('documents.editBtn')}</button>
         )}
         <a
           href={`/api/documents/${doc.id}/download/`}
@@ -716,9 +716,9 @@ export function DocumentsPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         <button onClick={() => { setFilterCat(''); loadDocs('', filterSite, search, selectedFolder?.id); }}
           style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            background: filterCat === '' ? '#1d4ed8' : '#f1f5f9',
+            background: filterCat === '' ? '#22C55E' : '#f1f5f9',
             color: filterCat === '' ? '#fff' : '#475569',
-            borderColor: filterCat === '' ? '#1d4ed8' : '#e2e8f0',
+            borderColor: filterCat === '' ? '#22C55E' : '#e2e8f0',
           }}>
           {t('documents.filterAll', { count: docs.length })}
         </button>
