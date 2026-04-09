@@ -220,6 +220,141 @@ def update_document_content(
         raise HTTPException(500, "Eroare la salvarea fișierului")
 
 
+OFFICE_EDITABLE = {
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+def _office_doc_type(content_type: str) -> str:
+    if "word" in content_type or content_type == "application/msword":
+        return "word"
+    if "excel" in content_type or "spreadsheet" in content_type:
+        return "cell"
+    if "powerpoint" in content_type or "presentation" in content_type:
+        return "slide"
+    return "word"
+
+def _office_file_type(content_type: str) -> str:
+    mapping = {
+        "application/msword": "doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        "application/vnd.ms-excel": "xls",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+        "application/vnd.ms-powerpoint": "ppt",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+    }
+    return mapping.get(content_type, "docx")
+
+
+@router.get("/{doc_id}/office-config/")
+def get_office_config(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """Return OnlyOffice editor config JSON for a document."""
+    import jwt as pyjwt
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    if d.content_type not in OFFICE_EDITABLE:
+        raise HTTPException(400, "Tipul fișierului nu poate fi editat cu OnlyOffice")
+
+    jwt_secret = os.environ.get("ONLYOFFICE_JWT_SECRET", "")
+    domain = os.environ.get("DOMAIN", "erp.hesti-rossmann.de")
+    base_url = f"https://{domain}"
+
+    # Presigned URL for OnlyOffice to download the file
+    download_url = get_presigned_url(d.file_key, expires_seconds=3600)
+
+    doc_key = f"{d.id}_{int(d.created_at.timestamp() if d.created_at else 0)}"
+
+    config = {
+        "document": {
+            "fileType": _office_file_type(d.content_type),
+            "key": doc_key,
+            "title": d.name,
+            "url": download_url,
+            "permissions": {
+                "edit": True,
+                "download": True,
+                "print": True,
+            },
+        },
+        "documentType": _office_doc_type(d.content_type),
+        "editorConfig": {
+            "callbackUrl": f"{base_url}/api/documents/{doc_id}/office-callback/",
+            "lang": "de",
+            "user": {
+                "id": str(current.id),
+                "name": current.full_name,
+            },
+            "customization": {
+                "autosave": True,
+                "forcesave": False,
+                "logo": {"visible": False},
+                "chat": {"visible": False},
+                "help": {"visible": False},
+                "toolbarNoTabs": True,
+            },
+        },
+        "token": "",
+    }
+
+    if jwt_secret:
+        token = pyjwt.encode(config, jwt_secret, algorithm="HS256")
+        config["token"] = token
+
+    return config
+
+
+@router.post("/{doc_id}/office-callback/")
+async def office_callback(
+    doc_id: int,
+    request: "Request",
+    db: Session = Depends(get_db),
+):
+    """OnlyOffice calls this when user saves. Download updated file and store in MinIO."""
+    from fastapi import Request
+    import httpx
+
+    body = await request.json()
+    status = body.get("status")
+
+    # Status 2 = document ready to save, 6 = force save
+    if status not in (2, 6):
+        return {"error": 0}
+
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        return {"error": 1}
+
+    download_url = body.get("url")
+    if not download_url:
+        return {"error": 1}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(download_url, timeout=60)
+            r.raise_for_status()
+            data = r.content
+
+        upload_file(d.file_key, data, d.content_type)
+        d.file_size = len(data)
+        d.created_at = datetime.utcnow()
+        db.commit()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"OnlyOffice callback save failed: {e}")
+        return {"error": 1}
+
+    return {"error": 0}
+
+
 @router.delete("/{doc_id}/")
 def delete_document(doc_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     d = db.query(Document).filter(Document.id == doc_id).first()

@@ -7,6 +7,7 @@ import { fetchDocumentCategories, DocCategory } from '../api/settings';
 import { fetchSites } from '../api/sites';
 import { DocumentViewerModal } from '../components/DocumentViewerModal';
 import { TextEditorModal } from '../components/TextEditorModal';
+import { OnlyOfficeEditor } from '../components/OnlyOfficeEditor';
 import type { Document, Site } from '../types';
 
 // ─── Constants (fallback — overridden by API) ─────────────────────────────────
@@ -528,9 +529,16 @@ function DocCard({ doc, selected, catMap, onClick }: { doc: Document & { folder_
 
 // ─── Document Detail ──────────────────────────────────────────────────────────
 
-function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit }: {
+const OFFICE_TYPES = new Set([
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+
+function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdit }: {
   doc: Document; catMap: Record<string, DocCategory>; onDelete: () => void; onClose: () => void;
-  onView: () => void; onEdit: () => void;
+  onView: () => void; onEdit: () => void; onOfficeEdit: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'de' ? 'de-DE' : i18n.language === 'en' ? 'en-US' : 'ro-RO';
@@ -538,6 +546,7 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit }: {
   const token = localStorage.getItem('hestios_token');
   const canView = isImage(doc.content_type) || isPDF(doc.content_type);
   const canEdit = doc.content_type.startsWith('text/');
+  const canOfficeEdit = OFFICE_TYPES.has(doc.content_type);
 
   return (
     <div style={{ ...card, padding: 24 }}>
@@ -596,6 +605,11 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit }: {
         {canView && (
           <button style={btnPrimary} onClick={onView}>{t('documents.viewBtn')}</button>
         )}
+        {canOfficeEdit && (
+          <button style={{ ...btnPrimary, background: '#16A34A' }} onClick={onOfficeEdit}>
+            ✏ Editează
+          </button>
+        )}
         {canEdit && (
           <button style={{ ...btnSecondary, color: '#22C55E', fontWeight: 700 }} onClick={onEdit}>{t('documents.editBtn')}</button>
         )}
@@ -640,6 +654,7 @@ export function DocumentsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [viewingDocId, setViewingDocId] = useState<number | null>(null);
   const [editingDoc, setEditingDoc] = useState<{ id: number; name: string } | null>(null);
+  const [officeDoc, setOfficeDoc] = useState<{ id: number; name: string } | null>(null);
 
   const [filterCat, setFilterCat] = useState('');
   const [filterSite, setFilterSite] = useState('');
@@ -803,6 +818,7 @@ export function DocumentsPage() {
               onClose={() => setSelected(null)}
               onView={() => setViewingDocId(selected.id)}
               onEdit={() => setEditingDoc({ id: selected.id, name: selected.name })}
+              onOfficeEdit={() => setOfficeDoc({ id: selected.id, name: selected.name })}
             />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: '#94a3b8', fontSize: 14 }}>
@@ -821,6 +837,13 @@ export function DocumentsPage() {
           docId={editingDoc.id}
           docName={editingDoc.name}
           onClose={() => setEditingDoc(null)}
+        />
+      )}
+      {officeDoc !== null && (
+        <OnlyOfficeEditor
+          docId={officeDoc.id}
+          docName={officeDoc.name}
+          onClose={() => { setOfficeDoc(null); loadDocs(filterCat, filterSite, search, selectedFolder?.id); }}
         />
       )}
       {showCreateFolder && (

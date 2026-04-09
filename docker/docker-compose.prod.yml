@@ -58,6 +58,19 @@ services:
     depends_on:
       - backend
 
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: hestios-onlyoffice
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
+      JWT_HEADER: Authorization
+      JWT_IN_BODY: "true"
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+
   nginx:
     image: nginx:1.25-alpine
     container_name: hestios-nginx
@@ -85,3 +98,5 @@ volumes:
   postgres_data:
   minio_data:
   certbot_www:
+  onlyoffice_data:
+  onlyoffice_logs:
