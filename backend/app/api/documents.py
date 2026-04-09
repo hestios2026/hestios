@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -315,7 +315,7 @@ def get_office_config(
 @router.post("/{doc_id}/office-callback/")
 async def office_callback(
     doc_id: int,
-    request: "Request",
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """OnlyOffice calls this when user saves. Download updated file and store in MinIO."""
