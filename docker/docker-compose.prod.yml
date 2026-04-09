@@ -66,7 +66,7 @@ services:
     environment:
       JWT_ENABLED: "true"
       JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
-      JWT_HEADER: Authorization
+      JWT_HEADER: AuthorizationJwt
       JWT_IN_BODY: "true"
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
