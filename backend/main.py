@@ -238,3 +238,8 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/health")
+def health_api():
+    return {"status": "ok", "service": "HestiOS API", "version": "1.0.0"}

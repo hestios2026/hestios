@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import type { WorkType } from '../types';
 import { WORK_TYPE_LABELS } from '../types';
+import { T } from '../theme';
 
 interface Props {
   siteId: number;
@@ -19,20 +20,20 @@ const WORK_TYPES: WorkType[] = [
   'tras_teava', 'groapa', 'traversare', 'sapatura', 'raport_zilnic',
 ];
 
-const TYPE_ICONS: Record<WorkType, string> = {
-  poze_inainte:     '📷',
-  teratest:         '🔬',
-  semne_circulatie: '🚧',
-  liefer_scheine:   '📄',
-  montaj_nvt_pdp:   '📦',
-  hp_plus:          '⚡',
-  ha:               '🏠',
-  reparatie:        '🔧',
-  tras_teava:       '〰️',
-  groapa:           '⬛',
-  traversare:       '➡️',
-  sapatura:         '🔲',
-  raport_zilnic:    '📋',
+const TYPE_CONFIG: Record<WorkType, { abbr: string; color: string }> = {
+  poze_inainte:     { abbr: 'PI', color: '#3B82F6' },
+  teratest:         { abbr: 'TT', color: '#8B5CF6' },
+  semne_circulatie: { abbr: 'SC', color: '#F59E0B' },
+  liefer_scheine:   { abbr: 'LS', color: '#6B7280' },
+  montaj_nvt_pdp:   { abbr: 'NV', color: '#0891B2' },
+  hp_plus:          { abbr: 'HP', color: '#8B5CF6' },
+  ha:               { abbr: 'HA', color: T.green },
+  reparatie:        { abbr: 'RE', color: '#EF4444' },
+  tras_teava:       { abbr: 'TȚ', color: '#6B7280' },
+  groapa:           { abbr: 'GR', color: '#B45309' },
+  traversare:       { abbr: 'TR', color: '#0891B2' },
+  sapatura:         { abbr: 'SA', color: '#B45309' },
+  raport_zilnic:    { abbr: 'RZ', color: T.green },
 };
 
 export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, onBack }: Props) {
@@ -40,12 +41,15 @@ export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, 
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Înapoi</Text>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <Text style={styles.backArrow}>←</Text>
+          <Text style={styles.backText}>Înapoi</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.headerTitle}>Tip Lucrare</Text>
-          <Text style={styles.headerSub}>{siteName}{nvtNumber ? ` — ${nvtNumber}` : ''}</Text>
+          <Text style={styles.headerSub} numberOfLines={1}>
+            {siteName}{nvtNumber ? ` — ${nvtNumber}` : ''}
+          </Text>
         </View>
       </View>
 
@@ -53,63 +57,90 @@ export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, 
         data={WORK_TYPES}
         keyExtractor={item => item}
         numColumns={2}
-        contentContainerStyle={{ padding: 12 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.card,
-              item === 'raport_zilnic' && styles.cardMandatory,
-            ]}
-            onPress={() => onSelect(item)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.cardIcon}>{TYPE_ICONS[item]}</Text>
-            <Text style={[
-              styles.cardLabel,
-              item === 'raport_zilnic' && styles.cardLabelMandatory,
-            ]}>
-              {WORK_TYPE_LABELS[item]}
-            </Text>
-            {item === 'raport_zilnic' && (
-              <Text style={styles.mandatoryBadge}>OBLIGATORIU</Text>
-            )}
-          </TouchableOpacity>
-        )}
+        contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
+        columnWrapperStyle={{ gap: 10 }}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        renderItem={({ item }) => {
+          const cfg = TYPE_CONFIG[item];
+          const isMandatory = item === 'raport_zilnic';
+          return (
+            <TouchableOpacity
+              style={[styles.card, isMandatory && styles.cardMandatory]}
+              onPress={() => onSelect(item)}
+              activeOpacity={0.75}
+            >
+              {/* Type badge */}
+              <View style={[styles.typeBadge, { backgroundColor: `${cfg.color}18` }]}>
+                <Text style={[styles.typeAbbr, { color: cfg.color }]}>{cfg.abbr}</Text>
+              </View>
+
+              <Text style={[styles.cardLabel, isMandatory && styles.cardLabelMandatory]}>
+                {WORK_TYPE_LABELS[item]}
+              </Text>
+
+              {isMandatory && (
+                <View style={styles.mandatoryPill}>
+                  <Text style={styles.mandatoryText}>OBLIGATORIU</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        }}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: T.bg },
+
   header: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#0F172A', paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: T.dark, paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: T.borderDk,
   },
-  backBtn: { padding: 4 },
-  backText: { color: '#F97316', fontSize: 14, fontWeight: '600' },
-  headerTitle: { color: '#F1F5F9', fontSize: 15, fontWeight: '700' },
-  headerSub: { color: '#64748B', fontSize: 11, marginTop: 1 },
+  backBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 4, paddingRight: 4,
+  },
+  backArrow: { color: T.green, fontSize: 16, fontWeight: '400' },
+  backText: { color: T.green, fontSize: 14, fontWeight: '600' },
+  headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '700' },
+  headerSub: { color: '#374151', fontSize: 11, marginTop: 1 },
+
   card: {
-    flex: 1, margin: 6,
-    backgroundColor: '#fff', borderRadius: 10,
-    padding: 16, alignItems: 'center',
-    borderWidth: 1, borderColor: '#E2E8F0',
-    minHeight: 100,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2,
-    elevation: 1,
+    flex: 1,
+    backgroundColor: T.surface,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1, borderColor: T.border,
+    minHeight: 110,
+    justifyContent: 'center',
+    gap: 8,
   },
   cardMandatory: {
-    borderColor: '#F97316', borderWidth: 1.5,
-    backgroundColor: 'rgba(249,115,22,0.04)',
+    borderColor: T.green,
+    borderWidth: 1.5,
+    backgroundColor: T.greenBg,
   },
-  cardIcon: { fontSize: 26, marginBottom: 8 },
+  typeBadge: {
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  typeAbbr: {
+    fontSize: 14, fontWeight: '900', letterSpacing: 0.5,
+  },
   cardLabel: {
-    color: '#1E293B', fontSize: 12, fontWeight: '600', textAlign: 'center',
+    color: T.text, fontSize: 12, fontWeight: '600',
+    textAlign: 'center', lineHeight: 16,
   },
-  cardLabelMandatory: { color: '#F97316' },
-  mandatoryBadge: {
-    marginTop: 4, fontSize: 8, fontWeight: '800',
-    color: '#F97316', letterSpacing: 0.5,
+  cardLabelMandatory: { color: T.green },
+  mandatoryPill: {
+    backgroundColor: T.greenDim,
+    borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  mandatoryText: {
+    fontSize: 8, fontWeight: '800', color: T.green, letterSpacing: 0.6,
   },
 });

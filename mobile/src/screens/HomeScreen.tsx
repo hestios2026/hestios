@@ -9,11 +9,24 @@ import { fetchSites } from '../api/auth';
 import { getQueue, syncQueue } from '../store/offlineQueue';
 import type { AuthUser, Site, WorkEntry } from '../types';
 import { WORK_TYPE_LABELS } from '../types';
+import { T } from '../theme';
 
 interface Props {
   onAddReport: (siteId: number, siteName: string, nvtNumber: string) => void;
   onLogout: () => void;
   onPontaj: (siteId: number, siteName: string) => void;
+}
+
+function Initials({ name }: { name: string }) {
+  const parts = name.trim().split(' ');
+  const ini = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+  return (
+    <View style={styles.avatar}>
+      <Text style={styles.avatarText}>{ini}</Text>
+    </View>
+  );
 }
 
 export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
@@ -28,9 +41,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [sitePickerOpen, setSitePickerOpen] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -45,7 +56,6 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
       const savedNvt = await AsyncStorage.getItem('hestios_nvt_number') ?? '';
       setNvtNumber(savedNvt);
 
-      // Always try API first, fall back to cache on failure
       try {
         const siteList = await fetchSites();
         setSites(siteList);
@@ -56,15 +66,14 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
           const found = siteList.find((s: Site) => s.id === saved.id);
           setSelectedSite(found ?? saved);
         }
-      } catch (e) {
-        // API failed — use cache
+      } catch {
         const cached = await AsyncStorage.getItem('hestios_sites_cache');
         if (cached) {
           const siteList = JSON.parse(cached);
           setSites(siteList);
           if (savedSiteRaw) setSelectedSite(JSON.parse(savedSiteRaw));
         } else {
-          Alert.alert('Eroare conexiune', 'Nu s-a putut conecta la server. Verifică că backend-ul rulează.');
+          Alert.alert('Eroare conexiune', 'Nu s-a putut conecta la server.');
         }
       }
 
@@ -125,7 +134,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#F97316" size="large" />
+        <ActivityIndicator color={T.green} size="large" />
       </View>
     );
   }
@@ -134,14 +143,19 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.welcome}>Bun venit, {user?.full_name?.split(' ')[0]}</Text>
-          <View style={styles.onlineRow}>
-            <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#22c55e' : '#ef4444' }]} />
-            <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
+        <View style={styles.headerLeft}>
+          {user && <Initials name={user.full_name} />}
+          <View>
+            <Text style={styles.welcome}>
+              {user?.full_name?.split(' ')[0] ?? 'Bun venit'}
+            </Text>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: isOnline ? T.green : T.danger }]} />
+              <Text style={styles.statusText}>{isOnline ? 'Online' : 'Offline'}</Text>
+            </View>
           </View>
         </View>
-        <TouchableOpacity onPress={onLogout} style={styles.logoutBtn}>
+        <TouchableOpacity onPress={onLogout} style={styles.logoutBtn} activeOpacity={0.7}>
           <Text style={styles.logoutText}>Ieșire</Text>
         </TouchableOpacity>
       </View>
@@ -149,44 +163,60 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
       <FlatList
         data={queue}
         keyExtractor={item => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#F97316" />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.green} />
+        }
         ListHeaderComponent={(
           <View>
-            {/* Project selector */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>PROIECT / ȘANTIER</Text>
+            {/* Project selector card */}
+            <View style={styles.selectorCard}>
+              <Text style={styles.fieldLabel}>PROIECT / ȘANTIER</Text>
               <TouchableOpacity
-                style={styles.projectSelector}
+                style={[styles.selector, sitePickerOpen && styles.selectorOpen]}
                 onPress={() => setSitePickerOpen(!sitePickerOpen)}
                 activeOpacity={0.8}
               >
-                <Text style={selectedSite ? styles.projectText : styles.projectPlaceholder}>
-                  {selectedSite ? `${selectedSite.kst} — ${selectedSite.name}` : 'Selectează șantier...'}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  {selectedSite ? (
+                    <>
+                      <Text style={styles.siteKstBadge}>{selectedSite.kst}</Text>
+                      <Text style={styles.siteName}>{selectedSite.name}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.selectorPlaceholder}>Selectează șantier...</Text>
+                  )}
+                </View>
                 <Text style={styles.chevron}>{sitePickerOpen ? '▲' : '▼'}</Text>
               </TouchableOpacity>
 
               {sitePickerOpen && (
-                <View style={styles.siteList}>
-                  {sites.map(site => (
-                    <TouchableOpacity
-                      key={site.id}
-                      style={[styles.siteItem, selectedSite?.id === site.id && styles.siteItemActive]}
-                      onPress={() => handleSelectSite(site)}
-                    >
-                      <Text style={[styles.siteKst, selectedSite?.id === site.id && styles.siteTextActive]}>
-                        {site.kst}
-                      </Text>
-                      <Text style={[styles.siteName, selectedSite?.id === site.id && styles.siteTextActive]}>
-                        {site.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={styles.dropList}>
+                  {sites.map(site => {
+                    const active = selectedSite?.id === site.id;
+                    return (
+                      <TouchableOpacity
+                        key={site.id}
+                        style={[styles.dropItem, active && styles.dropItemActive]}
+                        onPress={() => handleSelectSite(site)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.dropKst, active && styles.dropTextActive]}>
+                          {site.kst}
+                        </Text>
+                        <Text style={[styles.dropName, active && styles.dropTextActive]}>
+                          {site.name}
+                        </Text>
+                        {active && (
+                          <View style={styles.checkDot} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
 
-              {/* NVT number */}
-              <Text style={[styles.sectionLabel, { marginTop: 14 }]}>NR. NVT / PDP</Text>
+              {/* NVT */}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>NR. NVT / PDP</Text>
               <TextInput
                 style={styles.nvtInput}
                 value={nvtNumber}
@@ -195,7 +225,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
                   AsyncStorage.setItem('hestios_nvt_number', v);
                 }}
                 placeholder="ex: NVT-1234 / PDP-05..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={T.text3}
                 autoCapitalize="characters"
                 returnKeyType="done"
               />
@@ -204,52 +234,62 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
             {/* Sync banner */}
             {pendingCount > 0 && (
               <TouchableOpacity
-                style={styles.syncBanner}
+                style={[styles.syncBanner, !isOnline && styles.syncBannerOffline]}
                 onPress={isOnline ? handleSync : undefined}
                 activeOpacity={isOnline ? 0.8 : 1}
               >
                 {syncing ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.syncText}>
-                    {isOnline
-                      ? `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} nesincronizat${pendingCount > 1 ? 'e' : ''} — Apasă pentru sync`
-                      : `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} în așteptare (offline)`
-                    }
-                  </Text>
+                  <>
+                    <View style={styles.syncDot} />
+                    <Text style={styles.syncText}>
+                      {isOnline
+                        ? `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} nesincronizat${pendingCount > 1 ? 'e' : ''} — Apasă pentru sync`
+                        : `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} în așteptare (offline)`
+                      }
+                    </Text>
+                  </>
                 )}
               </TouchableOpacity>
             )}
 
-            {/* Add report */}
-            <TouchableOpacity style={styles.addBtn} onPress={handleAddReport} activeOpacity={0.85}>
-              <Text style={styles.addBtnText}>+ Adaugă Raport</Text>
-            </TouchableOpacity>
+            {/* CTA Buttons */}
+            <View style={styles.ctaWrap}>
+              <TouchableOpacity style={styles.btnPrimary} onPress={handleAddReport} activeOpacity={0.85}>
+                <Text style={styles.btnPrimaryText}>+ Adaugă Raport</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.pontajBtn} onPress={handlePontaj} activeOpacity={0.85}>
-              <Text style={styles.pontajBtnText}>Pontaj Echipă</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.btnSecondary} onPress={handlePontaj} activeOpacity={0.85}>
+                <Text style={styles.btnSecondaryText}>Pontaj Echipă</Text>
+              </TouchableOpacity>
+            </View>
 
             {queue.length > 0 && (
-              <Text style={styles.historyLabel}>RAPOARTE LOCALE</Text>
+              <Text style={styles.sectionTitle}>RAPOARTE LOCALE</Text>
             )}
           </View>
         )}
         renderItem={({ item }) => (
           <View style={[styles.entryCard, item.synced && styles.entryCardSynced]}>
-            <View style={styles.entryCardRow}>
+            <View style={styles.entryRow}>
               <Text style={styles.entryType}>{WORK_TYPE_LABELS[item.work_type]}</Text>
               <View style={[styles.badge, item.synced ? styles.badgeSynced : styles.badgePending]}>
-                <Text style={styles.badgeText}>{item.synced ? '✓ Sync' : 'Pending'}</Text>
+                <Text style={[styles.badgeText, item.synced ? styles.badgeTextSynced : styles.badgeTextPending]}>
+                  {item.synced ? '✓ Sync' : 'Pending'}
+                </Text>
               </View>
             </View>
-            <Text style={styles.entrySite}>{item.site_name} — {item.nvt_number || '—'}</Text>
+            <Text style={styles.entrySite}>{item.site_name}{item.nvt_number ? ` — ${item.nvt_number}` : ''}</Text>
             <Text style={styles.entryDate}>{new Date(item.created_at).toLocaleString('ro-RO')}</Text>
           </View>
         )}
         ListEmptyComponent={(
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>Niciun raport local.</Text>
+            <View style={styles.emptyIcon}>
+              <Text style={styles.emptyIconText}>☰</Text>
+            </View>
+            <Text style={styles.emptyText}>Niciun raport local</Text>
             <Text style={styles.emptySubText}>Apasă „+ Adaugă Raport" pentru a începe.</Text>
           </View>
         )}
@@ -259,100 +299,145 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
   );
 }
 
-const C = {
-  bg: '#F8FAFC',
-  sidebar: '#0F172A',
-  surface: '#FFFFFF',
-  border: '#E2E8F0',
-  text: '#1E293B',
-  muted: '#64748B',
-  orange: '#F97316',
-  orangeLight: 'rgba(249,115,22,0.1)',
-};
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: T.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: T.bg },
+
+  // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: C.sidebar,
+    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: T.dark,
+    borderBottomWidth: 1, borderBottomColor: T.borderDk,
   },
-  welcome: { color: '#F1F5F9', fontSize: 15, fontWeight: '600' },
-  onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  onlineDot: { width: 7, height: 7, borderRadius: 4 },
-  onlineText: { color: '#64748B', fontSize: 11 },
-  logoutBtn: { padding: 8 },
-  logoutText: { color: '#64748B', fontSize: 12 },
-  section: { margin: 16 },
-  sectionLabel: { fontSize: 10, fontWeight: '700', color: C.muted, letterSpacing: 1, marginBottom: 6 },
-  projectSelector: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-    borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12,
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: T.greenDim,
+    borderWidth: 1.5, borderColor: 'rgba(34,197,94,0.35)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  projectText: { color: C.text, fontSize: 14, flex: 1 },
-  projectPlaceholder: { color: C.muted, fontSize: 14, flex: 1 },
-  chevron: { color: C.muted, fontSize: 12 },
-  siteList: {
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-    borderRadius: 8, marginTop: 4, overflow: 'hidden',
+  avatarText: { color: T.green, fontSize: 12, fontWeight: '800' },
+  welcome: { color: T.textLight, fontSize: 14, fontWeight: '700' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { color: '#374151', fontSize: 10 },
+  logoutBtn: {
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 6, borderWidth: 1, borderColor: '#1F2937',
   },
-  siteItem: {
-    flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: C.border,
+  logoutText: { color: '#374151', fontSize: 12, fontWeight: '500' },
+
+  // Selector card
+  selectorCard: {
+    margin: 14,
+    backgroundColor: T.surface,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1, borderColor: T.border,
   },
-  siteItemActive: { backgroundColor: C.orangeLight },
-  siteKst: { color: C.muted, fontSize: 12, width: 44 },
-  siteName: { color: C.text, fontSize: 13, flex: 1 },
-  siteTextActive: { color: C.orange, fontWeight: '600' },
+  fieldLabel: {
+    fontSize: 10, fontWeight: '700', color: T.text3,
+    letterSpacing: 0.8, marginBottom: 8,
+  },
+  selector: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: T.border,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: T.bg,
+  },
+  selectorOpen: {
+    borderColor: T.green,
+  },
+  siteKstBadge: {
+    fontSize: 10, fontWeight: '700', color: T.green,
+    letterSpacing: 0.5, marginBottom: 1,
+  },
+  siteName: { color: T.text, fontSize: 14, fontWeight: '500' },
+  selectorPlaceholder: { color: T.text3, fontSize: 14 },
+  chevron: { color: T.text3, fontSize: 11, marginLeft: 8 },
+
+  dropList: {
+    marginTop: 4, borderWidth: 1, borderColor: T.border,
+    borderRadius: 8, overflow: 'hidden', backgroundColor: T.surface,
+  },
+  dropItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 11,
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+  },
+  dropItemActive: { backgroundColor: T.greenBg },
+  dropKst: { color: T.text3, fontSize: 11, width: 42, fontWeight: '600' },
+  dropName: { color: T.text, fontSize: 13, flex: 1 },
+  dropTextActive: { color: T.green, fontWeight: '600' },
+  checkDot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: T.green,
+  },
+
   nvtInput: {
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-    borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 14, color: C.text,
+    backgroundColor: T.bg, borderWidth: 1, borderColor: T.border,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 14, color: T.text,
   },
+
+  // Sync banner
   syncBanner: {
-    marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: '#F97316', borderRadius: 8,
-    paddingVertical: 12, paddingHorizontal: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    marginHorizontal: 14, marginBottom: 12,
+    backgroundColor: T.green, borderRadius: 8,
+    paddingVertical: 11, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
   },
-  syncText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  addBtn: {
-    marginHorizontal: 16, marginBottom: 20,
-    backgroundColor: C.orange, borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    shadowColor: '#F97316', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6,
-    elevation: 4,
-  },
-  addBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  pontajBtn: {
-    marginHorizontal: 16, marginBottom: 20,
-    backgroundColor: '#0F172A', borderRadius: 10,
+  syncBannerOffline: { backgroundColor: T.warning },
+  syncDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.6)' },
+  syncText: { color: '#fff', fontSize: 13, fontWeight: '600', flex: 1 },
+
+  // CTA
+  ctaWrap: { paddingHorizontal: 14, marginBottom: 8, gap: 10 },
+  btnPrimary: {
+    backgroundColor: T.green, borderRadius: 10,
     paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: '#334155',
+    shadowColor: T.green, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
-  pontajBtnText: { color: '#94A3B8', fontSize: 15, fontWeight: '600' },
-  historyLabel: {
-    fontSize: 10, fontWeight: '700', color: C.muted, letterSpacing: 1,
-    marginHorizontal: 16, marginBottom: 8,
+  btnPrimaryText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  btnSecondary: {
+    backgroundColor: T.dark, borderRadius: 10,
+    paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: '#1F2937',
+  },
+  btnSecondaryText: { color: T.text3, fontSize: 15, fontWeight: '600' },
+
+  // History
+  sectionTitle: {
+    fontSize: 10, fontWeight: '700', color: T.text3,
+    letterSpacing: 0.8, marginHorizontal: 14, marginBottom: 8, marginTop: 4,
   },
   entryCard: {
-    marginHorizontal: 16, marginBottom: 8,
-    backgroundColor: C.surface, borderRadius: 8,
-    padding: 12, borderWidth: 1, borderColor: C.border,
+    marginHorizontal: 14, marginBottom: 8,
+    backgroundColor: T.surface, borderRadius: 10,
+    padding: 12, borderWidth: 1, borderColor: T.border,
   },
-  entryCardSynced: { opacity: 0.7 },
-  entryCardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  entryType: { color: C.text, fontSize: 13, fontWeight: '600', flex: 1 },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  badgePending: { backgroundColor: 'rgba(249,115,22,0.12)' },
-  badgeSynced: { backgroundColor: 'rgba(34,197,94,0.12)' },
-  badgeText: { fontSize: 10, fontWeight: '700', color: C.muted },
-  entrySite: { color: C.muted, fontSize: 12 },
-  entryDate: { color: '#94A3B8', fontSize: 11, marginTop: 2 },
-  empty: { alignItems: 'center', paddingTop: 40 },
-  emptyText: { color: C.muted, fontSize: 15, fontWeight: '600' },
-  emptySubText: { color: '#94A3B8', fontSize: 13, marginTop: 6 },
+  entryCardSynced: { opacity: 0.6 },
+  entryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  entryType: { color: T.text, fontSize: 13, fontWeight: '600', flex: 1 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  badgePending: { backgroundColor: 'rgba(245,158,11,0.10)' },
+  badgeSynced: { backgroundColor: T.greenDim },
+  badgeText: { fontSize: 10, fontWeight: '700' },
+  badgeTextPending: { color: T.warning },
+  badgeTextSynced: { color: T.green },
+  entrySite: { color: T.text2, fontSize: 12 },
+  entryDate: { color: T.text3, fontSize: 11, marginTop: 2 },
+
+  // Empty state
+  empty: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 32 },
+  emptyIcon: {
+    width: 56, height: 56, borderRadius: 14,
+    backgroundColor: T.border, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyIconText: { fontSize: 22, color: T.text3 },
+  emptyText: { color: T.text2, fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  emptySubText: { color: T.text3, fontSize: 13, textAlign: 'center', lineHeight: 20 },
 });

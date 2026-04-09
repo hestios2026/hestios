@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginWithPin } from '../api/auth';
+import { T } from '../theme';
 
 interface Props {
   onLogin: () => void;
@@ -45,25 +46,30 @@ export default function PinLoginScreen({ onLogin }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Top accent line */}
+      <View style={styles.accentLine} />
+
       <View style={styles.inner}>
-        {/* Logo */}
-        <View style={styles.logoWrap}>
-          <Text style={styles.logo}>HestiOS</Text>
-          <Text style={styles.subtitle}>Raportare Teren</Text>
+        {/* Brand mark */}
+        <View style={styles.brandWrap}>
+          <View style={styles.logoMark}>
+            <Text style={styles.logoMarkText}>H</Text>
+          </View>
+          <Text style={styles.appName}>HestiOS</Text>
+          <Text style={styles.appSub}>Raportare Teren</Text>
         </View>
 
-        {/* Dots */}
+        {/* PIN dots */}
         <View style={styles.dots}>
           {Array.from({ length: 4 }).map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i < pin.length && styles.dotFilled]}
-            />
+            <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]}>
+              {i < pin.length && <View style={styles.dotInner} />}
+            </View>
           ))}
         </View>
 
         {loading ? (
-          <ActivityIndicator color="#F97316" size="large" style={{ marginTop: 32 }} />
+          <ActivityIndicator color={T.green} size="large" style={{ marginVertical: 40 }} />
         ) : (
           <View style={styles.keypad}>
             {keys.map((key, idx) => (
@@ -72,13 +78,13 @@ export default function PinLoginScreen({ onLogin }: Props) {
                 style={[styles.key, key === '' && styles.keyEmpty]}
                 onPress={() => key !== '' && handleKey(key)}
                 disabled={key === ''}
-                activeOpacity={0.7}
+                activeOpacity={0.65}
               >
                 {key === 'del' ? (
                   <Text style={styles.keyDel}>⌫</Text>
-                ) : (
+                ) : key !== '' ? (
                   <Text style={styles.keyText}>{key}</Text>
-                )}
+                ) : null}
               </TouchableOpacity>
             ))}
           </View>
@@ -93,7 +99,14 @@ export default function PinLoginScreen({ onLogin }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: T.dark,
+  },
+  accentLine: {
+    height: 2,
+    backgroundColor: T.green,
+    marginHorizontal: 40,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
   },
   inner: {
     flex: 1,
@@ -101,42 +114,71 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  logoWrap: {
+  brandWrap: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 52,
   },
-  logo: {
-    color: '#F1F5F9',
+  logoMark: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: T.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    shadowColor: T.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  logoMarkText: {
+    color: '#fff',
     fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
-  subtitle: {
-    color: '#475569',
-    fontSize: 13,
+  appName: {
+    color: T.textLight,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  appSub: {
+    color: '#374151',
+    fontSize: 12,
     marginTop: 4,
+    letterSpacing: 0.3,
   },
   dots: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 18,
     marginBottom: 48,
   },
   dot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#1E293B',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#334155',
+    borderColor: '#1F2937',
+    backgroundColor: '#141D2E',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dotFilled: {
-    backgroundColor: '#F97316',
-    borderColor: '#F97316',
+    borderColor: T.green,
+    backgroundColor: T.green,
+  },
+  dotInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
   keypad: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    width: 264,
+    width: 272,
     gap: 12,
     justifyContent: 'center',
   },
@@ -144,25 +186,29 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#141D2E',
+    borderWidth: 1,
+    borderColor: '#1F2937',
     alignItems: 'center',
     justifyContent: 'center',
   },
   keyEmpty: {
     backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   keyText: {
-    color: '#F1F5F9',
-    fontSize: 24,
-    fontWeight: '400',
+    color: T.textLight,
+    fontSize: 26,
+    fontWeight: '300',
   },
   keyDel: {
-    color: '#94A3B8',
+    color: T.text3,
     fontSize: 22,
   },
   hint: {
-    color: '#334155',
+    color: '#1F2937',
     fontSize: 12,
     marginTop: 32,
+    letterSpacing: 0.3,
   },
 });

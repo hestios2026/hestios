@@ -8,6 +8,7 @@ import { TextField, Dropdown, LocationField } from '../components/FormField';
 import PhotoPicker from '../components/PhotoPicker';
 import { enqueue } from '../store/offlineQueue';
 import { newUUID } from '../utils/timestamp';
+import { T } from '../theme';
 import type {
   WorkType, AuthUser, PhotoEntry,
   DataPozeInainte, DataTeratest, DataSemneCirculatie, DataLieferScheine,
@@ -581,7 +582,7 @@ export default function ReportFormScreen({
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
           <Text style={styles.backText}>← Înapoi</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
@@ -610,27 +611,28 @@ export default function ReportFormScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: T.bg },
   header: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#0F172A', paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: T.dark, paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: T.borderDk,
   },
-  backBtn: { padding: 4 },
-  backText: { color: '#F97316', fontSize: 14, fontWeight: '600' },
-  headerTitle: { color: '#F1F5F9', fontSize: 15, fontWeight: '700' },
-  headerSub: { color: '#64748B', fontSize: 11, marginTop: 1 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 },
+  backText: { color: T.green, fontSize: 14, fontWeight: '600' },
+  headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '700' },
+  headerSub: { color: '#374151', fontSize: 11, marginTop: 1 },
   scroll: { padding: 16, paddingBottom: 40 },
   mandatoryBanner: {
-    backgroundColor: 'rgba(249,115,22,0.1)', borderRadius: 8,
+    backgroundColor: T.greenBg, borderRadius: 8,
     paddingVertical: 10, paddingHorizontal: 14,
-    borderLeftWidth: 3, borderLeftColor: '#F97316',
+    borderLeftWidth: 3, borderLeftColor: T.green,
     marginBottom: 16,
   },
-  mandatoryText: { color: '#F97316', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  mandatoryText: { color: T.green, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   saveBtn: {
-    backgroundColor: '#F97316', borderRadius: 10,
+    backgroundColor: T.green, borderRadius: 10,
     paddingVertical: 14, alignItems: 'center', marginTop: 8,
-    shadowColor: '#F97316', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6,
+    shadowColor: T.green, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 8,
     elevation: 4,
   },
   saveBtnDisabled: { opacity: 0.6 },

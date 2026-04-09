@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import LocationPicker, { LocationPoint } from './LocationPicker';
+import { T } from '../theme';
 
 interface TextFieldProps {
   label: string;
@@ -153,37 +154,41 @@ export function LocationField({ label, mode, startValue, stopValue, onChangeStar
 const styles = StyleSheet.create({
   mapBtn: {
     marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: T.bg, borderWidth: 1, borderColor: T.border,
     borderRadius: 8, paddingVertical: 10,
   },
-  mapBtnTxt: { fontSize: 13, color: '#F97316', fontWeight: '600' },
+  mapBtnTxt: { fontSize: 13, color: T.green, fontWeight: '600' },
   field: { marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: '700', color: '#64748B', marginBottom: 6, letterSpacing: 0.4 },
-  required: { color: '#ef4444' },
+  label: {
+    fontSize: 11, fontWeight: '700', color: T.text2,
+    marginBottom: 6, letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  required: { color: T.danger },
   input: {
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: '#1E293B',
+    backgroundColor: T.surface, borderWidth: 1, borderColor: T.border,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11,
+    fontSize: 14, color: T.text,
   },
   inputMulti: { minHeight: 80, textAlignVertical: 'top' },
-  hint: { fontSize: 11, color: '#94A3B8', marginTop: 4 },
+  hint: { fontSize: 11, color: T.text3, marginTop: 4 },
   dropdown: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: T.surface, borderWidth: 1, borderColor: T.border,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11,
   },
-  dropdownText: { fontSize: 14, color: '#1E293B', flex: 1 },
-  placeholder: { color: '#94A3B8' },
-  chevron: { color: '#94A3B8', fontSize: 11 },
+  dropdownText: { fontSize: 14, color: T.text, flex: 1 },
+  placeholder: { color: T.text3 },
+  chevron: { color: T.text3, fontSize: 11 },
   optionList: {
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: T.surface, borderWidth: 1, borderColor: T.border,
     borderRadius: 8, marginTop: 4, overflow: 'hidden',
   },
   option: {
     paddingHorizontal: 12, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  optionActive: { backgroundColor: 'rgba(249,115,22,0.08)' },
-  optionText: { fontSize: 14, color: '#1E293B' },
-  optionTextActive: { color: '#F97316', fontWeight: '600' },
+  optionActive: { backgroundColor: T.greenBg },
+  optionText: { fontSize: 14, color: T.text },
+  optionTextActive: { color: T.green, fontWeight: '600' },
 });
