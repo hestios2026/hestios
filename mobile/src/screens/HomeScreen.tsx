@@ -15,6 +15,7 @@ interface Props {
   onAddReport: (siteId: number, siteName: string, nvtNumber: string) => void;
   onLogout: () => void;
   onPontaj: (siteId: number, siteName: string) => void;
+  onProgramari: () => void;
 }
 
 function Initials({ name }: { name: string }) {
@@ -29,7 +30,7 @@ function Initials({ name }: { name: string }) {
   );
 }
 
-export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
+export default function HomeScreen({ onAddReport, onLogout, onPontaj, onProgramari }: Props) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
@@ -260,9 +261,14 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj }: Props) {
                 <Text style={styles.btnPrimaryText}>+ Adaugă Raport</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.btnSecondary} onPress={handlePontaj} activeOpacity={0.85}>
-                <Text style={styles.btnSecondaryText}>Pontaj Echipă</Text>
-              </TouchableOpacity>
+              <View style={styles.ctaRow}>
+                <TouchableOpacity style={[styles.btnSecondary, { flex: 1 }]} onPress={handlePontaj} activeOpacity={0.85}>
+                  <Text style={styles.btnSecondaryText}>Pontaj Echipă</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btnProgramari, { flex: 1 }]} onPress={onProgramari} activeOpacity={0.85}>
+                  <Text style={styles.btnProgramariText}>📅 Programări</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {queue.length > 0 && (
@@ -394,6 +400,7 @@ const styles = StyleSheet.create({
 
   // CTA
   ctaWrap: { paddingHorizontal: 14, marginBottom: 8, gap: 10 },
+  ctaRow: { flexDirection: 'row', gap: 10 },
   btnPrimary: {
     backgroundColor: T.green, borderRadius: 10,
     paddingVertical: 14, alignItems: 'center',
@@ -407,6 +414,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#1F2937',
   },
   btnSecondaryText: { color: T.text3, fontSize: 15, fontWeight: '600' },
+  btnProgramari: {
+    backgroundColor: T.greenDim, borderRadius: 10,
+    paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: T.green,
+  },
+  btnProgramariText: { color: T.green, fontSize: 14, fontWeight: '700' },
 
   // History
   sectionTitle: {

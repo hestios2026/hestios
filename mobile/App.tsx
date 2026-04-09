@@ -7,9 +7,10 @@ import HomeScreen from './src/screens/HomeScreen';
 import WorkTypeSelectorScreen from './src/screens/WorkTypeSelectorScreen';
 import ReportFormScreen from './src/screens/ReportFormScreen';
 import PontajScreen from './src/screens/PontajScreen';
+import ProgramariScreen from './src/screens/ProgramariScreen';
 import type { WorkType } from './src/types';
 
-type Screen = 'login' | 'home' | 'type-select' | 'form' | 'pontaj';
+type Screen = 'login' | 'home' | 'type-select' | 'form' | 'pontaj' | 'programari';
 
 interface ReportContext {
   siteId: number;
@@ -45,6 +46,7 @@ export default function App() {
       if (screen === 'form') { setScreen('type-select'); return true; }
       if (screen === 'type-select') { setScreen('home'); return true; }
       if (screen === 'pontaj') { setScreen('home'); return true; }
+      if (screen === 'programari') { setScreen('home'); return true; }
       return false; // default behavior (exit app) on home/login
     });
     return () => sub.remove();
@@ -67,6 +69,8 @@ export default function App() {
     setScreen('pontaj');
   };
 
+  const handleProgramari = () => setScreen('programari');
+
   const handleSelectType = (workType: WorkType) => {
     setCtx(c => ({ ...c, workType }));
     setScreen('form');
@@ -84,7 +88,7 @@ export default function App() {
       return (
         <>
           <StatusBar style="light" />
-          <HomeScreen onAddReport={handleAddReport} onLogout={handleLogout} onPontaj={handlePontaj} />
+          <HomeScreen onAddReport={handleAddReport} onLogout={handleLogout} onPontaj={handlePontaj} onProgramari={handleProgramari} />
         </>
       );
     case 'type-select':
@@ -123,6 +127,13 @@ export default function App() {
             siteName={ctx.siteName}
             onBack={() => setScreen('home')}
           />
+        </>
+      );
+    case 'programari':
+      return (
+        <>
+          <StatusBar style="light" />
+          <ProgramariScreen onBack={() => setScreen('home')} />
         </>
       );
   }
