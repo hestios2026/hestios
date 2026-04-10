@@ -162,8 +162,28 @@ def download_document(doc_id: int, db: Session = Depends(get_db), _: User = Depe
 
 
 @router.get("/{doc_id}/view/")
-def view_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """Stream file bytes directly from MinIO — no redirect, no CORS/X-Frame-Options issues."""
+def view_document(
+    doc_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    token: Optional[str] = None,
+):
+    """Stream file bytes directly from MinIO.
+    Accepts auth via Authorization header OR ?token= query param (for iframe embedding).
+    """
+    from app.core.security import decode_token
+    # Resolve JWT from header or query param
+    auth_header = request.headers.get("Authorization", "")
+    jwt_token = auth_header[7:] if auth_header.startswith("Bearer ") else token
+    if not jwt_token:
+        raise HTTPException(401, "Not authenticated")
+    payload = decode_token(jwt_token, token_type="access")
+    if not payload:
+        raise HTTPException(401, "Invalid token")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user or not user.is_active:
+        raise HTTPException(401, "Invalid token")
+
     d = db.query(Document).filter(Document.id == doc_id).first()
     if not d:
         raise HTTPException(404, "Document negăsit")
@@ -171,10 +191,15 @@ def view_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(
         data = get_file_content(d.file_key)
     except Exception:
         raise HTTPException(500, "Eroare la citirea fișierului")
+    import urllib.parse
+    safe_name = urllib.parse.quote(d.name, safe='')
     return Response(
         content=data,
         media_type=d.content_type,
-        headers={"Content-Disposition": f'inline; filename="{d.name}"'},
+        headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{safe_name}",
+            "X-Frame-Options": "SAMEORIGIN",
+        },
     )
 
 

@@ -38,8 +38,11 @@ export function DocumentViewerModal({ docId, onClose }: Props) {
         if (cancelled) return;
         setDoc(d);
 
-        if (isPDF(d.content_type) || isImage(d.content_type)) {
-          // Fetch via authenticated backend endpoint — streams directly from MinIO
+        if (isPDF(d.content_type)) {
+          // Use signed URL directly as iframe src — blob: URLs fail in Safari
+          if (!cancelled) setBlobUrl(`/api/documents/${docId}/view/?token=${encodeURIComponent(token)}`);
+        } else if (isImage(d.content_type)) {
+          // Images: fetch as blob for zoom/pan support
           const res = await fetch(`/api/documents/${docId}/view/`, {
             headers: { Authorization: `Bearer ${token}` },
           });
