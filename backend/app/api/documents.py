@@ -333,8 +333,9 @@ def get_office_config(
     sig = _office_file_token(doc_id)
     download_url = f"{base_url}/api/documents/{doc_id}/office-file/?sig={sig}"
 
-    # Fresh key each session to avoid stale OnlyOffice state
-    doc_key = f"{d.id}_{int(d.created_at.timestamp() if d.created_at else 0)}_{int(time.time())}"
+    # Stable key per document version — changes only when file is updated (saved).
+    # Using time.time() caused re-conversion on every open, leading to loading delays.
+    doc_key = f"{d.id}_{int(d.created_at.timestamp() if d.created_at else 0)}_{d.file_size}"
 
     config = {
         "document": {

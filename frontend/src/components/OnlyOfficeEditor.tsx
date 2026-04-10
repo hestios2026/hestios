@@ -48,8 +48,11 @@ export function OnlyOfficeEditor({ docId, docName, onClose }: Props) {
           height: '100%',
           events: {
             onDocumentStateChange: () => {},
+            onAppReady: () => setLoading(false),
             onError: (e: any) => {
               console.error('OnlyOffice error', e);
+              setError('Eroare la deschiderea documentului.');
+              setLoading(false);
             },
           },
         });
@@ -90,7 +93,7 @@ export function OnlyOfficeEditor({ docId, docName, onClose }: Props) {
           </div>
           <span style={{ color: '#f1f5f9', fontSize: 14, fontWeight: '600' }}>{docName}</span>
           {loading && (
-            <span style={{ color: '#64748b', fontSize: 12 }}>Se încarcă...</span>
+            <span style={{ color: '#64748b', fontSize: 12 }}>Se pregătește editorul…</span>
           )}
         </div>
         <button
@@ -119,11 +122,29 @@ export function OnlyOfficeEditor({ docId, docName, onClose }: Props) {
             <div style={{ fontSize: 13, maxWidth: 400, textAlign: 'center' }}>{error}</div>
           </div>
         ) : (
-          <div
-            id="onlyoffice-container"
-            ref={containerRef}
-            style={{ width: '100%', height: '100%' }}
-          />
+          <>
+            {loading && (
+              <div style={{
+                position: 'absolute', inset: 0, zIndex: 10,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                background: '#1e293b', color: '#94a3b8', gap: 12,
+              }}>
+                <div style={{
+                  width: 36, height: 36, border: '3px solid #334155',
+                  borderTopColor: '#22C55E', borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                }} />
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <span style={{ fontSize: 13 }}>Se pregătește documentul…</span>
+              </div>
+            )}
+            <div
+              id="onlyoffice-container"
+              ref={containerRef}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </>
         )}
       </div>
     </div>
