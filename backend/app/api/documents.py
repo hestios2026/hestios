@@ -340,10 +340,10 @@ def get_office_config(
                 "toolbarNoTabs": True,
             },
         },
-        "token": "",
     }
 
     if jwt_secret:
+        # Sign the config WITHOUT the token field (per OnlyOffice JWT docs)
         token = pyjwt.encode(config, jwt_secret, algorithm="HS256")
         config["token"] = token
 
@@ -362,6 +362,8 @@ async def office_callback(
 
     body = await request.json()
     status = body.get("status")
+    import logging
+    logging.getLogger(__name__).warning(f"OnlyOffice callback doc={doc_id} status={status} keys={list(body.keys())}")
 
     # Status 2 = document ready to save, 6 = force save
     if status not in (2, 6):
