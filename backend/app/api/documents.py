@@ -359,7 +359,7 @@ def get_office_config(
             },
             "customization": {
                 "autosave": True,
-                "forcesave": False,
+                "forcesave": True,
                 "logo": {"visible": False},
                 "chat": {"visible": False},
                 "help": {"visible": False},
@@ -411,7 +411,8 @@ async def office_callback(
 
         upload_file(d.file_key, data, d.content_type)
         d.file_size = len(data)
-        d.created_at = datetime.utcnow()
+        from datetime import timezone
+        d.created_at = datetime.now(timezone.utc)
         db.commit()
     except Exception as e:
         import logging
