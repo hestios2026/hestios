@@ -7,6 +7,7 @@ export interface User {
   full_name: string;
   role: UserRole;
   language: Lang;
+  permissions?: Record<string, boolean>;
 }
 
 export interface Site {

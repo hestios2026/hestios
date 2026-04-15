@@ -5,7 +5,8 @@ from typing import Optional, List
 from datetime import datetime
 from app.core.database import get_db
 from app.core.validators import Str20, Str200, OptStr100, OptStr200, OptStr300, OptStr500, OptText, Currency
-from app.models.site import Site, SiteStatus
+from app.models.site import Site, SiteStatus, user_sites
+from sqlalchemy import select
 from app.models.cost import Cost, CostCategory, MaterialLog
 from app.models.user import User, UserRole
 from app.api.auth import get_current_user
@@ -64,8 +65,13 @@ def list_sites(
     current: User = Depends(get_current_user),
 ):
     q = db.query(Site)
-    if current.role not in [UserRole.DIRECTOR]:
-        q = q.filter(Site.manager_id == current.id)
+    if current.role not in [UserRole.DIRECTOR, UserRole.CALLCENTER]:
+        # Include sites where user is manager OR explicitly assigned via user_sites
+        assigned_ids = db.execute(
+            select(user_sites.c.site_id).where(user_sites.c.user_id == current.id)
+        ).scalars().all()
+        from sqlalchemy import or_
+        q = q.filter(or_(Site.manager_id == current.id, Site.id.in_(assigned_ids)))
     if baustellen_only:
         q = q.filter(Site.is_baustelle == True)  # noqa: E712
     sites = q.all()

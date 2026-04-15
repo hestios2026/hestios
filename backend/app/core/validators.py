@@ -67,8 +67,8 @@ OptPhone = Annotated[Optional[str], BeforeValidator(_normalize_phone)]
 OptIBAN  = Annotated[Optional[str], StringConstraints(max_length=34), BeforeValidator(_normalize_iban)]
 OptBIC   = Annotated[Optional[str], StringConstraints(max_length=11), BeforeValidator(_normalize_bic)]
 
-# Password: 8–128 chars (hashed, so keep generous max)
-Password = Annotated[str, StringConstraints(min_length=8, max_length=128)]
+# Password: 4–128 chars
+Password = Annotated[str, StringConstraints(min_length=4, max_length=128)]
 
 # ISO 4217 currency code
 Currency = Annotated[str, StringConstraints(min_length=3, max_length=3, strip_whitespace=True, to_upper=True)]

@@ -6,6 +6,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginWithPin } from '../api/auth';
 import { T } from '../theme';
+import { version } from '../../package.json';
 
 interface Props {
   onLogin: () => void;
@@ -91,6 +92,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
         )}
 
         <Text style={styles.hint}>Introdu PIN-ul de 4 cifre</Text>
+        <Text style={styles.versionText}>v{version}</Text>
       </View>
     </SafeAreaView>
   );
@@ -145,7 +147,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   appSub: {
-    color: '#374151',
+    color: T.text3,
     fontSize: 12,
     marginTop: 4,
     letterSpacing: 0.3,
@@ -160,8 +162,8 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#1F2937',
-    backgroundColor: '#141D2E',
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -186,9 +188,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#141D2E',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1,
-    borderColor: '#1F2937',
+    borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -206,9 +208,15 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   hint: {
-    color: '#1F2937',
+    color: T.text3,
     fontSize: 12,
     marginTop: 32,
     letterSpacing: 0.3,
+  },
+  versionText: {
+    color: T.text3,
+    fontSize: 11,
+    marginTop: 8,
+    letterSpacing: 0.4,
   },
 });

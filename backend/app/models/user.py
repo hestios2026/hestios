@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey, JSON
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from app.core.database import Base
@@ -17,7 +18,8 @@ class User(Base):
     __tablename__ = "users"
 
     id              = Column(Integer, primary_key=True, index=True)
-    email           = Column(String(254), unique=True, index=True, nullable=False)
+    email           = Column(String(254), unique=True, index=True, nullable=True)
+    username        = Column(String(100), unique=True, index=True, nullable=True)  # alternative login for reporting users (no email)
     full_name       = Column(String(100), nullable=False)
     hashed_password = Column(String(128), nullable=False)
     role            = Column(Enum(UserRole), nullable=False, default=UserRole.POLIER)
@@ -32,5 +34,8 @@ class User(Base):
     current_site_id = Column(Integer, ForeignKey("sites.id", use_alter=True, name="fk_users_current_site_id"), nullable=True)
     employee_id     = Column(Integer, ForeignKey("employees.id"), nullable=True)
     mobile_pin      = Column(String(10), nullable=True)           # 4-digit PIN for mobile app
+    permissions     = Column(JSON, nullable=True)                 # per-user module overrides: {"sites": true, "hr": false, ...}
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     updated_at      = Column(DateTime(timezone=True), onupdate=func.now())
+
+    assigned_sites  = relationship("Site", secondary="user_sites", lazy="select")

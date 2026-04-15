@@ -271,7 +271,11 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
       {/* Nav */}
       <nav style={{ flex: 1, padding: '6px 0', overflowY: 'auto' }}>
         {NAV_GROUPS.map((group, gi) => {
-          const visible = group.items.filter(i => i.roles.includes(userRole));
+          const visible = group.items.filter(i => {
+            const perms = user?.permissions;
+            if (perms && Object.keys(perms).length > 0 && i.key in perms) return perms[i.key];
+            return i.roles.includes(userRole);
+          });
           if (!visible.length) return null;
           return (
             <div key={gi} style={{ marginBottom: 2 }}>

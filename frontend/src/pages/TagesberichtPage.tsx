@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { fetchDailyReports, createDailyReport, updateDailyReport, submitDailyReport, approveDailyReport } from '../api/daily_reports';
+import { fetchTagesberichtEntries } from '../api/tagesbericht';
+import { fetchUsers } from '../api/users';
 import { fetchSites } from '../api/sites';
 import { fetchEmployees } from '../api/employees';
 import { fetchEquipment } from '../api/equipment';
@@ -64,6 +66,7 @@ const EMPTY_MAT     = (): MatRow      => ({ material_name: '', unit: 'Stk', quan
 
 export function TagesberichtPage({ userRole }: { userRole: string }) {
   const { t } = useTranslation();
+  const [mainTab, setMainTab]       = useState<'desktop' | 'mobile'>('desktop');
   const [reports, setReports]       = useState<DailyReport[]>([]);
   const [sites, setSites]           = useState<Site[]>([]);
   const [employees, setEmployees]   = useState<{ id: number; vorname: string; nachname: string }[]>([]);
@@ -72,6 +75,15 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
   const [showForm, setShowForm]     = useState(false);
   const [filterSite, setFilterSite] = useState<number | ''>('');
   const [filterDate, setFilterDate] = useState('');
+
+  // Mobile reports state
+  const [mobileEntries, setMobileEntries] = useState<any[]>([]);
+  const [mobileLoading, setMobileLoading] = useState(false);
+  const [mobileFilterSite, setMobileFilterSite] = useState<number | ''>('');
+  const [mobileFilterDateFrom, setMobileFilterDateFrom] = useState('');
+  const [mobileFilterDateTo, setMobileFilterDateTo] = useState('');
+  const [expandedEntry, setExpandedEntry] = useState<number | null>(null);
+  const [usersMap, setUsersMap] = useState<Record<number, string>>({});
 
   // Form state
   const [fSiteId, setFSiteId]       = useState<number | ''>('');
@@ -95,6 +107,11 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
     fetchSites().then(d => setSites((d as Site[]).filter((s: Site) => s.is_baustelle)));
     fetchEmployees().then(d => setEmployees(d.filter((e: any) => e.is_active)));
     fetchEquipment().then(d => setEquipList(d));
+    fetchUsers().then((users: any[]) => {
+      const map: Record<number, string> = {};
+      users.forEach((u: any) => { map[u.id] = u.full_name; });
+      setUsersMap(map);
+    }).catch(() => {});
   }, []);
 
   function load() {
@@ -105,6 +122,20 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
   }
 
   useEffect(() => { load(); }, [filterSite, filterDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function loadMobileEntries() {
+    setMobileLoading(true);
+    const params: Record<string, unknown> = { limit: 100 };
+    if (mobileFilterSite)     params.site_id = mobileFilterSite;
+    if (mobileFilterDateFrom) params.date_from = mobileFilterDateFrom;
+    if (mobileFilterDateTo)   params.date_to = mobileFilterDateTo;
+    fetchTagesberichtEntries(params)
+      .then(setMobileEntries)
+      .catch(() => toast.error(t('common.error')))
+      .finally(() => setMobileLoading(false));
+  }
+
+  useEffect(() => { if (mainTab === 'mobile') loadMobileEntries(); }, [mainTab, mobileFilterSite, mobileFilterDateFrom, mobileFilterDateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openNew() {
     setSelected(null);
@@ -216,70 +247,185 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
   // ── Render ─────────────────────────────────────────────────────────────────
   if (showForm) return <FormView />;
 
+  const mainTabStyle = (active: boolean): React.CSSProperties => ({
+    padding: '9px 20px', cursor: 'pointer', fontSize: 13, fontWeight: active ? 700 : 500,
+    borderBottom: active ? '2px solid #22C55E' : '2px solid transparent',
+    color: active ? '#22C55E' : '#64748b', background: 'none', border: 'none',
+  });
+
   return (
     <div style={{ padding: 24 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{t('tagesbericht.title')}</h2>
-        <button style={btn('#22C55E')} onClick={openNew}>{t('tagesbericht.newReport')}</button>
+        {mainTab === 'desktop' && <button style={btn('#22C55E')} onClick={openNew}>{t('tagesbericht.newReport')}</button>}
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <select style={{ ...inp, width: 220 }} value={filterSite} onChange={e => setFilterSite(e.target.value ? Number(e.target.value) : '')}>
-          <option value="">{t('tagesbericht.filterSite')}</option>
-          {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <input type="date" style={{ ...inp, width: 160 }} value={filterDate} onChange={e => setFilterDate(e.target.value)} />
-        {filterDate && <button style={btn('#64748b')} onClick={() => setFilterDate('')}>×</button>}
+      {/* Main tabs */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: 20 }}>
+        <button style={mainTabStyle(mainTab === 'desktop')} onClick={() => setMainTab('desktop')}>{t('tagesbericht.tabDesktop')}</button>
+        <button style={mainTabStyle(mainTab === 'mobile')} onClick={() => setMainTab('mobile')}>
+          {t('tagesbericht.tabMobile')}
+          {mobileEntries.length > 0 && (
+            <span style={{ marginLeft: 6, background: '#22C55E', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+              {mobileEntries.length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#f8fafc' }}>
-              <th style={th}>{t('tagesbericht.colDate')}</th>
-              <th style={th}>{t('tagesbericht.colSite')}</th>
-              <th style={th}>{t('tagesbericht.colWeather')}</th>
-              <th style={th}>{t('tagesbericht.colWorkers')}</th>
-              <th style={th}>{t('tagesbericht.colPositions')}</th>
-              <th style={th}>{t('tagesbericht.colStatus')}</th>
-              <th style={th}>{t('tagesbericht.colActions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>{t('tagesbericht.noReports')}</td></tr>
-            )}
-            {reports.map(r => {
-              const [bg, fg] = STATUS_COLORS[r.status] || ['#f1f5f9', '#64748b'];
-              return (
-                <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => openEdit(r)}>
-                  <td style={td}><strong>{r.report_date}</strong></td>
-                  <td style={td}>{siteName(r.site_id)}</td>
-                  <td style={td}>{WEATHER_ICONS[r.weather] || r.weather} {r.temperature_c !== null ? `${r.temperature_c}°C` : ''}</td>
-                  <td style={td}>{r.workers.length}</td>
-                  <td style={td}>{r.positions.length} ({r.positions.reduce((s, p) => s + p.quantity, 0).toFixed(1)} m/Stk)</td>
-                  <td style={td}>
-                    <span style={{ background: bg, color: fg, padding: '2px 8px', borderRadius: 12, fontWeight: 700, fontSize: 11 }}>
-                      {t(`tagesbericht.status.${r.status}`)}
-                    </span>
-                  </td>
-                  <td style={td} onClick={e => e.stopPropagation()}>
-                    {r.status === 'draft' && (
-                      <button style={{ ...btn('#2563eb'), fontSize: 11, padding: '4px 10px' }} onClick={() => handleSubmit(r)}>{t('tagesbericht.submitBtn')}</button>
-                    )}
-                    {r.status === 'submitted' && ['director', 'projekt_leiter'].includes(userRole) && (
-                      <button style={{ ...btn('#059669'), fontSize: 11, padding: '4px 10px' }} onClick={() => handleApprove(r)}>{t('tagesbericht.approveBtn')}</button>
-                    )}
-                  </td>
+      {/* Desktop tab */}
+      {mainTab === 'desktop' && (
+        <>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+            <select style={{ ...inp, width: 220 }} value={filterSite} onChange={e => setFilterSite(e.target.value ? Number(e.target.value) : '')}>
+              <option value="">{t('tagesbericht.filterSite')}</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <input type="date" style={{ ...inp, width: 160 }} value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+            {filterDate && <button style={btn('#64748b')} onClick={() => setFilterDate('')}>×</button>}
+          </div>
+          <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  <th style={th}>{t('tagesbericht.colDate')}</th>
+                  <th style={th}>{t('tagesbericht.colSite')}</th>
+                  <th style={th}>{t('tagesbericht.colWeather')}</th>
+                  <th style={th}>{t('tagesbericht.colWorkers')}</th>
+                  <th style={th}>{t('tagesbericht.colPositions')}</th>
+                  <th style={th}>{t('tagesbericht.colStatus')}</th>
+                  <th style={th}>{t('tagesbericht.colActions')}</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {reports.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>{t('tagesbericht.noReports')}</td></tr>
+                )}
+                {reports.map(r => {
+                  const [bg, fg] = STATUS_COLORS[r.status] || ['#f1f5f9', '#64748b'];
+                  return (
+                    <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => openEdit(r)}>
+                      <td style={td}><strong>{r.report_date}</strong></td>
+                      <td style={td}>{siteName(r.site_id)}</td>
+                      <td style={td}>{WEATHER_ICONS[r.weather] || r.weather} {r.temperature_c !== null ? `${r.temperature_c}°C` : ''}</td>
+                      <td style={td}>{r.workers.length}</td>
+                      <td style={td}>{r.positions.length} ({r.positions.reduce((s, p) => s + p.quantity, 0).toFixed(1)} m/Stk)</td>
+                      <td style={td}>
+                        <span style={{ background: bg, color: fg, padding: '2px 8px', borderRadius: 12, fontWeight: 700, fontSize: 11 }}>
+                          {t(`tagesbericht.status.${r.status}`)}
+                        </span>
+                      </td>
+                      <td style={td} onClick={e => e.stopPropagation()}>
+                        {r.status === 'draft' && (
+                          <button style={{ ...btn('#2563eb'), fontSize: 11, padding: '4px 10px' }} onClick={() => handleSubmit(r)}>{t('tagesbericht.submitBtn')}</button>
+                        )}
+                        {r.status === 'submitted' && ['director', 'projekt_leiter'].includes(userRole) && (
+                          <button style={{ ...btn('#059669'), fontSize: 11, padding: '4px 10px' }} onClick={() => handleApprove(r)}>{t('tagesbericht.approveBtn')}</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Mobile tab */}
+      {mainTab === 'mobile' && (
+        <>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <select style={{ ...inp, width: 220 }} value={mobileFilterSite} onChange={e => setMobileFilterSite(e.target.value ? Number(e.target.value) : '')}>
+              <option value="">{t('tagesbericht.filterSite')}</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <input type="date" style={{ ...inp, width: 150 }} value={mobileFilterDateFrom} onChange={e => setMobileFilterDateFrom(e.target.value)} placeholder="De la" />
+            <input type="date" style={{ ...inp, width: 150 }} value={mobileFilterDateTo} onChange={e => setMobileFilterDateTo(e.target.value)} placeholder="Până la" />
+            {(mobileFilterDateFrom || mobileFilterDateTo) && (
+              <button style={btn('#64748b')} onClick={() => { setMobileFilterDateFrom(''); setMobileFilterDateTo(''); }}>×</button>
+            )}
+            <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 'auto' }}>{t('tagesbericht.mobileEntriesHint')}</span>
+          </div>
+
+          {mobileLoading ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('common.loading')}</div>
+          ) : (
+            <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc' }}>
+                    <th style={th}>{t('tagesbericht.colDate')}</th>
+                    <th style={th}>{t('tagesbericht.colSite')}</th>
+                    <th style={th}>{t('tagesbericht.colWorkType')}</th>
+                    <th style={th}>NVT</th>
+                    <th style={th}>{t('tagesbericht.colUser')}</th>
+                    <th style={th}>{t('tagesbericht.colData')}</th>
+                    <th style={th}>{t('tagesbericht.colSynced')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mobileEntries.length === 0 && (
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>{t('tagesbericht.noMobileEntries')}</td></tr>
+                  )}
+                  {mobileEntries.map(e => {
+                    const isExpanded = expandedEntry === e.id;
+                    const dataKeys = Object.keys(e.data || {}).filter(k => e.data[k] !== '' && e.data[k] !== null);
+                    return (
+                      <React.Fragment key={e.id}>
+                        <tr style={{ borderBottom: '1px solid #f1f5f9', cursor: dataKeys.length > 0 ? 'pointer' : 'default', background: isExpanded ? '#f8fafc' : undefined }}
+                            onClick={() => setExpandedEntry(isExpanded ? null : e.id)}>
+                          <td style={td}><strong>{e.created_at ? e.created_at.slice(0, 10) : '—'}</strong></td>
+                          <td style={td}>{siteName(e.site_id)}</td>
+                          <td style={td}>
+                            <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+                              {e.work_type}
+                            </span>
+                          </td>
+                          <td style={td}>{e.nvt_number || '—'}</td>
+                          <td style={td}>{usersMap[e.created_by] || e.created_by || '—'}</td>
+                          <td style={td}>
+                            {dataKeys.length > 0 ? (
+                              <span style={{ color: '#2563eb', fontSize: 12 }}>
+                                {isExpanded ? '▲' : '▼'} {dataKeys.length} câmp{dataKeys.length !== 1 ? 'uri' : ''}
+                                {e.photos?.length > 0 && <span style={{ marginLeft: 8, color: '#059669' }}>📷 {e.photos.length}</span>}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ ...td, fontSize: 11, color: '#94a3b8' }}>{e.synced_at ? e.synced_at.slice(0, 16).replace('T', ' ') : '—'}</td>
+                        </tr>
+                        {isExpanded && dataKeys.length > 0 && (
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            <td colSpan={7} style={{ padding: '12px 16px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                {dataKeys.map(k => (
+                                  <div key={k} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 12px', fontSize: 12 }}>
+                                    <span style={{ fontWeight: 600, color: '#64748b', marginRight: 6 }}>{k}:</span>
+                                    <span style={{ color: '#0f172a' }}>{String(e.data[k])}</span>
+                                  </div>
+                                ))}
+                                {e.photos?.map((p: any) => (
+                                  <a key={p.id} href={p.url} target="_blank" rel="noreferrer"
+                                     style={{ background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 6, padding: '6px 12px', fontSize: 12, color: '#065f46', textDecoration: 'none' }}>
+                                    📷 {p.category || 'foto'}
+                                  </a>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 
