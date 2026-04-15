@@ -62,6 +62,84 @@ const EMPTY_POS     = (): PositionRow => ({ position_type: 'Graben', description
 const EMPTY_EQUIP   = (): EquipRow    => ({ name: '', hours_used: 8, fuel_liters: 0, notes: '', equipment_id: null });
 const EMPTY_MAT     = (): MatRow      => ({ material_name: '', unit: 'Stk', quantity: 0, notes: '' });
 
+// ─── Map helpers ─────────────────────────────────────────────────────────────
+
+/** Parse "lat, lng" string → [lat, lng] or null */
+function parseCoord(v: string): [number, number] | null {
+  if (!v || typeof v !== 'string') return null;
+  const parts = v.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) &&
+      parts[0] >= -90 && parts[0] <= 90 && parts[1] >= -180 && parts[1] <= 180) {
+    return [parts[0], parts[1]];
+  }
+  return null;
+}
+
+/** Extract coordinate fields from data JSON */
+function extractCoords(data: Record<string, unknown>): { start: [number,number] | null; stop: [number,number] | null; single: [number,number] | null } {
+  const start = parseCoord(String(data.start ?? data.locatie_start ?? ''));
+  const stop  = parseCoord(String(data.stop  ?? data.locatie_stop  ?? ''));
+  const single = parseCoord(String(data.locatie ?? ''));
+  return { start, stop, single };
+}
+
+/** Build Leaflet HTML for iframe */
+function buildMapHtml(start: [number,number] | null, stop: [number,number] | null, single: [number,number] | null): string {
+  const center = start ?? single ?? stop ?? [48.7758, 9.1829];
+  const zoom   = (start || single || stop) ? 14 : 10;
+
+  const markersJs: string[] = [];
+  const bounds: [number,number][] = [];
+
+  if (single) {
+    markersJs.push(`L.circleMarker([${single[0]},${single[1]}],{radius:8,color:'#22c55e',fillColor:'#22c55e',fillOpacity:1,weight:2}).addTo(map);`);
+    bounds.push(single);
+  }
+  if (start) {
+    markersJs.push(`L.circleMarker([${start[0]},${start[1]}],{radius:8,color:'#22c55e',fillColor:'#22c55e',fillOpacity:1,weight:2}).bindTooltip('Start',{permanent:true,direction:'top',offset:[0,-8]}).addTo(map);`);
+    bounds.push(start);
+  }
+  if (stop) {
+    markersJs.push(`L.circleMarker([${stop[0]},${stop[1]}],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:1,weight:2}).bindTooltip('Stop',{permanent:true,direction:'top',offset:[0,-8]}).addTo(map);`);
+    bounds.push(stop);
+  }
+  if (start && stop) {
+    markersJs.push(`L.polyline([[${start[0]},${start[1]}],[${stop[0]},${stop[1]}]],{color:'#f97316',weight:3,opacity:0.9}).addTo(map);`);
+  }
+
+  const fitBoundsJs = bounds.length >= 2
+    ? `map.fitBounds([${bounds.map(b => `[${b[0]},${b[1]}]`).join(',')}],{padding:[20,20]});`
+    : `map.setView([${center[0]},${center[1]}],${zoom});`;
+
+  return `<!DOCTYPE html><html><head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>*{margin:0;padding:0}html,body,#map{height:100%;width:100%}.leaflet-control-attribution{display:none}</style>
+</head><body><div id="map"></div><script>
+var map=L.map('map',{zoomControl:true,attributionControl:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(map);
+${markersJs.join('\n')}
+${fitBoundsJs}
+</script></body></html>`;
+}
+
+function MiniMap({ data }: { data: Record<string, unknown> }) {
+  const { start, stop, single } = extractCoords(data);
+  if (!start && !stop && !single) return null;
+  const html = buildMapHtml(start, stop, single);
+  return (
+    <div style={{ marginTop: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', height: 260 }}>
+      <iframe
+        srcDoc={html}
+        style={{ width: '100%', height: '100%', border: 'none' }}
+        sandbox="allow-scripts allow-same-origin"
+        title="map"
+      />
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function TagesberichtPage({ userRole }: { userRole: string }) {
@@ -400,7 +478,8 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
                         {isExpanded && dataKeys.length > 0 && (
                           <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                             <td colSpan={7} style={{ padding: '12px 16px' }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                              {/* Data fields */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                                 {dataKeys.map(k => (
                                   <div key={k} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 12px', fontSize: 12 }}>
                                     <span style={{ fontWeight: 600, color: '#64748b', marginRight: 6 }}>{k}:</span>
@@ -414,6 +493,8 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
                                   </a>
                                 ))}
                               </div>
+                              {/* Map */}
+                              <MiniMap data={e.data} />
                             </td>
                           </tr>
                         )}
