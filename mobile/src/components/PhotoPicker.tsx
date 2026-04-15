@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import type { PhotoEntry } from '../types';
 import { PHOTO_CATEGORIES } from '../types';
@@ -25,35 +26,42 @@ window.addEventListener('message', handle);
 function handle(e) {
   try {
     var d = JSON.parse(e.data);
-    if (d.type === 'process') burnTimestamp(d.base64, d.label);
+    if (d.type === 'process') burnOverlay(d.base64, d.timestamp, d.coords);
   } catch(err) {
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', msg: String(err) }));
   }
 }
-function burnTimestamp(base64, label) {
+function burnOverlay(base64, timestamp, coords) {
   var img = new Image();
   img.onload = function() {
     var c = document.getElementById('c');
     c.width  = img.width;
     c.height = img.height;
     var ctx = c.getContext('2d');
-
-    // Draw photo
     ctx.drawImage(img, 0, 0);
 
-    // Bottom bar
-    var barH  = Math.max(52, Math.round(img.height * 0.055));
-    var fSize = Math.round(barH * 0.46);
-    var pad   = Math.round(barH * 0.22);
+    var lines = coords ? [timestamp, coords] : [timestamp];
+    var fSize = Math.max(22, Math.round(img.height * 0.026));
+    var lineH = Math.round(fSize * 1.45);
+    var pad   = Math.round(fSize * 0.7);
+    var barH  = lineH * lines.length + pad * 2;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.62)';
+    // Semi-transparent bar
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, img.height - barH, img.width, barH);
 
-    ctx.fillStyle = '#ffffff';
     ctx.font = 'bold ' + fSize + 'px monospace';
-    ctx.textAlign  = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, pad, img.height - barH / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    lines.forEach(function(line, i) {
+      var y = img.height - barH + pad + i * lineH;
+      // Shadow for legibility on bright backgrounds
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillText(line, pad + 2, y + 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(line, pad, y);
+    });
 
     var result = c.toDataURL('image/jpeg', 0.84);
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'done', data: result }));
@@ -94,7 +102,7 @@ interface Props {
   label?: string;
 }
 
-interface PendingItem { uri: string; category: string; }
+interface PendingItem { uri: string; category: string; coords?: string; }
 
 export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Fotografii' }: Props) {
   const [catPickerIdx, setCatPickerIdx] = useState<number | null>(null);
@@ -140,15 +148,29 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
       webRef.current?.postMessage(JSON.stringify({
         type: 'process',
         base64,
-        label: nowLabel(),
+        timestamp: nowLabel(),
+        coords: item.coords ?? null,
       }));
     } catch {
       processingRef.current = false;
     }
   };
 
-  const enqueue = async (uris: string[], category = PHOTO_CATEGORIES[0]) => {
-    const items: PendingItem[] = uris.map(uri => ({ uri, category }));
+  const getCoords = async (): Promise<string | undefined> => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return undefined;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude: lat, longitude: lng, accuracy } = loc.coords;
+      const acc = accuracy ? ` ±${Math.round(accuracy)}m` : '';
+      return `${lat.toFixed(6)}, ${lng.toFixed(6)}${acc}`;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const enqueue = (uris: string[], category = PHOTO_CATEGORIES[0], coords?: string) => {
+    const items: PendingItem[] = uris.map(uri => ({ uri, category, coords }));
     setPending(prev => {
       const next = [...prev, ...items];
       if (!processingRef.current) setTimeout(() => processNext(next), 50);
@@ -160,18 +182,24 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
   const takePicture = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) { Alert.alert('Permisiune cameră necesară'); return; }
+    // Get GPS before opening camera (faster than after)
+    const coordsPromise = getCoords();
     const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
     if (!result.canceled && result.assets[0]) {
-      enqueue([result.assets[0].uri]);
+      const coords = await coordsPromise;
+      enqueue([result.assets[0].uri], PHOTO_CATEGORIES[0], coords);
     }
   };
 
   const pickFromGallery = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert('Permisiune galerie necesară'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: true });
+    const [result, coords] = await Promise.all([
+      ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: true }),
+      getCoords(),
+    ]);
     if (!result.canceled) {
-      enqueue(result.assets.map((a: { uri: string }) => a.uri));
+      enqueue(result.assets.map((a: { uri: string }) => a.uri), PHOTO_CATEGORIES[0], coords);
     }
   };
 
