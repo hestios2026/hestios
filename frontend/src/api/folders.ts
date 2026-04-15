@@ -21,7 +21,7 @@ export const fetchFolders = (params?: { site_id?: number; parent_id?: number }) 
 export const createFolder = (data: { name: string; site_id?: number; parent_id?: number; description?: string }) =>
   api.post('/folders/', data).then(r => r.data as FolderItem);
 
-export const renameFolder = (id: number, data: { name: string; description?: string }) =>
+export const renameFolder = (id: number, data: { name?: string; description?: string; site_id?: number | null; clear_site?: boolean; parent_id?: number | null; clear_parent?: boolean }) =>
   api.patch(`/folders/${id}/`, data).then(r => r.data as FolderItem);
 
 export const deleteFolder = (id: number) =>

@@ -5,55 +5,58 @@ import App from './App';
 // Outfit (body) + JetBrains Mono (data) — replacing generic Figtree
 const fontLink = document.createElement('link');
 fontLink.rel = 'stylesheet';
-fontLink.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap';
+fontLink.href = 'https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Roboto:wght@300;400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap';
 document.head.appendChild(fontLink);
 
 const style = document.createElement('style');
 style.textContent = `
   :root {
     /* Brand */
-    --green:        #22C55E;
-    --green-dark:   #16A34A;
-    --green-dim:    rgba(34,197,94,0.10);
-    --green-glow:   rgba(34,197,94,0.25);
-    --green-border: rgba(34,197,94,0.25);
+    --green:        #16A34A;
+    --green-dark:   #15803D;
+    --green-dim:    rgba(22,163,74,0.08);
+    --green-glow:   rgba(22,163,74,0.20);
+    --green-border: rgba(22,163,74,0.30);
 
-    /* Dark workspace */
-    --sidebar-bg:   #070B11;
-    --topbar-bg:    #0C1118;
-    --bg:           #0C1018;
-    --surface:      #131B27;
-    --surface-2:    #192233;
-    --surface-3:    #1F2B40;
-    --surface-hover: rgba(255,255,255,0.03);
+    /* Sidebar stays dark for contrast */
+    --sidebar-bg:   #111827;
+
+    /* Light workspace */
+    --topbar-bg:    #FFFFFF;
+    --bg:           #F0F4F9;
+    --surface:      #FFFFFF;
+    --surface-2:    #F5F8FC;
+    --surface-3:    #EBF0F7;
+    --surface-hover: rgba(15,23,42,0.025);
 
     /* Borders */
-    --border:       rgba(255,255,255,0.07);
-    --border-light: rgba(255,255,255,0.04);
-    --border-active: rgba(34,197,94,0.35);
+    --border:       rgba(15,23,42,0.09);
+    --border-light: rgba(15,23,42,0.05);
+    --border-active: rgba(22,163,74,0.35);
 
     /* Text */
-    --text:         #DDE4F0;
-    --text-2:       #6A7A90;
-    --text-3:       #374155;
+    --text:         #0C1A2E;
+    --text-2:       #475569;
+    --text-3:       #94A3B8;
 
     /* Semantic */
-    --red:          #EF4444;
-    --amber:        #F59E0B;
-    --blue:         #3B82F6;
-    --cyan:         #06B6D4;
-    --purple:       #8B5CF6;
+    --red:          #DC2626;
+    --amber:        #D97706;
+    --blue:         #2563EB;
+    --cyan:         #0891B2;
+    --purple:       #7C3AED;
 
     /* Misc */
-    --font-body:    'Outfit', system-ui, sans-serif;
-    --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+    --font-body:    'Roboto', system-ui, sans-serif;
+    --font-heading: 'Lato', system-ui, sans-serif;
+    --font-mono:    'Roboto Mono', 'Courier New', monospace;
     --radius:       8px;
     --transition:   180ms ease;
 
-    /* Shadows */
-    --shadow-sm:    0 1px 3px rgba(0,0,0,0.4);
-    --shadow-md:    0 4px 16px rgba(0,0,0,0.5);
-    --shadow-lg:    0 8px 32px rgba(0,0,0,0.6);
+    /* Shadows — lighter for light theme */
+    --shadow-sm:    0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+    --shadow-md:    0 4px 16px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04);
+    --shadow-lg:    0 8px 32px rgba(15,23,42,0.12), 0 4px 12px rgba(15,23,42,0.06);
   }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -67,7 +70,7 @@ style.textContent = `
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1,h2,h3,h4,h5,h6 { font-family: var(--font-body); font-weight: 700; margin: 0; }
+  h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); font-weight: 700; margin: 0; }
 
   input, select, textarea {
     background: var(--surface-2);
@@ -83,10 +86,10 @@ style.textContent = `
   }
   button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+  ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.14); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.24); }
 
   /* ── Page padding ── */
   .page-root { padding: 28px 32px; }
@@ -253,7 +256,7 @@ style.textContent = `
     font-family: var(--font-body);
     transition: all var(--transition);
   }
-  .btn-ghost:hover { background: var(--surface-2); color: var(--text); border-color: rgba(255,255,255,0.12); }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--text); border-color: rgba(15,23,42,0.14); }
 `;
 document.head.appendChild(style);
 

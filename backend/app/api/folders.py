@@ -26,7 +26,7 @@ def _folder_dict(f: Folder, include_children=False) -> dict:
         "doc_count": len(f.documents),
     }
     if include_children:
-        d["children"] = [_folder_dict(c) for c in sorted(f.children, key=lambda x: x.name)]
+        d["children"] = [_folder_dict(c, include_children=True) for c in sorted(f.children, key=lambda x: x.name)]
     return d
 
 
@@ -57,8 +57,12 @@ class FolderCreate(BaseModel):
 
 
 class FolderRename(BaseModel):
-    name: str
+    name: Optional[str] = None
     description: Optional[str] = None
+    site_id: Optional[int] = None
+    clear_site: bool = False
+    parent_id: Optional[int] = None
+    clear_parent: bool = False
 
 
 @router.post("/", status_code=201)
@@ -102,11 +106,22 @@ def rename_folder(
         raise HTTPException(404, "Folder negăsit")
     if current.role not in ("director", "projekt_leiter") and f.created_by != current.id:
         raise HTTPException(403, "Acces interzis")
-    if not body.name.strip():
-        raise HTTPException(400, "Numele folderului nu poate fi gol")
-    f.name = body.name.strip()
+    if body.name is not None:
+        if not body.name.strip():
+            raise HTTPException(400, "Numele folderului nu poate fi gol")
+        f.name = body.name.strip()
     if body.description is not None:
         f.description = body.description
+    if body.clear_site:
+        f.site_id = None
+    elif body.site_id is not None:
+        f.site_id = body.site_id
+    if body.clear_parent:
+        f.parent_id = None
+    elif body.parent_id is not None:
+        if body.parent_id == folder_id:
+            raise HTTPException(400, "Un folder nu se poate muta în el însuși")
+        f.parent_id = body.parent_id
     db.commit()
     db.refresh(f)
     return _folder_dict(f, include_children=True)

@@ -11,6 +11,60 @@ interface Props {
   children: React.ReactNode;
 }
 
+// Collapsed nav button — renders icon as explicit SVG path, no color inheritance issues
+function CollapsedNavBtn({ active, label, navKey, onClick }: {
+  active: boolean; label: string; navKey: string; onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const bg = active ? '#22C55E' : hovered ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)';
+  const strokeColor = active ? '#ffffff' : hovered ? '#ffffff' : '#b0bec5';
+  return (
+    <button
+      title={label}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: 44, height: 44,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: bg,
+        border: active ? '1.5px solid rgba(34,197,94,0.5)' : '1.5px solid rgba(255,255,255,0.10)',
+        borderRadius: 10,
+        cursor: 'pointer',
+        transition: 'background 120ms ease, border-color 120ms ease',
+        padding: 0,
+      }}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke={strokeColor} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"
+      >
+        {iconPaths[navKey] ?? iconPaths.settings}
+      </svg>
+    </button>
+  );
+}
+
+// Extract SVG path contents separately so they can be used inside a single <svg>
+const iconPaths: Record<string, React.ReactNode> = {
+  dashboard:     <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></>,
+  sites:         <><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></>,
+  procurement:   <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></>,
+  hr:            <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></>,
+  equipment:     <><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01M8 12h.01M16 12h.01"/></>,
+  aufmass:       <><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></>,
+  lv:            <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>,
+  billing:       <><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
+  'invoice-scan':<><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></>,
+  hausanschluss: <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
+  documents:     <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></>,
+  tagesbericht:  <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>,
+  pontaj:        <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+  bauzeitenplan: <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="14" x2="13" y2="14"/><line x1="7" y1="18" x2="11" y2="18"/></>,
+  reports:       <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+  users:         <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></>,
+  settings:      <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></>,
+};
+
 const icons: Record<string, () => JSX.Element> = {
   dashboard:     () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>,
   sites:         () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>,
@@ -33,13 +87,13 @@ const icons: Record<string, () => JSX.Element> = {
 
 const NAV_GROUPS = [
   {
-    label: null,
+    labelKey: null,
     items: [
       { key: 'dashboard',    roles: ['director','projekt_leiter','polier','sef_santier','callcenter','aufmass'] },
     ],
   },
   {
-    label: 'Operațional',
+    labelKey: 'nav.groupOperational',
     items: [
       { key: 'sites',        roles: ['director','projekt_leiter','polier','sef_santier','aufmass'] },
       { key: 'equipment',    roles: ['director','projekt_leiter','sef_santier'] },
@@ -50,7 +104,7 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Financiar',
+    labelKey: 'nav.groupFinancial',
     items: [
       { key: 'aufmass',      roles: ['director','projekt_leiter','polier','sef_santier','aufmass'] },
       { key: 'lv',           roles: ['director','projekt_leiter','aufmass'] },
@@ -60,7 +114,7 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Administrare',
+    labelKey: 'nav.groupAdmin',
     items: [
       { key: 'hr',           roles: ['director'] },
       { key: 'documents',    roles: ['director','projekt_leiter','callcenter'] },
@@ -138,7 +192,7 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
   }
 
   const showCollapsed = !isMobile && collapsed;
-  const sidebarWidth = collapsed ? 56 : (isTablet ? 210 : 244);
+  const sidebarWidth = collapsed ? 64 : (isTablet ? 210 : 244);
 
   const SidebarContent = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -222,15 +276,15 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
           return (
             <div key={gi} style={{ marginBottom: 2 }}>
               {/* Group separator */}
-              {group.label && (
+              {group.labelKey && (
                 showCollapsed
-                  ? <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '8px 10px' }} />
+                  ? <div style={{ height: 1, background: 'rgba(255,255,255,0.12)', margin: '6px 10px' }} />
                   : <div style={{
                       padding: '10px 16px 4px',
                       fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.18)',
                       textTransform: 'uppercase', letterSpacing: '0.1em',
                     }}>
-                      {group.label}
+                      {t(group.labelKey)}
                     </div>
               )}
 
@@ -238,52 +292,49 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
                 const active = page === item.key;
                 const IconComp = icons[item.key] ?? icons.settings;
                 return (
-                  <div key={item.key} style={{ padding: showCollapsed ? '1px 6px' : '1px 7px' }}>
-                    <button
-                      onClick={() => navigate(item.key)}
-                      title={showCollapsed ? t(`nav.${item.key}`) : undefined}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center',
-                        gap: 9, padding: showCollapsed ? '8px 0' : '7.5px 10px',
-                        justifyContent: showCollapsed ? 'center' : 'flex-start',
-                        background: active ? 'rgba(34,197,94,0.10)' : 'transparent',
-                        border: 'none', cursor: 'pointer', textAlign: 'left',
-                        borderRadius: 7,
-                        transition: 'background 120ms ease',
-                        position: 'relative',
-                      }}
-                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      {/* Active left bar */}
-                      {active && !showCollapsed && (
-                        <div style={{
-                          position: 'absolute', left: 0, top: '20%', bottom: '20%',
-                          width: 2.5, borderRadius: 2,
-                          background: '#22C55E',
-                          boxShadow: '0 0 6px rgba(34,197,94,0.6)',
-                        }} />
-                      )}
-                      <span style={{
-                        width: 16, height: 16, flexShrink: 0,
-                        color: active ? '#22C55E' : 'rgba(255,255,255,0.28)',
-                        transition: 'color 150ms ease',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <IconComp />
-                      </span>
-                      {!showCollapsed && (
+                  <div key={item.key} style={{ padding: showCollapsed ? '2px 10px' : '1px 7px' }}>
+                    {showCollapsed ? (
+                      <CollapsedNavBtn active={active} label={t(`nav.${item.key}`)} navKey={item.key} onClick={() => navigate(item.key)} />
+                    ) : (
+                      <button
+                        onClick={() => navigate(item.key)}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center',
+                          gap: 9, padding: '7.5px 10px',
+                          background: active ? 'rgba(34,197,94,0.10)' : 'transparent',
+                          border: 'none', cursor: 'pointer', textAlign: 'left',
+                          borderRadius: 7,
+                          transition: 'background 120ms ease',
+                          position: 'relative',
+                        }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        {active && (
+                          <div style={{
+                            position: 'absolute', left: 0, top: '20%', bottom: '20%',
+                            width: 2.5, borderRadius: 2,
+                            background: '#22C55E',
+                            boxShadow: '0 0 6px rgba(34,197,94,0.6)',
+                          }} />
+                        )}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                          stroke={active ? '#22C55E' : 'rgba(255,255,255,0.55)'}
+                          strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"
+                          style={{ flexShrink: 0 }}
+                        >
+                          {iconPaths[item.key]}
+                        </svg>
                         <span style={{
-                          color: active ? '#E8EDF5' : 'rgba(255,255,255,0.45)',
+                          color: active ? '#FFFFFF' : 'rgba(255,255,255,0.65)',
                           fontSize: 13, fontWeight: active ? 600 : 400,
                           fontFamily: 'var(--font-body)',
-                          transition: 'color 150ms ease',
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
                           {t(`nav.${item.key}`)}
                         </span>
-                      )}
-                    </button>
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -401,19 +452,20 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
       {/* Main content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
-        {/* Topbar — dark, integrated */}
+        {/* Topbar — light */}
         <div style={{
           height: 52, flexShrink: 0,
           background: 'var(--topbar-bg)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center',
           padding: '0 20px', gap: 12,
+          boxShadow: '0 1px 0 rgba(15,23,42,0.04)',
         }}>
           {/* Hamburger (mobile) */}
           {isMobile && (
             <button onClick={() => setDrawerOpen(true)} style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: 'rgba(255,255,255,0.45)', padding: '4px', display: 'flex', alignItems: 'center',
+              color: 'var(--text-2)', padding: '4px', display: 'flex', alignItems: 'center',
             }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
@@ -427,10 +479,11 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
               onClick={() => setCollapsed(false)}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: 'rgba(255,255,255,0.3)', padding: '4px', display: 'flex', alignItems: 'center',
+                color: 'var(--text-3)', padding: '4px', display: 'flex', alignItems: 'center',
+                borderRadius: 5, transition: 'color 150ms ease',
               }}
-              onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-2)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
                 <polyline points="9 18 15 12 9 6"/>
@@ -440,15 +493,13 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
 
           {/* Page title */}
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Breadcrumb-style: tiny dot + page name */}
             <div style={{
-              width: 5, height: 5, borderRadius: '50%',
-              background: '#22C55E',
-              boxShadow: '0 0 6px rgba(34,197,94,0.7)',
+              width: 6, height: 6, borderRadius: '50%',
+              background: 'var(--green)',
               flexShrink: 0,
             }} />
             <span style={{
-              fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.85)',
+              fontSize: 14, fontWeight: 600, color: 'var(--text)',
               fontFamily: 'var(--font-body)',
               letterSpacing: '-0.01em',
             }}>
@@ -459,7 +510,7 @@ export function Layout({ user, onLogout, page, onNavigate, children }: Props) {
           {/* Date (desktop) */}
           {!isMobile && (
             <span style={{
-              fontSize: 11.5, color: 'rgba(255,255,255,0.22)',
+              fontSize: 11.5, color: 'var(--text-3)',
               fontFamily: 'var(--font-mono)',
               letterSpacing: '0.03em',
             }}>

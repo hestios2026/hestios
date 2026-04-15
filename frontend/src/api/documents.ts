@@ -2,8 +2,9 @@ import api from './client';
 
 export const fetchDocuments = (params?: {
   category?: string; site_id?: number;
-  employee_id?: number; equipment_id?: number; search?: string;
-}) => api.get('/documents/', { params }).then(r => r.data);
+  employee_id?: number; equipment_id?: number; folder_id?: number; search?: string;
+  limit?: number; offset?: number;
+}) => api.get('/documents/', { params }).then(r => r.data as { total: number; items: import('../types').Document[] });
 
 export const uploadDocument = (formData: FormData) =>
   api.post('/documents/upload/', formData, {
@@ -16,3 +17,6 @@ export const getDownloadUrl = (id: number) => `${api.defaults.baseURL}/documents
 export const getDocumentContent = (id: number) => api.get(`/documents/${id}/content/`).then(r => r.data as string);
 export const updateDocumentContent = (id: number, content: string) =>
   api.put(`/documents/${id}/content/`, { content }).then(r => r.data);
+
+export const moveDocument = (id: number, folder_id: number | null) =>
+  api.patch(`/documents/${id}/move/`, { folder_id }).then(r => r.data);

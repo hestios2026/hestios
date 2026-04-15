@@ -6,6 +6,20 @@ export const getSupplier = (id: number) => api.get(`/suppliers/${id}/`).then(r =
 export const updateSupplier = (id: number, body: object) => api.put(`/suppliers/${id}/`, body).then(r => r.data);
 export const deleteSupplier = (id: number) => api.delete(`/suppliers/${id}/`).then(r => r.data);
 
+export const searchPrices = (q: string) => api.get('/prices/search/', { params: { q } }).then(r => r.data as PriceSearchResult[]);
+
+export interface PriceSearchResult {
+  id: number;
+  supplier_id: number;
+  supplier_name: string;
+  product_name: string;
+  unit: string;
+  price: number;
+  currency: string;
+  valid_from?: string;
+  valid_until?: string;
+}
+
 export const addPrice = (supplierId: number, body: object) => api.post(`/suppliers/${supplierId}/prices/`, body).then(r => r.data);
 export const updatePrice = (supplierId: number, priceId: number, body: object) => api.put(`/suppliers/${supplierId}/prices/${priceId}/`, body).then(r => r.data);
 export const deletePrice = (supplierId: number, priceId: number) => api.delete(`/suppliers/${supplierId}/prices/${priceId}/`).then(r => r.data);

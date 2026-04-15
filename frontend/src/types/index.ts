@@ -98,6 +98,8 @@ export interface Document {
   employee_name?: string;
   equipment_id?: number;
   equipment_name?: string;
+  folder_id?: number;
+  folder_name?: string;
   file_key: string;
   file_size: number;
   content_type: string;

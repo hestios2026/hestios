@@ -74,7 +74,7 @@ function KpiCard({ label, value, color, icon, sub, trend }: {
 
       {/* Value */}
       <div style={{
-        fontSize: 28, fontWeight: 800, color: '#E8EDF5',
+        fontSize: 28, fontWeight: 800, color: 'var(--text)',
         lineHeight: 1, letterSpacing: '-0.03em',
         fontFamily: 'var(--font-mono)',
         fontVariantNumeric: 'tabular-nums',
@@ -114,7 +114,7 @@ function BudgetBar({ spent, budget }: { spent: number; budget: number }) {
         </span>
         <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: 10 }}>{pct.toFixed(0)}%</span>
       </div>
-      <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+      <div style={{ height: 4, background: 'var(--surface-3)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{
           height: '100%', width: `${pct}%`, borderRadius: 2,
           background: color,
@@ -222,7 +222,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
             Dashboard
           </div>
           <h1 style={{
-            fontSize: 22, fontWeight: 800, color: '#E8EDF5', margin: 0,
+            fontSize: 22, fontWeight: 800, color: 'var(--text)', margin: 0,
             letterSpacing: '-0.025em', lineHeight: 1,
           }}>
             {t('dashboard.welcome')}, {user.full_name.split(' ')[0]}
@@ -261,7 +261,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
             borderBottom: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, color: '#E8EDF5', letterSpacing: '-0.01em' }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text)', letterSpacing: '-0.01em' }}>
               {t('dashboard.kostenstellen')}
             </div>
             <span style={{
@@ -298,8 +298,8 @@ export function DashboardPage({ user, onNavigate }: Props) {
                     ? (STATUS_META[sStatus] ?? { label: sStatus, color: '#6A7A90', bg: 'rgba(106,122,144,0.10)' })
                     : { label: t('sites.status.overhead'), color: 'var(--text-3)', bg: 'var(--surface-2)' };
                   return (
-                    <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border-light)' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <td style={{ padding: '11px 16px' }}>
@@ -308,7 +308,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
                           fontFamily: 'var(--font-mono)',
                         }}>{s.kostenstelle}</span>
                       </td>
-                      <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 600, color: '#E8EDF5' }}>{s.name}</td>
+                      <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.name}</td>
                       <td style={{ padding: '11px 16px', fontSize: 12, color: 'var(--text-2)' }}>{s.client}</td>
                       <td style={{ padding: '11px 16px' }}>
                         <span style={{
@@ -345,7 +345,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 marginBottom: 10,
               }}>
-                <div style={{ fontWeight: 700, fontSize: 12.5, color: '#E8EDF5' }}>
+                <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--text)' }}>
                   {t('dashboard.alerts', { count: alerts.length })}
                 </div>
                 <span style={{
@@ -391,7 +391,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
               borderBottom: '1px solid var(--border)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <div style={{ fontWeight: 700, fontSize: 12.5, color: '#E8EDF5' }}>
+              <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--text)' }}>
                 {t('dashboard.todaySchedules')}
               </div>
               <span style={{
@@ -430,11 +430,11 @@ export function DashboardPage({ user, onNavigate }: Props) {
                       return (
                         <div key={p.id} style={{
                           padding: '9px 12px',
-                          borderBottom: '1px solid rgba(255,255,255,0.03)',
+                          borderBottom: '1px solid var(--border-light)',
                           display: 'flex', gap: 9, alignItems: 'flex-start',
                           transition: 'background 120ms ease',
                         }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
                           <span style={{
@@ -443,7 +443,7 @@ export function DashboardPage({ user, onNavigate }: Props) {
                           }}>{time}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                              fontSize: 12, fontWeight: 600, color: '#DDE4F0',
+                              fontSize: 12, fontWeight: 600, color: 'var(--text)',
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                             }}>{p.client_name}</div>
                             <div style={{

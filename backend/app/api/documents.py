@@ -76,6 +76,8 @@ def list_documents(
     equipment_id: Optional[int] = None,
     folder_id: Optional[int] = None,
     search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -92,8 +94,9 @@ def list_documents(
         q = q.filter(Document.folder_id == folder_id)
     if search:
         q = q.filter(Document.name.ilike(f"%{search}%"))
-    docs = q.order_by(Document.created_at.desc()).all()
-    return [_doc_dict(d) for d in docs]
+    total = q.count()
+    docs = q.order_by(Document.created_at.desc()).offset(offset).limit(limit).all()
+    return {"total": total, "items": [_doc_dict(d) for d in docs]}
 
 
 @router.post("/upload/", status_code=201)
@@ -142,6 +145,45 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
     return _doc_dict(doc, include_url=True)
+
+
+class RegisterDocumentBody(BaseModel):
+    name: str
+    category: str = "other"
+    folder_id: Optional[int] = None
+    file_key: str
+    file_size: int
+    content_type: str
+    notes: Optional[str] = None
+    site_id: Optional[int] = None
+    employee_id: Optional[int] = None
+
+
+@router.post("/register/", status_code=201)
+def register_document(
+    body: RegisterDocumentBody,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """Register a document that was already uploaded directly to MinIO (used by migration scripts)."""
+    if current.role not in ("director", "projekt_leiter"):
+        raise HTTPException(403, "Acces interzis")
+    doc = Document(
+        name=body.name,
+        category=body.category,
+        folder_id=body.folder_id,
+        file_key=body.file_key,
+        file_size=body.file_size,
+        content_type=body.content_type,
+        uploaded_by=current.id,
+        notes=body.notes,
+        site_id=body.site_id,
+        employee_id=body.employee_id,
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return _doc_dict(doc)
 
 
 @router.get("/{doc_id}/")
@@ -420,6 +462,32 @@ async def office_callback(
         return {"error": 1}
 
     return {"error": 0}
+
+
+class MoveDocumentBody(BaseModel):
+    folder_id: Optional[int] = None  # None = root (no folder)
+
+
+@router.patch("/{doc_id}/move/")
+def move_document(
+    doc_id: int,
+    body: MoveDocumentBody,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    if current.role not in ("director", "projekt_leiter") and d.uploaded_by != current.id:
+        raise HTTPException(403, "Acces interzis")
+    if body.folder_id is not None:
+        from app.models.folder import Folder
+        if not db.query(Folder).filter(Folder.id == body.folder_id).first():
+            raise HTTPException(404, "Folder negăsit")
+    d.folder_id = body.folder_id
+    db.commit()
+    db.refresh(d)
+    return _doc_dict(d)
 
 
 @router.delete("/{doc_id}/")

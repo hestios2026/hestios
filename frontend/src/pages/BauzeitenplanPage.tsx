@@ -262,6 +262,23 @@ export function BauzeitenplanPage() {
 
   const token = localStorage.getItem('hestios_token');
 
+  async function downloadExport(format: 'excel' | 'pdf') {
+    if (!activeProject) return;
+    try {
+      const res = await fetch(`/api/bauzeitenplan/projects/${activeProject.id}/export/${format}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { toast.error(t('common.error')); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${activeProject.name}_${format === 'excel' ? 'Bauzeitenplan.xlsx' : 'Bauzeitenplan.pdf'}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error(t('common.error')); }
+  }
+
   return (
     <div style={{ padding: 24, maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -325,20 +342,8 @@ export function BauzeitenplanPage() {
             {activeProject.firma && <span style={{ color: '#64748B', fontSize: 13 }}>{activeProject.firma}</span>}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button onClick={() => setShowNewRow(true)} style={btnOrange}>{t('bauzeitenplan.addRow')}</button>
-              <a
-                href={`/api/bauzeitenplan/projects/${activeProject.id}/export/excel/?token=${token}`}
-                target="_blank"
-                style={btnGhost}
-              >
-                ↓ Excel
-              </a>
-              <a
-                href={`/api/bauzeitenplan/projects/${activeProject.id}/export/pdf/?token=${token}`}
-                target="_blank"
-                style={btnGhost}
-              >
-                ↓ PDF
-              </a>
+              <button onClick={() => downloadExport('excel')} style={btnGhost}>↓ Excel</button>
+              <button onClick={() => downloadExport('pdf')} style={btnGhost}>↓ PDF</button>
             </div>
           </div>
 

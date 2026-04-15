@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   fetchSuppliers, createSupplier, getSupplier, updateSupplier, deleteSupplier,
   addPrice, updatePrice, deletePrice,
   fetchOrders, createOrder, updateOrder, deleteOrder,
+  searchPrices, PriceSearchResult,
 } from '../api/achizitii';
 import { fetchSites } from '../api/sites';
 import type { Supplier, SupplierPrice, PurchaseOrder, Site } from '../types';
@@ -627,11 +628,289 @@ function OrdersTab() {
   );
 }
 
+// ─── Price Search Tab ─────────────────────────────────────────────────────────
+
+interface CartItem {
+  price: PriceSearchResult;
+  quantity: number;
+}
+
+function PriceSearchTab() {
+  const { t } = useTranslation();
+  const [lines, setLines] = useState<string[]>(['']);          // product name input list
+  const [results, setResults] = useState<Record<string, PriceSearchResult[]>>({});
+  const [loading, setLoading] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [orderSite, setOrderSite] = useState('');
+  const [orderNotes, setOrderNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { fetchSites().then(setSites); }, []);
+
+  function setLine(i: number, val: string) {
+    setLines(prev => {
+      const next = [...prev];
+      next[i] = val;
+      // auto-add new empty row when typing in last row
+      if (i === prev.length - 1 && val.trim()) next.push('');
+      return next;
+    });
+  }
+
+  function removeLine(i: number) {
+    setLines(prev => {
+      const next = prev.filter((_, idx) => idx !== i);
+      return next.length ? next : [''];
+    });
+    setResults(prev => {
+      const next = { ...prev };
+      delete next[i];
+      return next;
+    });
+  }
+
+  async function searchAll() {
+    const terms = lines.map(l => l.trim()).filter(Boolean);
+    if (!terms.length) return;
+    setLoading(true);
+    try {
+      const byTerm: Record<string, PriceSearchResult[]> = {};
+      await Promise.all(terms.map(async (term, i) => {
+        const res = await searchPrices(term);
+        byTerm[i] = res;
+      }));
+      setResults(byTerm);
+    } catch { toast.error(t('common.error')); }
+    finally { setLoading(false); }
+  }
+
+  function addToCart(price: PriceSearchResult) {
+    setCart(prev => {
+      const exists = prev.findIndex(c => c.price.id === price.id);
+      if (exists >= 0) return prev;
+      return [...prev, { price, quantity: 1 }];
+    });
+  }
+
+  function removeFromCart(priceId: number) {
+    setCart(prev => prev.filter(c => c.price.id !== priceId));
+  }
+
+  function setQty(priceId: number, qty: number) {
+    setCart(prev => prev.map(c => c.price.id === priceId ? { ...c, quantity: qty } : c));
+  }
+
+  async function handleCreateOrder() {
+    if (!cart.length) { toast.error(t('procurement.addItem')); return; }
+    setSubmitting(true);
+    try {
+      await createOrder({
+        site_id: orderSite ? parseInt(orderSite) : null,
+        notes: orderNotes,
+        items: cart.map(c => ({
+          supplier_id: c.price.supplier_id,
+          product_name: c.price.product_name,
+          quantity: c.quantity,
+          unit: c.price.unit,
+          unit_price: c.price.price,
+        })),
+      });
+      toast.success(t('procurement.orderCreated'));
+      setCart([]);
+      setLines(['']);
+      setResults({});
+      setOrderSite('');
+      setOrderNotes('');
+    } catch { toast.error(t('common.error')); }
+    finally { setSubmitting(false); }
+  }
+
+  const activeLine = lines.map(l => l.trim()).filter(Boolean);
+  const totalCart = cart.reduce((s, c) => s + c.price.price * c.quantity, 0);
+  const cartCurrency = cart[0]?.price.currency ?? 'EUR';
+
+  return (
+    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+
+      {/* LEFT — product list + results */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Input list */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 18, marginBottom: 16, boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Listă produse</span>
+            <button onClick={searchAll} disabled={loading || !activeLine.length}
+              className="btn-primary" style={{ fontSize: 13, padding: '7px 18px', opacity: loading || !activeLine.length ? 0.6 : 1 }}>
+              {loading ? t('common.loading') : 'Caută prețuri'}
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {lines.map((line, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ width: 20, textAlign: 'right', fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>{i + 1}.</span>
+                <input
+                  value={line}
+                  onChange={e => setLine(i, e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchAll(); } }}
+                  placeholder={`Produs ${i + 1} (ex: cablu FTP, teavă PVC...)`}
+                  style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface-2)', color: 'var(--text)' }}
+                />
+                {lines.length > 1 && (
+                  <button onClick={() => removeLine(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16, padding: '0 4px', lineHeight: 1 }}>×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setLines(prev => [...prev, ''])} style={{ marginTop: 10, background: 'none', border: '1px dashed var(--border)', borderRadius: 6, padding: '5px 14px', fontSize: 12, color: 'var(--text-2)', cursor: 'pointer', width: '100%' }}>
+            + Adaugă produs
+          </button>
+        </div>
+
+        {/* Results per product */}
+        {Object.keys(results).length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {lines.map((line, i) => {
+              if (!line.trim()) return null;
+              const res = results[i] ?? [];
+              return (
+                <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                  {/* Product header */}
+                  <div style={{ padding: '10px 16px', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>#{i + 1}</span>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{line}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-3)' }}>{res.length} rezultate</span>
+                  </div>
+
+                  {res.length === 0 ? (
+                    <div style={{ padding: '16px', fontSize: 13, color: 'var(--text-3)', textAlign: 'center' }}>Niciun preț găsit în lista furnizorilor</div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--surface-2)' }}>
+                          {['Produs', 'Furnizor', 'Preț', 'UM', ''].map(h => (
+                            <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {res.map(p => {
+                          const inCart = cart.some(c => c.price.id === p.id);
+                          return (
+                            <tr key={p.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                              <td style={{ padding: '9px 14px', color: 'var(--text)', fontWeight: 500 }}>{p.product_name}</td>
+                              <td style={{ padding: '9px 14px', color: 'var(--text-2)' }}>{p.supplier_name}</td>
+                              <td style={{ padding: '9px 14px', fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+                                {p.price.toFixed(2)} {p.currency}
+                              </td>
+                              <td style={{ padding: '9px 14px', color: 'var(--text-3)' }}>{p.unit}</td>
+                              <td style={{ padding: '9px 14px', textAlign: 'right' }}>
+                                <button
+                                  onClick={() => addToCart(p)}
+                                  disabled={inCart}
+                                  style={{
+                                    padding: '5px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: inCart ? 'default' : 'pointer',
+                                    background: inCart ? 'var(--surface-3)' : 'var(--green)', color: inCart ? 'var(--text-3)' : '#fff',
+                                  }}
+                                >
+                                  {inCart ? '✓ Adăugat' : '+ Coș'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* RIGHT — Cart / Order */}
+      <div style={{ width: 340, flexShrink: 0, position: 'sticky', top: 20 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Coș comandă</span>
+            {cart.length > 0 && (
+              <span style={{ background: 'var(--green)', color: '#fff', borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{cart.length}</span>
+            )}
+          </div>
+
+          {cart.length === 0 ? (
+            <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+              Caută produse și adaugă-le în coș
+            </div>
+          ) : (
+            <>
+              {/* Cart items */}
+              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                {cart.map(c => (
+                  <div key={c.price.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.price.product_name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{c.price.supplier_name}</div>
+                      </div>
+                      <button onClick={() => removeFromCart(c.price.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16, lineHeight: 1, flexShrink: 0 }}>×</button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number" min={0.01} step={0.01}
+                        value={c.quantity}
+                        onChange={e => setQty(c.price.id, parseFloat(e.target.value) || 1)}
+                        style={{ width: 70, padding: '4px 7px', borderRadius: 5, border: '1px solid var(--border)', fontSize: 13, textAlign: 'right', background: 'var(--surface-2)', color: 'var(--text)' }}
+                      />
+                      <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{c.price.unit}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+                        {(c.price.price * c.quantity).toFixed(2)} {c.price.currency}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total */}
+              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Total estimat</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
+                  {totalCart.toFixed(2)} {cartCurrency}
+                </span>
+              </div>
+
+              {/* Order form */}
+              <div style={{ padding: '14px' }}>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Șantier</label>
+                  <select value={orderSite} onChange={e => setOrderSite(e.target.value)} style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface-2)', color: 'var(--text)' }}>
+                    <option value="">— Fără șantier —</option>
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.kostenstelle} — {s.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Note</label>
+                  <textarea value={orderNotes} onChange={e => setOrderNotes(e.target.value)} rows={2} style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13, resize: 'vertical', background: 'var(--surface-2)', color: 'var(--text)' }} placeholder="Note opționale..." />
+                </div>
+                <button onClick={handleCreateOrder} disabled={submitting}
+                  className="btn-primary" style={{ width: '100%', fontSize: 14, padding: '10px', opacity: submitting ? 0.6 : 1 }}>
+                  {submitting ? t('common.loading') : 'Creează comanda'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function AchizitiiPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'suppliers' | 'orders'>('suppliers');
+  const [tab, setTab] = useState<'suppliers' | 'orders' | 'search'>('suppliers');
 
   return (
     <div className="page-root">
@@ -642,7 +921,7 @@ export function AchizitiiPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '2px solid #e2e8f0' }}>
-        {([['suppliers', t('procurement.tabs.suppliers')], ['orders', t('procurement.tabs.orders')]] as const).map(([key, label]) => (
+        {([['suppliers', t('procurement.tabs.suppliers')], ['orders', t('procurement.tabs.orders')], ['search', t('procurement.tabs.priceSearch')]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
             style={{
               padding: '10px 22px', border: 'none', background: 'none', cursor: 'pointer',
@@ -656,7 +935,7 @@ export function AchizitiiPage() {
         ))}
       </div>
 
-      {tab === 'suppliers' ? <SuppliersTab /> : <OrdersTab />}
+      {tab === 'search' ? <PriceSearchTab /> : tab === 'suppliers' ? <SuppliersTab /> : <OrdersTab />}
     </div>
   );
 }

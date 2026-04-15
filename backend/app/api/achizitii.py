@@ -230,6 +230,28 @@ def delete_price(supplier_id: int, price_id: int, db: Session = Depends(get_db),
     return {"ok": True}
 
 
+# ─── Price Search ────────────────────────────────────────────────────────────
+
+@router.get("/prices/search/")
+def search_prices(
+    q: str = "",
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Search all supplier prices by product name (fuzzy)."""
+    query = db.query(SupplierPrice).join(Supplier).filter(Supplier.is_active == True)  # noqa: E712
+    if q:
+        query = query.filter(SupplierPrice.product_name.ilike(f"%{q}%"))
+    prices = query.order_by(SupplierPrice.product_name, SupplierPrice.price).all()
+    return [
+        {
+            **_price_dict(p),
+            "supplier_name": p.supplier.name if p.supplier else None,
+        }
+        for p in prices
+    ]
+
+
 # ─── Purchase Orders ──────────────────────────────────────────────────────────
 
 @router.get("/orders/")
