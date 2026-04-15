@@ -9,6 +9,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Location from 'expo-location';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { WebView } from 'react-native-webview';
 import type { PhotoEntry } from '../types';
 import { PHOTO_CATEGORIES } from '../types';
@@ -63,7 +64,7 @@ function burnOverlay(base64, timestamp, coords) {
       ctx.fillText(line, pad, y);
     });
 
-    var result = c.toDataURL('image/jpeg', 0.84);
+    var result = c.toDataURL('image/jpeg', 0.80);
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'done', data: result }));
   };
   img.onerror = function() {
@@ -81,8 +82,15 @@ function nowLabel(): string {
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}  ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-async function uriToBase64(uri: string): Promise<string> {
-  return FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+const MAX_PX = 1600; // resize before canvas — reduces base64 payload ~10-40×
+
+async function resizeAndEncode(uri: string): Promise<string> {
+  const resized = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: MAX_PX } }],
+    { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG },
+  );
+  return FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 });
 }
 
 async function base64ToUri(dataUrl: string): Promise<string> {
@@ -144,7 +152,7 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
     processingRef.current = true;
     const item = queue[0];
     try {
-      const base64 = await uriToBase64(item.uri);
+      const base64 = await resizeAndEncode(item.uri);
       webRef.current?.postMessage(JSON.stringify({
         type: 'process',
         base64,
