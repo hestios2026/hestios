@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = ""
     MINIO_SECRET_KEY: str = ""
     MINIO_BUCKET: str = "hestios-files"
+    MINIO_PUBLIC_URL: str = ""  # e.g. https://erp.hesti-rossmann.de
 
     REDIS_URL: str = "redis://localhost:6379/0"
 
