@@ -8,6 +8,7 @@ import WorkTypeSelectorScreen from './src/screens/WorkTypeSelectorScreen';
 import ReportFormScreen from './src/screens/ReportFormScreen';
 import PontajScreen from './src/screens/PontajScreen';
 import ProgramariScreen from './src/screens/ProgramariScreen';
+import { LangProvider } from './src/i18n';
 import type { WorkType } from './src/types';
 
 type Screen = 'login' | 'home' | 'type-select' | 'form' | 'pontaj' | 'programari';
@@ -19,7 +20,7 @@ interface ReportContext {
   workType?: WorkType;
 }
 
-export default function App() {
+function AppInner() {
   const [screen, setScreen] = useState<Screen>('login');
   const [ctx, setCtx] = useState<ReportContext>({ siteId: 0, siteName: '', nvtNumber: '' });
 
@@ -137,4 +138,12 @@ export default function App() {
         </>
       );
   }
+}
+
+export default function App() {
+  return (
+    <LangProvider>
+      <AppInner />
+    </LangProvider>
+  );
 }

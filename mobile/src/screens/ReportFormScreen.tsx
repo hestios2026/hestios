@@ -9,13 +9,13 @@ import PhotoPicker from '../components/PhotoPicker';
 import { enqueue } from '../store/offlineQueue';
 import { newUUID } from '../utils/timestamp';
 import { T } from '../theme';
+import { useLang } from '../i18n';
 import type {
   WorkType, AuthUser, PhotoEntry,
   DataPozeInainte, DataTeratest, DataSemneCirculatie, DataLieferScheine,
   DataMontajNvtPdp, DataHpPlus, DataHA, DataReparatie, DataTrasTeava,
   DataGroapa, DataTraversare, DataSapatura, DataRaportZilnic,
 } from '../types';
-import { WORK_TYPE_LABELS } from '../types';
 
 interface Props {
   workType: WorkType;
@@ -29,6 +29,7 @@ interface Props {
 export default function ReportFormScreen({
   workType, siteId, siteName, nvtNumber, onBack, onSaved,
 }: Props) {
+  const { tr } = useLang();
   const [saving, setSaving] = useState(false);
 
   // ─── Per-type state ───────────────────────────────────────────────────────
@@ -106,60 +107,60 @@ export default function ReportFormScreen({
   const validate = (): string | null => {
     switch (workType) {
       case 'poze_inainte':
-        if (!pozeData.tip) return 'Selectează tipul (Public/Privat).';
-        if (!pozeData.start) return 'Introduceți locația Start.';
+        if (!pozeData.tip) return tr.vSelectTip;
+        if (!pozeData.start) return tr.vEnterStart;
         break;
       case 'teratest':
-        if (!teraData.moment) return 'Selectează momentul (Înainte/După).';
+        if (!teraData.moment) return tr.vSelectMoment;
         break;
       case 'liefer_scheine':
-        if (lieferData.photos.length === 0) return 'Adaugă cel puțin o poză.';
+        if (lieferData.photos.length === 0) return tr.vAddPhoto;
         break;
       case 'montaj_nvt_pdp':
-        if (!montajData.locatie) return 'Introduceți locația.';
-        if (montajData.photos.length < 4) return 'Minim 4 poze necesare.';
+        if (!montajData.locatie) return tr.vEnterLocation;
+        if (montajData.photos.length < 4) return tr.vMinPhotos(4);
         break;
       case 'hp_plus':
-        if (!hpData.locatie) return 'Introduceți locația (STR. + NR.).';
-        if (hpData.photos.length < 2) return 'Minim 2 poze necesare.';
+        if (!hpData.locatie) return tr.vEnterLocationStreet;
+        if (hpData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'ha':
-        if (!haData.locatie) return 'Introduceți locația (STR. + NR.).';
-        if (!haData.tip_conectare) return 'Selectează tipul de conectare.';
-        if (!haData.suprafata) return 'Selectează suprafața.';
-        if (haData.photos.length < 5) return 'Minim 5 poze necesare.';
+        if (!haData.locatie) return tr.vEnterLocationStreet;
+        if (!haData.tip_conectare) return tr.vSelectConnectionType;
+        if (!haData.suprafata) return tr.vSelectSurface;
+        if (haData.photos.length < 5) return tr.vMinPhotos(5);
         break;
       case 'reparatie':
-        if (!repData.locatie) return 'Introduceți locația.';
-        if (!repData.descriere) return 'Descrierea este obligatorie.';
+        if (!repData.locatie) return tr.vEnterLocation;
+        if (!repData.descriere) return tr.vEnterDescription;
         break;
       case 'tras_teava':
-        if (!trasData.start) return 'Introduceți locația Start.';
-        if (!trasData.nr_cabluri) return 'Nr. de cabluri este obligatoriu.';
-        if (!trasData.lungime) return 'Lungimea este obligatorie.';
+        if (!trasData.start) return tr.vEnterStart;
+        if (!trasData.nr_cabluri) return tr.vEnterCables;
+        if (!trasData.lungime) return tr.vEnterLength;
         break;
       case 'groapa':
-        if (!groapaData.locatie) return 'Introduceți locația.';
-        if (!groapaData.terasament) return 'Selectează terasamentul.';
+        if (!groapaData.locatie) return tr.vEnterLocation;
+        if (!groapaData.terasament) return tr.vSelectTerrain;
         if (groapaData.terasament === 'asfalt' && !groapaData.grosime_asfalt)
-          return 'Grosimea asfaltului este obligatorie.';
-        if (groapaData.photos.length < 3) return 'Minim 3 poze necesare.';
+          return tr.vEnterAsphalt;
+        if (groapaData.photos.length < 3) return tr.vMinPhotos(3);
         break;
       case 'traversare':
-        if (!traversareData.start) return 'Introduceți Start.';
-        if (!traversareData.nr_cabluri) return 'Nr. cabluri montate este obligatoriu.';
-        if (traversareData.photos.length < 4) return 'Minim 4 poze necesare.';
+        if (!traversareData.start) return tr.vEnterStart;
+        if (!traversareData.nr_cabluri) return tr.vEnterCablesMounted;
+        if (traversareData.photos.length < 4) return tr.vMinPhotos(4);
         break;
       case 'sapatura':
-        if (!sapaturaData.start) return 'Introduceți Start.';
-        if (!sapaturaData.nr_cabluri) return 'Nr. cabluri montate este obligatoriu.';
-        if (!sapaturaData.tip) return 'Selectează tipul săpăturii.';
+        if (!sapaturaData.start) return tr.vEnterStart;
+        if (!sapaturaData.nr_cabluri) return tr.vEnterCablesMounted;
+        if (!sapaturaData.tip) return tr.vSelectSapaturaTip;
         break;
       case 'raport_zilnic':
-        if (!raportData.lungime_totala) return 'Lungimea totală este obligatorie.';
-        if (!raportData.locatie_start) return 'Locația Start este obligatorie.';
-        if (!raportData.locatie_stop) return 'Locația Stop este obligatorie.';
-        if (raportData.photos.length < 5) return 'Minim 5 poze necesare.';
+        if (!raportData.lungime_totala) return tr.vEnterTotalLength;
+        if (!raportData.locatie_start) return tr.vEnterLocStart;
+        if (!raportData.locatie_stop) return tr.vEnterLocStop;
+        if (raportData.photos.length < 5) return tr.vMinPhotos(5);
         break;
     }
     return null;
@@ -167,7 +168,7 @@ export default function ReportFormScreen({
 
   const handleSave = async () => {
     const error = validate();
-    if (error) { Alert.alert('Câmpuri incomplete', error); return; }
+    if (error) { Alert.alert(tr.incompleteFields, error); return; }
 
     setSaving(true);
     try {
@@ -203,7 +204,7 @@ export default function ReportFormScreen({
         data: dataMap[workType],
       });
 
-      Alert.alert('Salvat', 'Raportul a fost salvat local și va fi sincronizat când ai internet.', [
+      Alert.alert(tr.savedTitle, tr.savedMsg, [
         { text: 'OK', onPress: onSaved },
       ]);
     } finally {
@@ -220,11 +221,11 @@ export default function ReportFormScreen({
       case 'poze_inainte':
         return (
           <>
-            <Dropdown label="Tip" value={pozeData.tip} required
-              options={[{ value: 'public', label: 'Public' }, { value: 'privat', label: 'Privat' }]}
+            <Dropdown label={tr.fTip} value={pozeData.tip} required
+              options={[{ value: 'public', label: tr.optPublic }, { value: 'privat', label: tr.optPrivat }]}
               onChange={v => setPozeData(p => ({ ...p, tip: v as any }))}
             />
-            <LocationField label="Locație" mode="route" required
+            <LocationField label={tr.fLocation} mode="route" required
               startValue={pozeData.start} stopValue={pozeData.stop}
               onChangeStart={v => setPozeData(p => ({ ...p, start: v }))}
               onChangeStop={v => setPozeData(p => ({ ...p, stop: v }))}
@@ -239,16 +240,16 @@ export default function ReportFormScreen({
       case 'teratest':
         return (
           <>
-            <Dropdown label="Moment" value={teraData.moment} required
+            <Dropdown label={tr.fMoment} value={teraData.moment} required
               options={[
-                { value: 'inainte_sapatura', label: 'Înainte de Săpătură' },
-                { value: 'dupa_umplere', label: 'După Săp. + Umplutură' },
+                { value: 'inainte_sapatura', label: tr.optBefore },
+                { value: 'dupa_umplere', label: tr.optAfter },
               ]}
               onChange={v => setTeraData(p => ({ ...p, moment: v as any }))}
             />
             <PhotoPicker photos={teraData.photos}
               onChange={ph => setTeraData(p => ({ ...p, photos: ph }))}
-              label="Fotografii (selectează categoria la fiecare)"
+              label={tr.photoPickerLabels.teratest}
             />
           </>
         );
@@ -257,7 +258,7 @@ export default function ReportFormScreen({
       case 'semne_circulatie':
         return (
           <>
-            <LocationField label="Locație tronson" mode="route" required
+            <LocationField label={tr.fLocationRoute} mode="route" required
               startValue={semneData.start} stopValue={semneData.stop}
               onChangeStart={v => setSemneData(p => ({ ...p, start: v }))}
               onChangeStop={v => setSemneData(p => ({ ...p, stop: v }))}
@@ -265,7 +266,7 @@ export default function ReportFormScreen({
             <PhotoPicker photos={semneData.photos}
               onChange={ph => setSemneData(p => ({ ...p, photos: ph }))}
               minPhotos={6}
-              label="Fotografii (minim 6 per tronson)"
+              label={tr.photoPickerLabels.semne}
             />
           </>
         );
@@ -274,9 +275,9 @@ export default function ReportFormScreen({
       case 'liefer_scheine':
         return (
           <>
-            <TextField label="Descriere" value={lieferData.descriere}
+            <TextField label={tr.fDescription} value={lieferData.descriere}
               onChangeText={v => setLieferData(p => ({ ...p, descriere: v }))}
-              multiline placeholder="Opțional..."
+              multiline placeholder="..."
             />
             <PhotoPicker photos={lieferData.photos}
               onChange={ph => setLieferData(p => ({ ...p, photos: ph }))}
@@ -288,14 +289,14 @@ export default function ReportFormScreen({
       case 'montaj_nvt_pdp':
         return (
           <>
-            <LocationField label="Locație" mode="single" required
+            <LocationField label={tr.fLocation} mode="single" required
               startValue={montajData.locatie}
               onChangeStart={v => setMontajData(p => ({ ...p, locatie: v }))}
             />
             <PhotoPicker photos={montajData.photos}
               onChange={ph => setMontajData(p => ({ ...p, photos: ph }))}
               minPhotos={4}
-              label="Fotografii (minim 4): Soclu, Cutie, Cabluri, Ansamblu+Decor"
+              label={tr.photoPickerLabels.montaj}
             />
           </>
         );
@@ -304,14 +305,14 @@ export default function ReportFormScreen({
       case 'hp_plus':
         return (
           <>
-            <LocationField label="Locație (STR. + NR.)" mode="single" required
+            <LocationField label={tr.fLocationStreetNr} mode="single" required
               startValue={hpData.locatie}
               onChangeStart={v => setHpData(p => ({ ...p, locatie: v }))}
             />
             <PhotoPicker photos={hpData.photos}
               onChange={ph => setHpData(p => ({ ...p, photos: ph }))}
               minPhotos={2}
-              label="Fotografii (minim 2): Detaliu Cablu, Locație în Ansamblu"
+              label={tr.photoPickerLabels.hp_plus}
             />
           </>
         );
@@ -320,29 +321,29 @@ export default function ReportFormScreen({
       case 'ha':
         return (
           <>
-            <LocationField label="Locație (STR. + NR.)" mode="single" required
+            <LocationField label={tr.fLocationStreetNr} mode="single" required
               startValue={haData.locatie}
               onChangeStart={v => setHaData(p => ({ ...p, locatie: v }))}
             />
-            <Dropdown label="Tip Conectare" value={haData.tip_conectare} required
+            <Dropdown label={tr.fConnectionType} value={haData.tip_conectare} required
               options={[
-                { value: 'kit_complet', label: 'Kit Complet' },
-                { value: 'conectat_strada', label: 'Conectat Stradă' },
+                { value: 'kit_complet', label: tr.optKitComplet },
+                { value: 'conectat_strada', label: tr.optConectatStrada },
               ]}
               onChange={v => setHaData(p => ({ ...p, tip_conectare: v as any }))}
             />
-            <Dropdown label="Suprafață" value={haData.suprafata} required
+            <Dropdown label={tr.fSurface} value={haData.suprafata} required
               options={[
-                { value: 'asfalt', label: 'Asfalt' },
-                { value: 'pavaj', label: 'Pavaj' },
-                { value: 'beton', label: 'Beton' },
-                { value: 'fara_strat', label: 'Fără Strat' },
-                { value: 'mixt', label: 'Mixt' },
+                { value: 'asfalt', label: tr.optAsfalt },
+                { value: 'pavaj', label: tr.optPavaj },
+                { value: 'beton', label: tr.optBeton },
+                { value: 'fara_strat', label: tr.optFaraStrat },
+                { value: 'mixt', label: tr.optMixt },
               ]}
               onChange={v => setHaData(p => ({ ...p, suprafata: v as any }))}
             />
             {haData.suprafata === 'mixt' && (
-              <TextField label="Detalii Mixt" value={haData.suprafata_mixt_detalii} required
+              <TextField label={tr.fMixtDetails} value={haData.suprafata_mixt_detalii} required
                 onChangeText={v => setHaData(p => ({ ...p, suprafata_mixt_detalii: v }))}
                 placeholder="ex: 5m asf. / 2m pavaj / 7m total"
               />
@@ -350,7 +351,7 @@ export default function ReportFormScreen({
             <PhotoPicker photos={haData.photos}
               onChange={ph => setHaData(p => ({ ...p, photos: ph }))}
               minPhotos={5}
-              label="Fotografii (minim 5): Bifurcație, Traseu, Kit, Kit Interior, Capac"
+              label={tr.photoPickerLabels.ha}
             />
           </>
         );
@@ -359,13 +360,13 @@ export default function ReportFormScreen({
       case 'reparatie':
         return (
           <>
-            <LocationField label="Locație" mode="single" required
+            <LocationField label={tr.fLocation} mode="single" required
               startValue={repData.locatie}
               onChangeStart={v => setRepData(p => ({ ...p, locatie: v }))}
             />
-            <TextField label="Detalii Reparație" value={repData.descriere} required
+            <TextField label={tr.fRepairDetails} value={repData.descriere} required
               onChangeText={v => setRepData(p => ({ ...p, descriere: v }))}
-              multiline placeholder="Descriere obligatorie..."
+              multiline placeholder="..."
             />
             <PhotoPicker photos={repData.photos}
               onChange={ph => setRepData(p => ({ ...p, photos: ph }))}
@@ -377,16 +378,16 @@ export default function ReportFormScreen({
       case 'tras_teava':
         return (
           <>
-            <LocationField label="Locație" mode="route" required
+            <LocationField label={tr.fLocation} mode="route" required
               startValue={trasData.start} stopValue={trasData.stop}
               onChangeStart={v => setTrasData(p => ({ ...p, start: v }))}
               onChangeStop={v => setTrasData(p => ({ ...p, stop: v }))}
             />
-            <TextField label="Nr. de Cabluri" value={trasData.nr_cabluri} required
+            <TextField label={tr.fCables} value={trasData.nr_cabluri} required
               onChangeText={v => setTrasData(p => ({ ...p, nr_cabluri: v }))}
               keyboardType="numeric"
             />
-            <TextField label="Lungime (m)" value={trasData.lungime} required
+            <TextField label={tr.fLength} value={trasData.lungime} required
               onChangeText={v => setTrasData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad"
             />
@@ -400,40 +401,40 @@ export default function ReportFormScreen({
       case 'groapa':
         return (
           <>
-            <LocationField label="Locație (Stradă + Nr.)" mode="single" required
+            <LocationField label={tr.fLocationStreet} mode="single" required
               startValue={groapaData.locatie}
               onChangeStart={v => setGroapaData(p => ({ ...p, locatie: v }))}
             />
-            <Dropdown label="Terasament" value={groapaData.terasament} required
+            <Dropdown label={tr.fTerrain} value={groapaData.terasament} required
               options={[
-                { value: 'asfalt', label: 'Asfalt' },
-                { value: 'pavaj', label: 'Pavaj' },
-                { value: 'alta', label: 'Altă suprafață' },
+                { value: 'asfalt', label: tr.optAsfalt },
+                { value: 'pavaj', label: tr.optPavaj },
+                { value: 'alta', label: tr.optAltaSup },
               ]}
               onChange={v => setGroapaData(p => ({ ...p, terasament: v as any }))}
             />
             {groapaData.terasament === 'asfalt' && (
-              <TextField label="Grosime Asfalt (cm)" value={groapaData.grosime_asfalt} required
+              <TextField label={tr.fAsphaltThickness} value={groapaData.grosime_asfalt} required
                 onChangeText={v => setGroapaData(p => ({ ...p, grosime_asfalt: v }))}
                 keyboardType="decimal-pad"
               />
             )}
-            <TextField label="Lungime (m)" value={groapaData.lungime}
+            <TextField label={tr.fLength} value={groapaData.lungime}
               onChangeText={v => setGroapaData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label="Lățime (m)" value={groapaData.latime}
+            <TextField label={tr.fWidth} value={groapaData.latime}
               onChangeText={v => setGroapaData(p => ({ ...p, latime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label="Adâncime (m)" value={groapaData.adancime}
+            <TextField label={tr.fDepth} value={groapaData.adancime}
               onChangeText={v => setGroapaData(p => ({ ...p, adancime: v }))}
               keyboardType="decimal-pad"
             />
             <PhotoPicker photos={groapaData.photos}
               onChange={ph => setGroapaData(p => ({ ...p, photos: ph }))}
-              minPhotos={groapaData.terasament === 'asfalt' ? 3 : 3}
-              label={groapaData.terasament === 'asfalt' ? 'Fotografii (minim 3 incl. grosime asfalt)' : 'Fotografii (minim 3)'}
+              minPhotos={3}
+              label={groapaData.terasament === 'asfalt' ? tr.photoPickerLabels.groapaAsfalt : tr.photoPickerLabels.groapa}
             />
           </>
         );
@@ -442,48 +443,48 @@ export default function ReportFormScreen({
       case 'traversare':
         return (
           <>
-            <LocationField label="Locație" mode="route" required
+            <LocationField label={tr.fLocation} mode="route" required
               startValue={traversareData.start} stopValue={traversareData.stop}
               onChangeStart={v => setTraversareData(p => ({ ...p, start: v }))}
               onChangeStop={v => setTraversareData(p => ({ ...p, stop: v }))}
             />
-            <TextField label="Lungime (m)" value={traversareData.lungime}
+            <TextField label={tr.fLength} value={traversareData.lungime}
               onChangeText={v => setTraversareData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label="Lățime (m)" value={traversareData.latime}
+            <TextField label={tr.fWidth} value={traversareData.latime}
               onChangeText={v => setTraversareData(p => ({ ...p, latime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label="Adâncime (m)" value={traversareData.adancime}
+            <TextField label={tr.fDepth} value={traversareData.adancime}
               onChangeText={v => setTraversareData(p => ({ ...p, adancime: v }))}
               keyboardType="decimal-pad"
             />
-            <Dropdown label="Terasament" value={traversareData.terasament}
+            <Dropdown label={tr.fTerrain} value={traversareData.terasament}
               options={[
-                { value: 'asfalt', label: 'Asfalt' },
-                { value: 'alta', label: 'Altă suprafață' },
+                { value: 'asfalt', label: tr.optAsfalt },
+                { value: 'alta', label: tr.optAltaSup },
               ]}
               onChange={v => setTraversareData(p => ({ ...p, terasament: v as any }))}
             />
             {traversareData.terasament === 'asfalt' && (
-              <TextField label="Grosime Asfalt (cm)" value={traversareData.grosime_asfalt}
+              <TextField label={tr.fAsphaltThickness} value={traversareData.grosime_asfalt}
                 onChangeText={v => setTraversareData(p => ({ ...p, grosime_asfalt: v }))}
                 keyboardType="decimal-pad"
               />
             )}
-            <TextField label="Nr. Cabluri Montate" value={traversareData.nr_cabluri} required
+            <TextField label={tr.fCablesMounted} value={traversareData.nr_cabluri} required
               onChangeText={v => setTraversareData(p => ({ ...p, nr_cabluri: v }))}
               keyboardType="numeric"
             />
-            <Dropdown label="Țeavă Protecție" value={traversareData.teava_protectie}
-              options={[{ value: 'da', label: 'DA' }, { value: 'nu', label: 'NU' }]}
+            <Dropdown label={tr.fProtPipe} value={traversareData.teava_protectie}
+              options={[{ value: 'da', label: tr.optDa }, { value: 'nu', label: tr.optNu }]}
               onChange={v => setTraversareData(p => ({ ...p, teava_protectie: v as any }))}
             />
             <PhotoPicker photos={traversareData.photos}
               onChange={ph => setTraversareData(p => ({ ...p, photos: ph }))}
               minPhotos={4}
-              label={traversareData.terasament === 'asfalt' ? 'Fotografii (minim 4 incl. grosime)' : 'Fotografii (minim 4)'}
+              label={traversareData.terasament === 'asfalt' ? tr.photoPickerLabels.traversareAsfalt : tr.photoPickerLabels.traversare}
             />
           </>
         );
@@ -492,53 +493,51 @@ export default function ReportFormScreen({
       case 'sapatura':
         return (
           <>
-            <LocationField label="Locație" mode="route" required
+            <LocationField label={tr.fLocation} mode="route" required
               startValue={sapaturaData.start} stopValue={sapaturaData.stop}
               onChangeStart={v => setSapaturaData(p => ({ ...p, start: v }))}
               onChangeStop={v => setSapaturaData(p => ({ ...p, stop: v }))}
             />
-            <Dropdown label="Tip" value={sapaturaData.tip} required
+            <Dropdown label={tr.fTip} value={sapaturaData.tip} required
               options={[
-                { value: 'strada', label: 'Stradă' },
-                { value: 'trotuar', label: 'Trotuar' },
-                { value: 'privat', label: 'Privat' },
+                { value: 'strada', label: tr.optStrada },
+                { value: 'trotuar', label: tr.optTrotuar },
+                { value: 'privat', label: tr.optPrivat },
               ]}
               onChange={v => setSapaturaData(p => ({ ...p, tip: v as any }))}
             />
-            <Dropdown label="Terasament" value={sapaturaData.terasament}
+            <Dropdown label={tr.fTerrain} value={sapaturaData.terasament}
               options={[
-                { value: 'asfalt', label: 'Asfalt' },
-                { value: 'alta', label: 'Altă suprafață' },
+                { value: 'asfalt', label: tr.optAsfalt },
+                { value: 'alta', label: tr.optAltaSup },
               ]}
               onChange={v => setSapaturaData(p => ({ ...p, terasament: v as any }))}
             />
             {sapaturaData.terasament === 'asfalt' && (
-              <TextField label="Grosime Asfalt (cm)" value={sapaturaData.grosime_asfalt}
+              <TextField label={tr.fAsphaltThickness} value={sapaturaData.grosime_asfalt}
                 onChangeText={v => setSapaturaData(p => ({ ...p, grosime_asfalt: v }))}
                 keyboardType="decimal-pad"
               />
             )}
-            <TextField label="Lungime (m)" value={sapaturaData.lungime}
+            <TextField label={tr.fLength} value={sapaturaData.lungime}
               onChangeText={v => setSapaturaData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label="Lățime (m)" value={sapaturaData.latime}
+            <TextField label={tr.fWidth} value={sapaturaData.latime}
               onChangeText={v => setSapaturaData(p => ({ ...p, latime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label="Adâncime (m)" value={sapaturaData.adancime}
+            <TextField label={tr.fDepth} value={sapaturaData.adancime}
               onChangeText={v => setSapaturaData(p => ({ ...p, adancime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label="Nr. Cabluri Montate" value={sapaturaData.nr_cabluri} required
+            <TextField label={tr.fCablesMounted} value={sapaturaData.nr_cabluri} required
               onChangeText={v => setSapaturaData(p => ({ ...p, nr_cabluri: v }))}
               keyboardType="numeric"
             />
             <PhotoPicker photos={sapaturaData.photos}
               onChange={ph => setSapaturaData(p => ({ ...p, photos: ph }))}
-              label={sapaturaData.terasament === 'asfalt'
-                ? 'Fotografii (minim 3 incl. grosime; minim 2/10m)'
-                : 'Fotografii (minim 2 la fiecare 10m)'}
+              label={sapaturaData.terasament === 'asfalt' ? tr.photoPickerLabels.sapaturaAsfalt : tr.photoPickerLabels.sapatura}
             />
           </>
         );
@@ -548,22 +547,22 @@ export default function ReportFormScreen({
         return (
           <>
             <View style={styles.mandatoryBanner}>
-              <Text style={styles.mandatoryText}>RAPORT ZILNIC — OBLIGATORIU</Text>
+              <Text style={styles.mandatoryText}>{tr.dailyMandatoryBanner}</Text>
             </View>
-            <TextField label="Lungime Totală Executată (m)" value={raportData.lungime_totala} required
+            <TextField label={tr.fTotalLength} value={raportData.lungime_totala} required
               onChangeText={v => setRaportData(p => ({ ...p, lungime_totala: v }))}
               keyboardType="decimal-pad"
-              hint="Public + Privat"
+              hint={tr.hPublicPrivat}
             />
-            <TextField label="Nr. Branșamente HA" value={raportData.nr_bransamente_ha}
+            <TextField label={tr.fHaCount} value={raportData.nr_bransamente_ha}
               onChangeText={v => setRaportData(p => ({ ...p, nr_bransamente_ha: v }))}
               keyboardType="numeric"
             />
-            <TextField label="Nr. HP+" value={raportData.nr_hp_plus}
+            <TextField label={tr.fHpCount} value={raportData.nr_hp_plus}
               onChangeText={v => setRaportData(p => ({ ...p, nr_hp_plus: v }))}
               keyboardType="numeric"
             />
-            <LocationField label="Locație Start → Stop" mode="route" required
+            <LocationField label={tr.fLocationStartStop} mode="route" required
               startValue={raportData.locatie_start} stopValue={raportData.locatie_stop}
               onChangeStart={v => setRaportData(p => ({ ...p, locatie_start: v }))}
               onChangeStop={v => setRaportData(p => ({ ...p, locatie_stop: v }))}
@@ -571,7 +570,7 @@ export default function ReportFormScreen({
             <PhotoPicker photos={raportData.photos}
               onChange={ph => setRaportData(p => ({ ...p, photos: ph }))}
               minPhotos={5}
-              label="Fotografii (minim 5): Traseu, Detalii, Grosime Deckschicht"
+              label={tr.photoPickerLabels.raportZilnic}
             />
           </>
         );
@@ -583,10 +582,10 @@ export default function ReportFormScreen({
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backText}>← Înapoi</Text>
+          <Text style={styles.backText}>{tr.backArrow}</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.headerTitle}>{WORK_TYPE_LABELS[workType]}</Text>
+          <Text style={styles.headerTitle}>{tr.workTypeLabels[workType]}</Text>
           <Text style={styles.headerSub}>{siteName}{nvtNumber ? ` — ${nvtNumber}` : ''}</Text>
         </View>
       </View>
@@ -602,7 +601,7 @@ export default function ReportFormScreen({
         >
           {saving
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.saveBtnText}>Salvează Raport</Text>
+            : <Text style={styles.saveBtnText}>{tr.saveReport}</Text>
           }
         </TouchableOpacity>
       </ScrollView>

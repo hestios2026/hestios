@@ -1,7 +1,7 @@
 import api, { BASE_URL } from './client';
 import type { WorkEntry } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export const uploadEntry = async (entry: WorkEntry): Promise<number> => {
   const payload = {

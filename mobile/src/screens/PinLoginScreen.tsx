@@ -8,21 +8,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginWithPin, fetchMobileUsers, type MobileUser } from '../api/auth';
 import { T } from '../theme';
 import { version } from '../../package.json';
-
-const ROLE_LABELS: Record<string, string> = {
-  director: 'Director',
-  projekt_leiter: 'Projekt Leiter',
-  polier: 'Polier',
-  sef_santier: 'Șef Șantier',
-  callcenter: 'Call Center',
-  aufmass: 'Aufmaß',
-};
+import { useLang } from '../i18n';
 
 interface Props {
   onLogin: () => void;
 }
 
 export default function PinLoginScreen({ onLogin }: Props) {
+  const { lang, setLang, tr } = useLang();
   const [step, setStep] = useState<'select' | 'pin'>('select');
   const [users, setUsers] = useState<MobileUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -34,7 +27,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
   useEffect(() => {
     fetchMobileUsers()
       .then(setUsers)
-      .catch(() => Alert.alert('Eroare', 'Nu s-a putut încărca lista de utilizatori.'))
+      .catch(() => Alert.alert(tr.errorTitle, tr.usersLoadError))
       .finally(() => setLoadingUsers(false));
   }, []);
 
@@ -69,7 +62,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
       await AsyncStorage.setItem('hestios_user', JSON.stringify(user));
       onLogin();
     } catch {
-      Alert.alert('PIN incorect', 'Încearcă din nou.');
+      Alert.alert(tr.wrongPin, tr.wrongPinMsg);
       setPin('');
     } finally {
       setLoading(false);
@@ -77,6 +70,23 @@ export default function PinLoginScreen({ onLogin }: Props) {
   };
 
   const keys = ['1','2','3','4','5','6','7','8','9','','0','del'];
+
+  const LangSwitcher = () => (
+    <View style={styles.langRow}>
+      <TouchableOpacity
+        style={[styles.langBtn, lang === 'ro' && styles.langBtnActive]}
+        onPress={() => setLang('ro')}
+      >
+        <Text style={[styles.langText, lang === 'ro' && styles.langTextActive]}>RO</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.langBtn, lang === 'de' && styles.langBtnActive]}
+        onPress={() => setLang('de')}
+      >
+        <Text style={[styles.langText, lang === 'de' && styles.langTextActive]}>DE</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   // ── Step 1: User selection ──────────────────────────────────────────────────
   if (step === 'select') {
@@ -95,10 +105,11 @@ export default function PinLoginScreen({ onLogin }: Props) {
               style={styles.logoImageSmall}
               resizeMode="contain"
             />
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.companyName}>HESTI ROSSMANN</Text>
-              <Text style={styles.appSub}>Selectează utilizatorul</Text>
+              <Text style={styles.appSub}>{tr.selectUser}</Text>
             </View>
+            <LangSwitcher />
           </View>
 
           {/* Search */}
@@ -106,7 +117,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
             <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
               style={styles.searchInput}
-              placeholder="Caută numele..."
+              placeholder={tr.searchPlaceholder}
               placeholderTextColor="rgba(255,255,255,0.25)"
               value={search}
               onChangeText={setSearch}
@@ -119,9 +130,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
           ) : filteredUsers.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyText}>
-                {users.length === 0
-                  ? 'Niciun utilizator cu PIN configurat.\nContactați administratorul.'
-                  : 'Niciun rezultat.'}
+                {users.length === 0 ? tr.noPinUsers : tr.noResults}
               </Text>
             </View>
           ) : (
@@ -142,7 +151,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.userName}>{item.full_name}</Text>
-                    <Text style={styles.userRole}>{ROLE_LABELS[item.role] ?? item.role}</Text>
+                    <Text style={styles.userRole}>{(tr.roleLabels as Record<string, string>)[item.role] ?? item.role}</Text>
                   </View>
                   <Text style={styles.chevron}>›</Text>
                 </TouchableOpacity>
@@ -163,10 +172,13 @@ export default function PinLoginScreen({ onLogin }: Props) {
       <View style={styles.accentLine} />
 
       <View style={styles.inner}>
-        {/* Back button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => { setStep('select'); setPin(''); }}>
-          <Text style={styles.backText}>‹ Înapoi</Text>
-        </TouchableOpacity>
+        {/* Back button + lang switcher */}
+        <View style={styles.pinTopRow}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { setStep('select'); setPin(''); }}>
+            <Text style={styles.backText}>{tr.back}</Text>
+          </TouchableOpacity>
+          <LangSwitcher />
+        </View>
 
         {/* Selected user */}
         <View style={styles.brandWrap}>
@@ -176,7 +188,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
             </Text>
           </View>
           <Text style={styles.companyName}>{selectedUser!.full_name}</Text>
-          <Text style={styles.appSub}>{ROLE_LABELS[selectedUser!.role] ?? selectedUser!.role}</Text>
+          <Text style={styles.appSub}>{(tr.roleLabels as Record<string, string>)[selectedUser!.role] ?? selectedUser!.role}</Text>
         </View>
 
         {/* PIN dots */}
@@ -210,7 +222,7 @@ export default function PinLoginScreen({ onLogin }: Props) {
           </View>
         )}
 
-        <Text style={styles.hint}>Introdu PIN-ul de 4 cifre</Text>
+        <Text style={styles.hint}>{tr.pinHint}</Text>
         <Text style={styles.versionText}>v{version}</Text>
       </View>
     </SafeAreaView>
@@ -220,6 +232,17 @@ export default function PinLoginScreen({ onLogin }: Props) {
 const styles = StyleSheet.create({
   container:   { flex: 1, backgroundColor: T.dark },
   accentLine:  { height: 2, backgroundColor: T.green, marginHorizontal: 40, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },
+
+  // Language switcher
+  langRow: { flexDirection: 'row', gap: 6 },
+  langBtn: {
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  langBtnActive: { borderColor: T.green, backgroundColor: 'rgba(34,197,94,0.12)' },
+  langText: { color: 'rgba(255,255,255,0.35)', fontSize: 12, fontWeight: '700' },
+  langTextActive: { color: T.green },
 
   // Step 1 — user select
   header: {
@@ -260,7 +283,8 @@ const styles = StyleSheet.create({
 
   // Step 2 — PIN
   inner:       { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  backBtn:     { position: 'absolute', top: 12, left: 20 },
+  pinTopRow:   { position: 'absolute', top: 12, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn:     {},
   backText:    { color: T.green, fontSize: 15, fontWeight: '600' },
   brandWrap:   { alignItems: 'center', marginBottom: 48 },
   avatarLarge: {

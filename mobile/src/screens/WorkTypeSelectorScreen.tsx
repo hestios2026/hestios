@@ -3,8 +3,8 @@ import {
   View, Text, TouchableOpacity, StyleSheet, FlatList, SafeAreaView,
 } from 'react-native';
 import type { WorkType } from '../types';
-import { WORK_TYPE_LABELS } from '../types';
 import { T } from '../theme';
+import { useLang } from '../i18n';
 
 interface Props {
   siteId: number;
@@ -37,16 +37,17 @@ const TYPE_CONFIG: Record<WorkType, { abbr: string; color: string }> = {
 };
 
 export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, onBack }: Props) {
+  const { tr } = useLang();
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
           <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>Înapoi</Text>
+          <Text style={styles.backText}>{tr.back.replace('‹ ', '')}</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.headerTitle}>Tip Lucrare</Text>
+          <Text style={styles.headerTitle}>{tr.workTypeTitle}</Text>
           <Text style={styles.headerSub} numberOfLines={1}>
             {siteName}{nvtNumber ? ` — ${nvtNumber}` : ''}
           </Text>
@@ -75,12 +76,12 @@ export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, 
               </View>
 
               <Text style={[styles.cardLabel, isMandatory && styles.cardLabelMandatory]}>
-                {WORK_TYPE_LABELS[item]}
+                {tr.workTypeLabels[item]}
               </Text>
 
               {isMandatory && (
                 <View style={styles.mandatoryPill}>
-                  <Text style={styles.mandatoryText}>OBLIGATORIU</Text>
+                  <Text style={styles.mandatoryText}>{tr.mandatory}</Text>
                 </View>
               )}
             </TouchableOpacity>

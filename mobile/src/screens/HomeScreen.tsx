@@ -8,8 +8,8 @@ import * as Network from 'expo-network';
 import { fetchSites } from '../api/auth';
 import { getQueue, syncQueue } from '../store/offlineQueue';
 import type { AuthUser, Site, WorkEntry } from '../types';
-import { WORK_TYPE_LABELS } from '../types';
 import { T } from '../theme';
+import { useLang } from '../i18n';
 
 interface Props {
   onAddReport: (siteId: number, siteName: string, nvtNumber: string) => void;
@@ -31,6 +31,7 @@ function Initials({ name }: { name: string }) {
 }
 
 export default function HomeScreen({ onAddReport, onLogout, onPontaj, onProgramari }: Props) {
+  const { tr } = useLang();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
@@ -74,7 +75,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
           setSites(siteList);
           if (savedSiteRaw) setSelectedSite(JSON.parse(savedSiteRaw));
         } else {
-          Alert.alert('Eroare conexiune', 'Nu s-a putut conecta la server.');
+          Alert.alert(tr.connectionError, tr.serverConnectError);
         }
       }
 
@@ -103,12 +104,12 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
       const { synced, failed, lastError } = await syncQueue((cur, total) => {
         console.log(`Sync ${cur}/${total}`);
       });
-      const msg = `${synced} intrări trimise${failed > 0 ? `, ${failed} eșuate` : ''}.${lastError ? `\n\nEroare: ${lastError}` : ''}`;
-      Alert.alert('Sincronizare completă', msg);
+      const msg = tr.syncResult(synced, failed, lastError);
+      Alert.alert(tr.syncComplete, msg);
       const q = await getQueue();
       setQueue(q.reverse());
     } catch (err: any) {
-      Alert.alert('Eroare sync', err?.message ?? String(err));
+      Alert.alert(tr.syncError, err?.message ?? String(err));
     } finally {
       setSyncing(false);
     }
@@ -116,12 +117,12 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
 
   const handleClearQueue = () => {
     Alert.alert(
-      'Golire coadă',
-      'Șterge toate rapoartele locale nesincronizate? Această acțiune nu poate fi anulată.',
+      tr.clearQueueTitle,
+      tr.clearQueueMsg,
       [
-        { text: 'Anulează', style: 'cancel' },
+        { text: tr.cancel, style: 'cancel' },
         {
-          text: 'Șterge tot',
+          text: tr.deleteAll,
           style: 'destructive',
           onPress: async () => {
             await AsyncStorage.removeItem('hestios_offline_queue');
@@ -134,7 +135,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
 
   const handleAddReport = () => {
     if (!selectedSite) {
-      Alert.alert('Selectează proiect', 'Alege un proiect înainte de a adăuga un raport.');
+      Alert.alert(tr.selectProjectTitle, tr.selectProjectBeforeReport);
       return;
     }
     onAddReport(selectedSite.id, selectedSite.name, nvtNumber);
@@ -142,7 +143,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
 
   const handlePontaj = () => {
     if (!selectedSite) {
-      Alert.alert('Selectează proiect', 'Alege un proiect înainte de a face pontajul.');
+      Alert.alert(tr.selectProjectTitle, tr.selectProjectBeforePontaj);
       return;
     }
     onPontaj(selectedSite.id, selectedSite.name);
@@ -175,7 +176,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
           </View>
         </View>
         <TouchableOpacity onPress={onLogout} style={styles.logoutBtn} activeOpacity={0.7}>
-          <Text style={styles.logoutText}>Ieșire</Text>
+          <Text style={styles.logoutText}>{tr.logout}</Text>
         </TouchableOpacity>
       </View>
 
@@ -189,7 +190,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
           <View>
             {/* Project selector card */}
             <View style={styles.selectorCard}>
-              <Text style={styles.fieldLabel}>PROIECT / ȘANTIER</Text>
+              <Text style={styles.fieldLabel}>{tr.projectSite}</Text>
               <TouchableOpacity
                 style={[styles.selector, sitePickerOpen && styles.selectorOpen]}
                 onPress={() => setSitePickerOpen(!sitePickerOpen)}
@@ -202,7 +203,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
                       <Text style={styles.siteName}>{selectedSite.name}</Text>
                     </>
                   ) : (
-                    <Text style={styles.selectorPlaceholder}>Selectează șantier...</Text>
+                    <Text style={styles.selectorPlaceholder}>{tr.selectSite}</Text>
                   )}
                 </View>
                 <Text style={styles.chevron}>{sitePickerOpen ? '▲' : '▼'}</Text>
@@ -235,7 +236,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
               )}
 
               {/* NVT */}
-              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>NR. NVT / PDP</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>{tr.nvtLabel}</Text>
               <TextInput
                 style={styles.nvtInput}
                 value={nvtNumber}
@@ -243,7 +244,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
                   setNvtNumber(v);
                   AsyncStorage.setItem('hestios_nvt_number', v);
                 }}
-                placeholder="ex: NVT-1234 / PDP-05..."
+                placeholder={tr.nvtPlaceholder}
                 placeholderTextColor={T.text3}
                 autoCapitalize="characters"
                 returnKeyType="done"
@@ -264,10 +265,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
                     <>
                       <View style={styles.syncDot} />
                       <Text style={styles.syncText}>
-                        {isOnline
-                          ? `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} nesincronizat${pendingCount > 1 ? 'e' : ''} — Apasă`
-                          : `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} în așteptare (offline)`
-                        }
+                        {isOnline ? tr.pending(pendingCount) : tr.pendingOffline(pendingCount)}
                       </Text>
                     </>
                   )}
@@ -281,28 +279,28 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
             {/* CTA Buttons */}
             <View style={styles.ctaWrap}>
               <TouchableOpacity style={styles.btnPrimary} onPress={handleAddReport} activeOpacity={0.85}>
-                <Text style={styles.btnPrimaryText}>+ Adaugă Raport</Text>
+                <Text style={styles.btnPrimaryText}>{tr.addReport}</Text>
               </TouchableOpacity>
 
               <View style={styles.ctaRow}>
                 <TouchableOpacity style={[styles.btnSecondary, { flex: 1 }]} onPress={handlePontaj} activeOpacity={0.85}>
-                  <Text style={styles.btnSecondaryText}>Pontaj Echipă</Text>
+                  <Text style={styles.btnSecondaryText}>{tr.teamAttendance}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.btnProgramari, { flex: 1 }]} onPress={onProgramari} activeOpacity={0.85}>
-                  <Text style={styles.btnProgramariText}>📅 Programări</Text>
+                  <Text style={styles.btnProgramariText}>{tr.appointments}</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {queue.length > 0 && (
-              <Text style={styles.sectionTitle}>RAPOARTE LOCALE</Text>
+              <Text style={styles.sectionTitle}>{tr.localReports}</Text>
             )}
           </View>
         )}
         renderItem={({ item }) => (
           <View style={[styles.entryCard, item.synced && styles.entryCardSynced]}>
             <View style={styles.entryRow}>
-              <Text style={styles.entryType}>{WORK_TYPE_LABELS[item.work_type]}</Text>
+              <Text style={styles.entryType}>{tr.workTypeLabels[item.work_type]}</Text>
               <View style={[styles.badge, item.synced ? styles.badgeSynced : styles.badgePending]}>
                 <Text style={[styles.badgeText, item.synced ? styles.badgeTextSynced : styles.badgeTextPending]}>
                   {item.synced ? '✓ Sync' : 'Pending'}
@@ -318,8 +316,8 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
             <View style={styles.emptyIcon}>
               <Text style={styles.emptyIconText}>☰</Text>
             </View>
-            <Text style={styles.emptyText}>Niciun raport local</Text>
-            <Text style={styles.emptySubText}>Apasă „+ Adaugă Raport" pentru a începe.</Text>
+            <Text style={styles.emptyText}>{tr.noLocalReports}</Text>
+            <Text style={styles.emptySubText}>{tr.noLocalReportsSub}</Text>
           </View>
         )}
         contentContainerStyle={{ paddingBottom: 40 }}

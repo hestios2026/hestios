@@ -4,9 +4,9 @@ import {
   Alert, Image, Modal, FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { PhotoEntry } from '../types';
-import { PHOTO_CATEGORIES } from '../types';
+import { useLang } from '../i18n';
 
 const PHOTOS_DIR = (FileSystem.documentDirectory ?? '') + 'hestios_photos/';
 
@@ -35,31 +35,33 @@ interface Props {
   photos: PhotoEntry[];
   onChange: (photos: PhotoEntry[]) => void;
   minPhotos?: number;
-  label?: string;
+  label?: string; // if omitted, uses tr.photosLabel
 }
 
-export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Fotografii' }: Props) {
+export default function PhotoPicker({ photos, onChange, minPhotos, label }: Props) {
+  const { tr } = useLang();
+  const effectiveLabel = label ?? tr.photosLabel;
   const [catPickerIdx, setCatPickerIdx] = useState<number | null>(null);
 
   const takePicture = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) { Alert.alert('Permisiune cameră necesară'); return; }
+    if (!perm.granted) { Alert.alert(tr.cameraPermission); return; }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
     if (!result.canceled && result.assets[0]) {
       const uri = await persistPhoto(result.assets[0].uri);
-      onChange([...photos, { uri, category: PHOTO_CATEGORIES[0], uploaded: false }]);
+      onChange([...photos, { uri, category: tr.photoCategories[0], uploaded: false }]);
     }
   };
 
   const pickFromGallery = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { Alert.alert('Permisiune galerie necesară'); return; }
+    if (!perm.granted) { Alert.alert(tr.galleryPermission); return; }
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: true });
     if (!result.canceled && result.assets.length > 0) {
       const newPhotos: PhotoEntry[] = await Promise.all(
         result.assets.map(async (asset) => {
           const uri = await persistPhoto(asset.uri);
-          return { uri, category: PHOTO_CATEGORIES[0], uploaded: false };
+          return { uri, category: tr.photoCategories[0], uploaded: false };
         })
       );
       onChange([...photos, ...newPhotos]);
@@ -67,9 +69,9 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
   };
 
   const removePhoto = (idx: number) => {
-    Alert.alert('Șterge poza?', '', [
-      { text: 'Anulează', style: 'cancel' },
-      { text: 'Șterge', style: 'destructive', onPress: () => onChange(photos.filter((_, i) => i !== idx)) },
+    Alert.alert(tr.deletePhoto, '', [
+      { text: tr.cancel, style: 'cancel' },
+      { text: tr.deleteConfirm, style: 'destructive', onPress: () => onChange(photos.filter((_, i) => i !== idx)) },
     ]);
   };
 
@@ -83,10 +85,10 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label}>{effectiveLabel}</Text>
         {minPhotos !== undefined && (
           <Text style={[styles.minHint, photos.length >= minPhotos && styles.minMet]}>
-            {photos.length}/{minPhotos} min
+            {photos.length}/{minPhotos} {tr.photoMin}
           </Text>
         )}
       </View>
@@ -111,20 +113,20 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
 
         <TouchableOpacity style={styles.addPhoto} onPress={takePicture}>
           <Text style={styles.addPhotoIcon}>📷</Text>
-          <Text style={styles.addPhotoLabel}>Cameră</Text>
+          <Text style={styles.addPhotoLabel}>{tr.camera}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.addPhoto} onPress={pickFromGallery}>
           <Text style={styles.addPhotoIcon}>🖼</Text>
-          <Text style={styles.addPhotoLabel}>Galerie</Text>
+          <Text style={styles.addPhotoLabel}>{tr.gallery}</Text>
         </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={catPickerIdx !== null} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Categorie Poză</Text>
+            <Text style={styles.modalTitle}>{tr.photoCategory}</Text>
             <FlatList
-              data={PHOTO_CATEGORIES}
+              data={tr.photoCategories}
               keyExtractor={c => c}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -136,7 +138,7 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
               )}
             />
             <TouchableOpacity style={styles.modalClose} onPress={() => setCatPickerIdx(null)}>
-              <Text style={styles.modalCloseText}>Anulează</Text>
+              <Text style={styles.modalCloseText}>{tr.cancel}</Text>
             </TouchableOpacity>
           </View>
         </View>
