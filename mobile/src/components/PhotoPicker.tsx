@@ -1,107 +1,35 @@
-/**
- * PhotoPicker — camera / gallery with timestamp burned into each photo via Canvas.
- */
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   Alert, Image, Modal, FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import * as Location from 'expo-location';
-import * as ImageManipulator from 'expo-image-manipulator';
-import { WebView } from 'react-native-webview';
 import type { PhotoEntry } from '../types';
 import { PHOTO_CATEGORIES } from '../types';
 
-// ─── Timestamp canvas HTML ────────────────────────────────────────────────────
+const PHOTOS_DIR = (FileSystem.documentDirectory ?? '') + 'hestios_photos/';
 
-const CANVAS_HTML = `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>*{margin:0;padding:0}body{background:#000}</style>
-</head><body>
-<canvas id="c"></canvas>
-<script>
-document.addEventListener('message', handle);
-window.addEventListener('message', handle);
-function handle(e) {
+/**
+ * Copy photo to app's permanent documentDirectory.
+ * - Prevents Android from clearing cache-dir photos before sync.
+ * - Converts content:// gallery URIs to file:// (required for uploadAsync).
+ * - Falls back to original URI on failure.
+ */
+async function persistPhoto(uri: string): Promise<string> {
   try {
-    var d = JSON.parse(e.data);
-    if (d.type === 'process') burnOverlay(d.base64, d.timestamp, d.coords);
-  } catch(err) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', msg: String(err) }));
+    const dirInfo = await FileSystem.getInfoAsync(PHOTOS_DIR);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(PHOTOS_DIR, { intermediates: true });
+    }
+    const dest = `${PHOTOS_DIR}photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+    await FileSystem.copyAsync({ from: uri, to: dest });
+    return dest;
+  } catch (e) {
+    console.warn('[PhotoPicker] persistPhoto failed, using original URI:', e);
+    return uri;
   }
 }
-function burnOverlay(base64, timestamp, coords) {
-  var img = new Image();
-  img.onload = function() {
-    var c = document.getElementById('c');
-    c.width  = img.width;
-    c.height = img.height;
-    var ctx = c.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-
-    var lines = coords ? [timestamp, coords] : [timestamp];
-    var fSize = Math.max(22, Math.round(img.height * 0.026));
-    var lineH = Math.round(fSize * 1.45);
-    var pad   = Math.round(fSize * 0.7);
-    var barH  = lineH * lines.length + pad * 2;
-
-    // Semi-transparent bar
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.fillRect(0, img.height - barH, img.width, barH);
-
-    ctx.font = 'bold ' + fSize + 'px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-
-    lines.forEach(function(line, i) {
-      var y = img.height - barH + pad + i * lineH;
-      // Shadow for legibility on bright backgrounds
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillText(line, pad + 2, y + 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(line, pad, y);
-    });
-
-    var result = c.toDataURL('image/jpeg', 0.80);
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'done', data: result }));
-  };
-  img.onerror = function() {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', msg: 'Image load failed' }));
-  };
-  img.src = 'data:image/jpeg;base64,' + base64;
-}
-</script></body></html>`;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function nowLabel(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}  ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-const MAX_PX = 1600; // resize before canvas — reduces base64 payload ~10-40×
-
-async function resizeAndEncode(uri: string): Promise<string> {
-  const resized = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ resize: { width: MAX_PX } }],
-    { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  return FileSystem.readAsStringAsync(resized.uri, { encoding: FileSystem.EncodingType.Base64 });
-}
-
-async function base64ToUri(dataUrl: string): Promise<string> {
-  // dataUrl = "data:image/jpeg;base64,/9j/..."
-  const b64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
-  const path = FileSystem.cacheDirectory + `ts_${Date.now()}.jpg`;
-  await FileSystem.writeAsStringAsync(path, b64, { encoding: FileSystem.EncodingType.Base64 });
-  return path;
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
   photos: PhotoEntry[];
@@ -110,104 +38,31 @@ interface Props {
   label?: string;
 }
 
-interface PendingItem { uri: string; category: string; coords?: string; }
-
 export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Fotografii' }: Props) {
   const [catPickerIdx, setCatPickerIdx] = useState<number | null>(null);
-  const [pending, setPending] = useState<PendingItem[]>([]);
-  const webRef = useRef<WebView>(null);
-  const processingRef = useRef(false);
 
-  // ── WebView message handler ─────────────────────────────────────────────────
-  const handleWebMessage = async (event: any) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === 'done') {
-        const newUri = await base64ToUri(msg.data);
-        setPending(prev => {
-          const [current, ...rest] = prev;
-          const newPhoto: PhotoEntry = { uri: newUri, category: current.category, uploaded: false };
-          onChange([...photos, newPhoto]);
-          processingRef.current = false;
-          // Trigger next if any
-          setTimeout(() => processNext(rest), 50);
-          return rest;
-        });
-      } else if (msg.type === 'error') {
-        console.warn('[PhotoPicker] canvas error:', msg.msg);
-        // Fallback: add original photo without timestamp
-        setPending(prev => {
-          const [current, ...rest] = prev;
-          onChange([...photos, { uri: current.uri, category: current.category, uploaded: false }]);
-          processingRef.current = false;
-          setTimeout(() => processNext(rest), 50);
-          return rest;
-        });
-      }
-    } catch {}
-  };
-
-  const processNext = async (queue: PendingItem[]) => {
-    if (queue.length === 0 || processingRef.current) return;
-    processingRef.current = true;
-    const item = queue[0];
-    try {
-      const base64 = await resizeAndEncode(item.uri);
-      webRef.current?.postMessage(JSON.stringify({
-        type: 'process',
-        base64,
-        timestamp: nowLabel(),
-        coords: item.coords ?? null,
-      }));
-    } catch {
-      processingRef.current = false;
-    }
-  };
-
-  const getCoords = async (): Promise<string | undefined> => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return undefined;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const { latitude: lat, longitude: lng, accuracy } = loc.coords;
-      const acc = accuracy ? ` ±${Math.round(accuracy)}m` : '';
-      return `${lat.toFixed(6)}, ${lng.toFixed(6)}${acc}`;
-    } catch {
-      return undefined;
-    }
-  };
-
-  const enqueue = (uris: string[], category = PHOTO_CATEGORIES[0], coords?: string) => {
-    const items: PendingItem[] = uris.map(uri => ({ uri, category, coords }));
-    setPending(prev => {
-      const next = [...prev, ...items];
-      if (!processingRef.current) setTimeout(() => processNext(next), 50);
-      return next;
-    });
-  };
-
-  // ── Camera / gallery ────────────────────────────────────────────────────────
   const takePicture = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) { Alert.alert('Permisiune cameră necesară'); return; }
-    // Get GPS before opening camera (faster than after)
-    const coordsPromise = getCoords();
     const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
     if (!result.canceled && result.assets[0]) {
-      const coords = await coordsPromise;
-      enqueue([result.assets[0].uri], PHOTO_CATEGORIES[0], coords);
+      const uri = await persistPhoto(result.assets[0].uri);
+      onChange([...photos, { uri, category: PHOTO_CATEGORIES[0], uploaded: false }]);
     }
   };
 
   const pickFromGallery = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert('Permisiune galerie necesară'); return; }
-    const [result, coords] = await Promise.all([
-      ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: true }),
-      getCoords(),
-    ]);
-    if (!result.canceled) {
-      enqueue(result.assets.map((a: { uri: string }) => a.uri), PHOTO_CATEGORIES[0], coords);
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: true });
+    if (!result.canceled && result.assets.length > 0) {
+      const newPhotos: PhotoEntry[] = await Promise.all(
+        result.assets.map(async (asset) => {
+          const uri = await persistPhoto(asset.uri);
+          return { uri, category: PHOTO_CATEGORIES[0], uploaded: false };
+        })
+      );
+      onChange([...photos, ...newPhotos]);
     }
   };
 
@@ -225,46 +80,26 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
     setCatPickerIdx(null);
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      {/* Hidden WebView for canvas processing */}
-      <View style={styles.hiddenWebView}>
-        <WebView
-          ref={webRef}
-          source={{ html: CANVAS_HTML }}
-          onMessage={handleWebMessage}
-          javaScriptEnabled
-          originWhitelist={['*']}
-          onLoad={() => {
-            // If items were enqueued before WebView was ready, start processing
-            setPending(prev => {
-              if (prev.length > 0 && !processingRef.current) processNext(prev);
-              return prev;
-            });
-          }}
-        />
-      </View>
-
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {pending.length > 0 && (
-            <Text style={styles.processingHint}>⏳ {pending.length} se procesează...</Text>
-          )}
-          {minPhotos && (
-            <Text style={[styles.minHint, photos.length >= minPhotos && styles.minMet]}>
-              {photos.length}/{minPhotos} min
-            </Text>
-          )}
-        </View>
+        {minPhotos !== undefined && (
+          <Text style={[styles.minHint, photos.length >= minPhotos && styles.minMet]}>
+            {photos.length}/{minPhotos} min
+          </Text>
+        )}
       </View>
 
-      {/* Photo grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll}>
         {photos.map((photo, idx) => (
           <TouchableOpacity key={idx} style={styles.photoWrap} onLongPress={() => removePhoto(idx)}>
-            <Image source={{ uri: photo.uri }} style={styles.photo} />
+            <Image
+              source={{ uri: photo.uri }}
+              style={styles.photo}
+              resizeMode="cover"
+              onError={() => console.warn('[PhotoPicker] Image load error for URI:', photo.uri)}
+            />
             <TouchableOpacity style={styles.catBadge} onPress={() => setCatPickerIdx(idx)}>
               <Text style={styles.catText}>{photo.category}</Text>
             </TouchableOpacity>
@@ -272,15 +107,6 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
               <Text style={styles.deleteText}>✕</Text>
             </TouchableOpacity>
           </TouchableOpacity>
-        ))}
-
-        {/* Pending placeholders */}
-        {pending.map((_, i) => (
-          <View key={`pending-${i}`} style={[styles.photoWrap, styles.pendingWrap]}>
-            <View style={styles.photo}>
-              <Text style={styles.pendingIcon}>⏳</Text>
-            </View>
-          </View>
         ))}
 
         <TouchableOpacity style={styles.addPhoto} onPress={takePicture}>
@@ -293,7 +119,6 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Category picker modal */}
       <Modal visible={catPickerIdx !== null} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
@@ -322,17 +147,13 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label = 'Foto
 
 const styles = StyleSheet.create({
   container: { marginBottom: 20 },
-  hiddenWebView: { width: 1, height: 1, position: 'absolute', opacity: 0 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   label: { fontSize: 12, fontWeight: '700', color: '#64748B', letterSpacing: 0.5 },
   minHint: { fontSize: 11, color: '#ef4444', fontWeight: '600' },
   minMet: { color: '#22c55e' },
-  processingHint: { fontSize: 10, color: '#f97316', fontWeight: '600' },
   scroll: { flexDirection: 'row' },
   photoWrap: { marginRight: 8, position: 'relative' },
-  photo: { width: 100, height: 100, borderRadius: 8, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
-  pendingWrap: { opacity: 0.5 },
-  pendingIcon: { fontSize: 28 },
+  photo: { width: 100, height: 100, borderRadius: 8, backgroundColor: '#e2e8f0' },
   catBadge: {
     position: 'absolute', bottom: 4, left: 4, right: 4,
     backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4,

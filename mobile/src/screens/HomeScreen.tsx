@@ -107,11 +107,29 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
       Alert.alert('Sincronizare completă', msg);
       const q = await getQueue();
       setQueue(q.reverse());
-    } catch {
-      Alert.alert('Eroare', 'Sincronizarea a eșuat.');
+    } catch (err: any) {
+      Alert.alert('Eroare sync', err?.message ?? String(err));
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleClearQueue = () => {
+    Alert.alert(
+      'Golire coadă',
+      'Șterge toate rapoartele locale nesincronizate? Această acțiune nu poate fi anulată.',
+      [
+        { text: 'Anulează', style: 'cancel' },
+        {
+          text: 'Șterge tot',
+          style: 'destructive',
+          onPress: async () => {
+            await AsyncStorage.removeItem('hestios_offline_queue');
+            setQueue([]);
+          },
+        },
+      ]
+    );
   };
 
   const handleAddReport = () => {
@@ -234,25 +252,30 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
 
             {/* Sync banner */}
             {pendingCount > 0 && (
-              <TouchableOpacity
-                style={[styles.syncBanner, !isOnline && styles.syncBannerOffline]}
-                onPress={isOnline ? handleSync : undefined}
-                activeOpacity={isOnline ? 0.8 : 1}
-              >
-                {syncing ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <View style={styles.syncDot} />
-                    <Text style={styles.syncText}>
-                      {isOnline
-                        ? `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} nesincronizat${pendingCount > 1 ? 'e' : ''} — Apasă pentru sync`
-                        : `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} în așteptare (offline)`
-                      }
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={styles.syncRow}>
+                <TouchableOpacity
+                  style={[styles.syncBanner, !isOnline && styles.syncBannerOffline, { flex: 1 }]}
+                  onPress={isOnline ? handleSync : undefined}
+                  activeOpacity={isOnline ? 0.8 : 1}
+                >
+                  {syncing ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <View style={styles.syncDot} />
+                      <Text style={styles.syncText}>
+                        {isOnline
+                          ? `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} nesincronizat${pendingCount > 1 ? 'e' : ''} — Apasă`
+                          : `${pendingCount} raport${pendingCount > 1 ? 'e' : ''} în așteptare (offline)`
+                        }
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.clearBtn} onPress={handleClearQueue} activeOpacity={0.8}>
+                  <Text style={styles.clearBtnText}>🗑</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* CTA Buttons */}
@@ -388,8 +411,8 @@ const styles = StyleSheet.create({
   },
 
   // Sync banner
+  syncRow: { flexDirection: 'row', marginHorizontal: 14, marginBottom: 12, gap: 8 },
   syncBanner: {
-    marginHorizontal: 14, marginBottom: 12,
     backgroundColor: T.green, borderRadius: 8,
     paddingVertical: 11, paddingHorizontal: 14,
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -397,6 +420,11 @@ const styles = StyleSheet.create({
   syncBannerOffline: { backgroundColor: T.warning },
   syncDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.6)' },
   syncText: { color: '#fff', fontSize: 13, fontWeight: '600', flex: 1 },
+  clearBtn: {
+    backgroundColor: '#1F2937', borderRadius: 8,
+    width: 44, alignItems: 'center', justifyContent: 'center',
+  },
+  clearBtnText: { fontSize: 18 },
 
   // CTA
   ctaWrap: { paddingHorizontal: 14, marginBottom: 8, gap: 10 },

@@ -7,6 +7,27 @@ interface Props {
   onLogin: (accessToken: string, refreshToken: string, user: User) => void;
 }
 
+/** Inline SVG of the H-mark logo (same proportions as the generated PNG) */
+function HMark({ size = 40 }: { size?: number }) {
+  const sw = Math.round(size * 0.175);  // stroke width
+  const cb = Math.round(size * 0.12);   // crossbar height
+  const cy = size / 2 - Math.round(size * 0.03);
+  const pad = Math.round(size * 0.21);
+  const innerW = size - pad * 2;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} xmlns="http://www.w3.org/2000/svg">
+      <rect width={size} height={size} rx={size * 0.20} fill="#0F172A" />
+      {/* Left vertical */}
+      <rect x={pad} y={pad} width={sw} height={innerW} fill="white" />
+      {/* Right vertical */}
+      <rect x={size - pad - sw} y={pad} width={sw} height={innerW} fill="white" />
+      {/* Green crossbar */}
+      <rect x={pad} y={cy - cb / 2} width={size - pad * 2} height={cb} fill="#22C55E" />
+    </svg>
+  );
+}
+
 export function LoginPage({ onLogin }: Props) {
   const { t, i18n } = useTranslation();
   const [email, setEmail]       = useState('');
@@ -38,7 +59,7 @@ export function LoginPage({ onLogin }: Props) {
       overflow: 'hidden',
     }}>
 
-      {/* Background grid pattern */}
+      {/* Background grid */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         backgroundImage: `
@@ -65,7 +86,7 @@ export function LoginPage({ onLogin }: Props) {
 
       {/* ── Left brand panel ── */}
       <div className="hide-mobile" style={{
-        width: 420, flexShrink: 0,
+        width: 440, flexShrink: 0,
         borderRight: '1px solid rgba(255,255,255,0.05)',
         display: 'flex', flexDirection: 'column',
         padding: '52px 48px',
@@ -73,30 +94,40 @@ export function LoginPage({ onLogin }: Props) {
         justifyContent: 'space-between',
       }}>
 
-        {/* Top: Logo */}
+        {/* Top: Logo block */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 11,
-              background: '#22C55E',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 24px rgba(34,197,94,0.35)',
-              flexShrink: 0,
-            }}>
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>
-              </svg>
+          {/* Logo mark + wordmark */}
+          <div style={{ marginBottom: 52 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
+              <HMark size={52} />
+              <div>
+                <div style={{
+                  color: '#E8EDF5', fontWeight: 800, fontSize: 20,
+                  letterSpacing: '0.12em', lineHeight: 1, textTransform: 'uppercase',
+                }}>Hesti Rossmann</div>
+                <div style={{
+                  color: 'rgba(255,255,255,0.25)', fontSize: 10.5,
+                  fontWeight: 600, marginTop: 4,
+                  letterSpacing: '0.18em', textTransform: 'uppercase',
+                }}>GmbH &nbsp;·&nbsp; Kirchheim u. T.</div>
+              </div>
             </div>
-            <div>
+            <div style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
               <div style={{
-                color: '#E8EDF5', fontWeight: 800, fontSize: 18,
-                letterSpacing: '-0.03em', lineHeight: 1,
-              }}>HestiOS</div>
-              <div style={{
+                width: 6, height: 6, borderRadius: 3,
+                backgroundColor: '#22C55E',
+                boxShadow: '0 0 8px rgba(34,197,94,0.8)',
+              }} />
+              <span style={{
                 color: 'rgba(255,255,255,0.2)', fontSize: 10,
-                fontWeight: 500, marginTop: 3,
-                letterSpacing: '0.06em', textTransform: 'uppercase',
-              }}>Management System</div>
+                fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono)',
+              }}>HestiOS Management System</span>
             </div>
           </div>
 
@@ -105,14 +136,14 @@ export function LoginPage({ onLogin }: Props) {
             {[
               { label: 'Șantiere active', value: '—', color: '#22C55E' },
               { label: 'Utilaje urmărite', value: '—', color: '#3B82F6' },
-              { label: 'Angajați activi', value: '—', color: '#8B5CF6' },
+              { label: 'Angajați activi',  value: '—', color: '#8B5CF6' },
             ].map((item, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 0',
+                padding: '11px 0',
                 borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none',
               }}>
-                <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>
+                <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>
                   {item.label}
                 </span>
                 <span style={{
@@ -124,21 +155,22 @@ export function LoginPage({ onLogin }: Props) {
           </div>
         </div>
 
-        {/* Bottom: Company info */}
+        {/* Bottom: Industries */}
         <div>
           <div style={{
-            fontSize: 12, color: 'rgba(255,255,255,0.15)',
-            lineHeight: 1.8,
+            display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20,
           }}>
-            <div style={{ fontWeight: 600, color: 'rgba(255,255,255,0.25)', marginBottom: 4 }}>
-              Hesti Rossmann GmbH
-            </div>
-            Kirchheim unter Teck<br />
-            Tiefbau · Glasfasernetze<br />
-            FTTH / FTTB
+            {['Tiefbau', 'Glasfasernetze', 'FTTH', 'FTTB'].map(tag => (
+              <span key={tag} style={{
+                fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+                color: 'rgba(255,255,255,0.22)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 4, padding: '3px 8px',
+                textTransform: 'uppercase',
+              }}>{tag}</span>
+            ))}
           </div>
           <div style={{
-            marginTop: 20,
             fontSize: 10, color: 'rgba(255,255,255,0.08)',
             fontFamily: 'var(--font-mono)',
             letterSpacing: '0.05em',
@@ -157,22 +189,23 @@ export function LoginPage({ onLogin }: Props) {
       }}>
         <div style={{ width: '100%', maxWidth: 360 }}>
 
-          {/* Mobile logo */}
+          {/* Mobile logo — shown only on small screens */}
           <div className="hide-tablet" style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            marginBottom: 36, justifyContent: 'center',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: 10, marginBottom: 36,
           }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 9,
-              background: '#22C55E',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(34,197,94,0.3)',
-            }}>
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.3} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>
-              </svg>
+            <HMark size={64} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                color: '#E8EDF5', fontWeight: 800, fontSize: 16,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+              }}>Hesti Rossmann</div>
+              <div style={{
+                color: 'rgba(255,255,255,0.25)', fontSize: 10,
+                fontWeight: 600, marginTop: 3,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+              }}>HestiOS Management System</div>
             </div>
-            <span style={{ color: '#E8EDF5', fontWeight: 800, fontSize: 17, letterSpacing: '-0.025em' }}>HestiOS</span>
           </div>
 
           {/* Heading */}

@@ -1,8 +1,19 @@
 import api from './client';
 import type { AuthUser } from '../types';
 
-export const loginWithPin = async (pin: string): Promise<{ token: string; user: AuthUser }> => {
-  const res = await api.post('/auth/pin-login/', { pin });
+export interface MobileUser {
+  id: number;
+  full_name: string;
+  role: string;
+}
+
+export const fetchMobileUsers = async (): Promise<MobileUser[]> => {
+  const res = await api.get('/auth/mobile-users/');
+  return res.data;
+};
+
+export const loginWithPin = async (userId: number, pin: string): Promise<{ token: string; user: AuthUser }> => {
+  const res = await api.post('/auth/pin-login/', { user_id: userId, pin });
   return res.data;
 };
 

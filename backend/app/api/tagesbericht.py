@@ -7,7 +7,6 @@ GET  /tagesbericht/{id}/     — get single entry with photos
 """
 from __future__ import annotations
 
-import io
 import uuid
 from datetime import date, datetime
 from typing import Optional

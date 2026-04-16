@@ -82,16 +82,33 @@ def me(current_user: User = Depends(get_current_user)):
     return _user_dict(current_user)
 
 
+@router.get("/mobile-users/")
+def mobile_users(db: Session = Depends(get_db)):
+    """Public endpoint — returns users that have a PIN set, for the mobile user-selector screen."""
+    users = (
+        db.query(User)
+        .filter(User.is_active == True, User.mobile_pin != None, User.mobile_pin != "")
+        .order_by(User.full_name)
+        .all()
+    )
+    return [{"id": u.id, "full_name": u.full_name, "role": u.role} for u in users]
+
+
 class PinLoginRequest(BaseModel):
+    user_id: int
     pin: str
 
 
 @router.post("/pin-login/")
 def pin_login(body: PinLoginRequest, db: Session = Depends(get_db)):
-    """Mobile app PIN authentication. PIN is stored hashed on the User record."""
+    """Mobile app PIN authentication — requires user_id + PIN."""
     if not body.pin or len(body.pin) < 4:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN prea scurt")
-    user = db.query(User).filter(User.mobile_pin == body.pin, User.is_active == True).first()
+    user = db.query(User).filter(
+        User.id == body.user_id,
+        User.mobile_pin == body.pin,
+        User.is_active == True,
+    ).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="PIN incorect")
     payload = {"sub": str(user.id), "role": user.role}
