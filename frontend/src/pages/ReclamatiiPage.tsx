@@ -1,10 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { fetchReclamatii, createReclamatie, updateReclamatie, deleteReclamatie } from '../api/reclamatii';
+import { fetchReclamatii, createReclamatie, updateReclamatie, deleteReclamatie, uploadAttachment, deleteAttachment } from '../api/reclamatii';
 import { fetchSites } from '../api/sites';
 import { fetchUsers } from '../api/users';
 import type { Site } from '../types';
+
+interface ReclamatieAttachment {
+  id: number;
+  filename: string;
+  content_type: string;
+  file_size: number;
+  url: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
 
 interface Reclamatie {
   id: number;
@@ -23,6 +33,7 @@ interface Reclamatie {
   created_at: string;
   updated_at: string | null;
   resolved_at: string | null;
+  attachments: ReclamatieAttachment[];
 }
 
 interface AppUser { id: number; full_name: string; role: string; }
@@ -71,8 +82,10 @@ export function ReclamatiiPage() {
   const [filterType,     setFilterType]     = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [editItem,   setEditItem]   = useState<Reclamatie | null>(null);
-  const [detailItem, setDetailItem] = useState<Reclamatie | null>(null);
+  const [editItem,         setEditItem]         = useState<Reclamatie | null>(null);
+  const [detailItem,       setDetailItem]       = useState<Reclamatie | null>(null);
+  const [uploadingAtt,     setUploadingAtt]     = useState(false);
+  const attFileRef = useRef<HTMLInputElement>(null);
 
   const [form,   setForm]   = useState({ ...EMPTY_FORM });
   const [update, setUpdate] = useState({ ...EMPTY_UPDATE });
@@ -153,6 +166,39 @@ export function ReclamatiiPage() {
       await deleteReclamatie(id);
       toast.success(t('reclamatii.deleteOk'));
       load();
+    } catch { toast.error(t('common.error')); }
+  }
+
+  async function handleAttachmentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!detailItem || !e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    if (file.size > 20 * 1024 * 1024) { toast.error(t('reclamatii.attachmentTooBig')); return; }
+    setUploadingAtt(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const att = await uploadAttachment(detailItem.id, fd);
+      const updated = { ...detailItem, attachments: [...detailItem.attachments, att] };
+      setDetailItem(updated);
+      setItems(prev => prev.map(r => r.id === updated.id ? updated : r));
+      toast.success(t('reclamatii.attachmentUploaded'));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || t('reclamatii.attachmentError'));
+    } finally {
+      setUploadingAtt(false);
+      if (attFileRef.current) attFileRef.current.value = '';
+    }
+  }
+
+  async function handleAttachmentDelete(att: ReclamatieAttachment) {
+    if (!detailItem) return;
+    if (!confirm(t('reclamatii.attachmentDeleteConfirm'))) return;
+    try {
+      await deleteAttachment(detailItem.id, att.id);
+      const updated = { ...detailItem, attachments: detailItem.attachments.filter(a => a.id !== att.id) };
+      setDetailItem(updated);
+      setItems(prev => prev.map(r => r.id === updated.id ? updated : r));
+      toast.success(t('reclamatii.attachmentDeleted'));
     } catch { toast.error(t('common.error')); }
   }
 
@@ -471,6 +517,57 @@ export function ReclamatiiPage() {
             <DetailField label={t('reclamatii.createdBy')}  value={detailItem.created_by_name || '—'} />
             <DetailField label={t('reclamatii.createdAt')}  value={fmtDate(detailItem.created_at)} />
             {detailItem.resolved_at && <DetailField label={t('reclamatii.resolvedAt')} value={fmtDate(detailItem.resolved_at)} />}
+          </div>
+
+          {/* Attachments */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {t('reclamatii.attachments')} ({detailItem.attachments?.length || 0})
+              </div>
+              <input ref={attFileRef} type="file" style={{ display: 'none' }}
+                accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx"
+                onChange={handleAttachmentUpload} />
+              <button
+                onClick={() => attFileRef.current?.click()}
+                disabled={uploadingAtt}
+                style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#f8fafc', cursor: 'pointer', color: '#374151', opacity: uploadingAtt ? 0.6 : 1 }}
+              >
+                {uploadingAtt ? t('reclamatii.uploadingAttachment') : t('reclamatii.addAttachment')}
+              </button>
+            </div>
+            {(!detailItem.attachments || detailItem.attachments.length === 0) ? (
+              <div style={{ fontSize: 12, color: '#cbd5e1', fontStyle: 'italic', padding: '6px 0' }}>{t('reclamatii.noAttachments')}</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {detailItem.attachments.map(att => {
+                  const isImg = att.content_type.startsWith('image/');
+                  const ext = att.filename.split('.').pop()?.toUpperCase() || 'FILE';
+                  return (
+                    <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                      {isImg && att.url ? (
+                        <img src={att.url} alt={att.filename} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid #e2e8f0', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 36, height: 36, borderRadius: 6, background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#64748b', flexShrink: 0 }}>
+                          {ext}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 500, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.filename}</div>
+                        <div style={{ fontSize: 10.5, color: '#94a3b8' }}>{(att.file_size / 1024).toFixed(1)} KB</div>
+                      </div>
+                      {att.url && (
+                        <a href={att.url} download={att.filename} style={{ fontSize: 11, color: '#3b82f6', textDecoration: 'none', padding: '4px 8px', border: '1px solid #bfdbfe', borderRadius: 5, flexShrink: 0 }}>↓</a>
+                      )}
+                      <button onClick={() => handleAttachmentDelete(att)}
+                        style={{ fontSize: 11, color: '#ef4444', background: 'none', border: '1px solid #fecaca', borderRadius: 5, padding: '4px 8px', cursor: 'pointer', flexShrink: 0 }}>
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <ModalActions>

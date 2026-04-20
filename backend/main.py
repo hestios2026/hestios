@@ -27,7 +27,7 @@ def _run_migrations():
     import app.models.notification, app.models.setting, app.models.lv
     import app.models.daily_report, app.models.timesheet, app.models.folder
     import app.models.tagesbericht, app.models.bauzeitenplan
-    import app.models.reclamatie
+    import app.models.reclamatie, app.models.reclamatie_attachment
     import app.models.document_version, app.models.folder_share
     logger = logging.getLogger(__name__)
     try:
@@ -177,6 +177,17 @@ def _run_migrations():
         "  created_at TIMESTAMPTZ DEFAULT NOW(),"
         "  updated_at TIMESTAMPTZ,"
         "  resolved_at TIMESTAMPTZ"
+        ")",
+        # Reclamație attachments
+        "CREATE TABLE IF NOT EXISTS reclamatie_attachments ("
+        "  id SERIAL PRIMARY KEY,"
+        "  reclamatie_id INTEGER REFERENCES reclamatii(id) ON DELETE CASCADE NOT NULL,"
+        "  file_key VARCHAR(500) NOT NULL,"
+        "  filename VARCHAR(300) NOT NULL,"
+        "  content_type VARCHAR(100) NOT NULL,"
+        "  file_size BIGINT DEFAULT 0,"
+        "  uploaded_by INTEGER REFERENCES users(id),"
+        "  created_at TIMESTAMPTZ DEFAULT NOW()"
         ")",
         # Document enhancements
         "ALTER TABLE documents ADD COLUMN IF NOT EXISTS tags VARCHAR(500)",
