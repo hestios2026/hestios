@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { fetchDocuments, uploadDocument, deleteDocument, moveDocument } from '../api/documents';
+import { fetchDocuments, uploadDocument, deleteDocument, moveDocument, updateDocMeta, getDocVersions, bulkDocAction } from '../api/documents';
 import { fetchFolders, createFolder, deleteFolder, renameFolder, FolderItem } from '../api/folders';
+import { listShares, createShare, revokeShare } from '../api/folder_shares';
 import { fetchDocumentCategories, DocCategory } from '../api/settings';
 import { fetchSites } from '../api/sites';
 import { DocumentViewerModal } from '../components/DocumentViewerModal';
@@ -405,7 +406,7 @@ function EditFolderModal({ folder, sites, onSaved, onClose }: {
 
 // ─── Folder Sidebar ───────────────────────────────────────────────────────────
 
-function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, onFolderRenamed, onFolderDeleted, onMoveFolder }: {
+function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, onFolderRenamed, onFolderDeleted, onMoveFolder, onShare }: {
   folders: FolderItem[];
   sites: Site[];
   selectedFolder: FolderItem | null;
@@ -414,6 +415,7 @@ function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, 
   onFolderRenamed: (folder: FolderItem) => void;
   onFolderDeleted: (folderId: number) => void;
   onMoveFolder: (folder: FolderItem) => void;
+  onShare: (folder: FolderItem) => void;
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -534,6 +536,7 @@ function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, 
           {/* Action buttons on hover */}
           {isHovered && !isRenaming && (
             <span style={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+              <button title="Partajează" onClick={e => { e.stopPropagation(); onShare(folder); }} className="dp-icon-btn" style={{ width: 22, height: 22, color: '#a78bfa', fontSize: 11 }}>⇧</button>
               <button title="Mută" onClick={e => { e.stopPropagation(); onMoveFolder(folder); }} className="dp-icon-btn" style={{ width: 22, height: 22, color: '#60A5FA', fontSize: 11 }}>↗</button>
               <button title="Editează / atribuie șantier" onClick={e => { e.stopPropagation(); setEditingFolder(folder); }} className="dp-icon-btn" style={{ width: 22, height: 22, color: 'var(--text-2)', fontSize: 11 }}>⚙</button>
               <button title={t('common.delete')} onClick={e => { e.stopPropagation(); handleDelete(folder); }} className="dp-icon-btn" style={{ width: 22, height: 22, color: 'var(--red)', fontSize: 11 }}>✕</button>
@@ -646,7 +649,7 @@ function UploadForm({ sites, folders, categories, onUploaded, onCancel }: {
   const [dragging, setDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState({ category: 'other', description: '', site_id: '', notes: '', folder_id: '' });
+  const [form, setForm] = useState({ category: 'other', description: '', site_id: '', notes: '', folder_id: '', tags: '', expires_at: '' });
   const ff = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   function handleDrop(e: React.DragEvent) {
@@ -667,6 +670,8 @@ function UploadForm({ sites, folders, categories, onUploaded, onCancel }: {
       if (form.site_id) fd.append('site_id', form.site_id);
       if (form.notes) fd.append('notes', form.notes);
       if (form.folder_id) fd.append('folder_id', form.folder_id);
+      if (form.tags) fd.append('tags', form.tags);
+      if (form.expires_at) fd.append('expires_at', form.expires_at);
       const doc = await uploadDocument(fd);
       toast.success(t('documents.uploadedOk'));
       onUploaded(doc);
@@ -739,6 +744,14 @@ function UploadForm({ sites, folders, categories, onUploaded, onCancel }: {
           <label style={lbl}>{t('documents.shortDesc')}</label>
           <input value={form.description} onChange={e => ff('description', e.target.value)} placeholder={t('documents.descPlaceholder')} style={{ width: '100%' }} />
         </div>
+        <div>
+          <label style={lbl}>Taguri</label>
+          <input value={form.tags} onChange={e => ff('tags', e.target.value)} placeholder="tag1, tag2, ..." style={{ width: '100%' }} />
+        </div>
+        <div>
+          <label style={lbl}>Data expirare</label>
+          <input type="date" value={form.expires_at} onChange={e => ff('expires_at', e.target.value)} style={{ width: '100%' }} />
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -808,9 +821,11 @@ function DocRow({ doc, selected, catMap, onClick }: {
 
 // ─── Document Detail Panel ────────────────────────────────────────────────────
 
-function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdit, onMove }: {
-  doc: Document; catMap: Record<string, DocCategory>; onDelete: () => void; onClose: () => void;
+function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdit, onMove, onMetaUpdated, onVersions }: {
+  doc: Document & { tags?: string; expires_at?: string; version?: number };
+  catMap: Record<string, DocCategory>; onDelete: () => void; onClose: () => void;
   onView: () => void; onEdit: () => void; onOfficeEdit: () => void; onMove: () => void;
+  onMetaUpdated: (d: Document) => void; onVersions: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'de' ? 'de-DE' : i18n.language === 'en' ? 'en-US' : 'ro-RO';
@@ -819,6 +834,32 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
   const canView = isImage(doc.content_type) || isPDF(doc.content_type);
   const canEdit = doc.content_type.startsWith('text/');
   const canOfficeEdit = OFFICE_TYPES.has(doc.content_type);
+
+  const [renaming, setRenaming] = useState(false);
+  const [renameVal, setRenameVal] = useState(doc.name);
+  const [tagsVal, setTagsVal] = useState(doc.tags || '');
+  const [expiryVal, setExpiryVal] = useState(doc.expires_at ? doc.expires_at.split('T')[0] : '');
+  const [savingMeta, setSavingMeta] = useState(false);
+
+  async function saveMeta() {
+    setSavingMeta(true);
+    try {
+      const updated = await updateDocMeta(doc.id, {
+        name: renameVal,
+        tags: tagsVal,
+        expires_at: expiryVal ? new Date(expiryVal).toISOString() : '',
+      });
+      onMetaUpdated(updated);
+      setRenaming(false);
+      toast.success('Salvat');
+    } catch { toast.error('Eroare la salvare'); }
+    finally { setSavingMeta(false); }
+  }
+
+  const tags = (doc.tags || '').split(',').map(s => s.trim()).filter(Boolean);
+  const expiry = doc.expires_at ? new Date(doc.expires_at) : null;
+  const expiryOverdue = expiry && expiry < new Date();
+  const expirySoon = expiry && !expiryOverdue && (expiry.getTime() - Date.now()) < 30 * 86400000;
 
   const metaRows = [
     { label: t('documents.uploadedBy'), value: doc.uploader_name || '—' },
@@ -879,7 +920,62 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
             {doc.description || doc.notes}
           </div>
         )}
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {tags.map(tag => (
+              <span key={tag} style={{ fontSize: 10, background: 'var(--surface-3)', color: 'var(--text-2)', borderRadius: 10, padding: '2px 8px', border: '1px solid var(--border)' }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Expiry badge */}
+        {expiry && (
+          <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 7, border: '1px solid', fontSize: 11, fontWeight: 600,
+            background: expiryOverdue ? 'rgba(239,68,68,0.08)' : expirySoon ? 'rgba(245,158,11,0.08)' : 'var(--surface-2)',
+            borderColor: expiryOverdue ? 'rgba(239,68,68,0.3)' : expirySoon ? 'rgba(245,158,11,0.3)' : 'var(--border)',
+            color: expiryOverdue ? 'var(--red)' : expirySoon ? '#d97706' : 'var(--text-2)',
+          }}>
+            {expiryOverdue ? '⚠ Expirat: ' : 'Expiră: '}
+            {expiry.toLocaleDateString(locale)}
+          </div>
+        )}
+
+        {/* Version */}
+        {(doc.version || 0) > 1 && (
+          <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-3)' }}>
+            Versiunea {doc.version}
+          </div>
+        )}
       </div>
+
+      {/* Rename / meta edit panel */}
+      {renaming && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Editează metadate</div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Nume fișier</label>
+            <input value={renameVal} onChange={e => setRenameVal(e.target.value)} style={{ width: '100%' }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Taguri (virgulă-separate)</label>
+            <input value={tagsVal} onChange={e => setTagsVal(e.target.value)} placeholder="contract, semnat, urgent" style={{ width: '100%' }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Data expirare</label>
+            <input type="date" value={expiryVal} onChange={e => setExpiryVal(e.target.value)} style={{ width: '100%' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={saveMeta} disabled={savingMeta} className="btn-primary" style={{ flex: 1, padding: '7px', fontSize: 12 }}>
+              {savingMeta ? 'Se salvează...' : 'Salvează'}
+            </button>
+            <button onClick={() => setRenaming(false)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 12 }}>Anulează</button>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -925,6 +1021,17 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
           </button>
         </div>
 
+        {/* Tertiary actions */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => { setRenaming(r => !r); setRenameVal(doc.name); setTagsVal(doc.tags || ''); setExpiryVal(doc.expires_at ? doc.expires_at.split('T')[0] : ''); }}
+            className="btn-ghost" style={{ flex: 1, padding: '7px 12px', fontSize: 12 }}>
+            ✎ Redenumește / Taguri
+          </button>
+          <button onClick={onVersions} className="btn-ghost" style={{ padding: '7px 14px', fontSize: 12, color: 'var(--text-2)' }}>
+            ⊞ Versiuni
+          </button>
+        </div>
+
         {/* Danger */}
         <button
           onClick={onDelete}
@@ -935,6 +1042,168 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
         </button>
       </div>
     </div>
+  );
+}
+
+// ─── Version History Modal ────────────────────────────────────────────────────
+
+function VersionHistoryModal({ docId, docName, onClose }: { docId: number; docName: string; onClose: () => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getDocVersions(docId).then(setData).catch(() => toast.error('Eroare la încărcare versiuni')).finally(() => setLoading(false));
+  }, [docId]);
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <ModalHeader title={`Versiuni: ${docName}`} onClose={onClose} />
+      <div style={{ padding: '12px 16px', overflowY: 'auto', maxHeight: 420 }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-2)', fontSize: 13 }}>Se încarcă...</div>
+        ) : !data ? null : (
+          <>
+            {/* Current version */}
+            <div style={{ padding: '10px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', background: 'rgba(34,197,94,0.12)', borderRadius: 10, padding: '2px 8px' }}>CURENT v{data.current_version}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>Versiunea activă</span>
+            </div>
+            {data.versions.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>Nicio versiune anterioară</div>
+            ) : data.versions.map((v: any) => (
+              <div key={v.id} style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', background: 'var(--surface-2)', borderRadius: 10, padding: '2px 8px' }}>v{v.version}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text)' }}>{formatSize(v.file_size)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{v.created_at ? new Date(v.created_at).toLocaleString('ro-RO') : '—'}</div>
+                </div>
+                {v.download_url && (
+                  <a href={v.download_url} download style={{ fontSize: 11, color: '#60A5FA', textDecoration: 'none', padding: '4px 10px', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 6 }}>↓ Descarcă</a>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </ModalOverlay>
+  );
+}
+
+// ─── Share Folder Modal ───────────────────────────────────────────────────────
+
+interface ShareItem { id: number; token: string; label: string | null; can_read: boolean; can_upload: boolean; can_delete: boolean; expires_at: string | null; creator_name: string | null; created_at: string; }
+
+function ShareFolderModal({ folder, onClose }: { folder: FolderItem; onClose: () => void }) {
+  const [shares, setShares] = useState<ShareItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ label: '', can_read: true, can_upload: false, can_delete: false, expires_at: '' });
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try { setShares(await listShares(folder.id)); } catch { toast.error('Eroare la încărcare'); } finally { setLoading(false); }
+  }
+
+  useEffect(() => { load(); }, [folder.id]);
+
+  async function handleCreate() {
+    setCreating(true);
+    try {
+      const body: any = { label: form.label || null, can_read: form.can_read, can_upload: form.can_upload, can_delete: form.can_delete };
+      if (form.expires_at) body.expires_at = new Date(form.expires_at).toISOString();
+      await createShare(folder.id, body);
+      setForm({ label: '', can_read: true, can_upload: false, can_delete: false, expires_at: '' });
+      await load();
+      toast.success('Link creat');
+    } catch { toast.error('Eroare la creare'); } finally { setCreating(false); }
+  }
+
+  async function handleRevoke(token: string) {
+    if (!confirm('Revoci accesul pentru acest link?')) return;
+    try { await revokeShare(token); await load(); toast.success('Link revocat'); } catch { toast.error('Eroare'); }
+  }
+
+  function copyLink(token: string) {
+    const url = `${window.location.origin}/share/${token}`;
+    navigator.clipboard.writeText(url).then(() => { setCopied(token); setTimeout(() => setCopied(null), 2000); });
+  }
+
+  const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 4 };
+
+  return (
+    <ModalOverlay onClose={onClose} width={520}>
+      <ModalHeader title={`Partajează: ${folder.name}`} onClose={onClose} />
+      <div style={{ padding: '14px 18px', overflowY: 'auto', maxHeight: '70vh' }}>
+
+        {/* Create new share */}
+        <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>Link nou</div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={lbl}>Etichetă (opțional)</label>
+            <input value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))} placeholder="ex: Client ABC — vizualizare" style={{ width: '100%' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={lbl}>Permisiuni</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {([['can_read', 'Citire'], ['can_upload', 'Upload'], ['can_delete', 'Ștergere']] as [keyof typeof form, string][]).map(([key, label]) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text)' }}>
+                  <input type="checkbox" checked={form[key] as boolean} onChange={e => setForm(p => ({ ...p, [key]: e.target.checked }))} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={lbl}>Expiră la (opțional)</label>
+            <input type="datetime-local" value={form.expires_at} onChange={e => setForm(p => ({ ...p, expires_at: e.target.value }))} style={{ width: '100%' }} />
+          </div>
+          <button onClick={handleCreate} disabled={creating || !form.can_read} className="btn-primary" style={{ width: '100%', opacity: creating ? 0.6 : 1 }}>
+            {creating ? 'Se creează...' : '+ Generează link'}
+          </button>
+        </div>
+
+        {/* Existing shares */}
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Link-uri active ({shares.length})
+        </div>
+        {loading ? (
+          <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '12px 0' }}>Se încarcă...</div>
+        ) : shares.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '12px 0' }}>Niciun link activ</div>
+        ) : shares.map(s => {
+          const isExpired = s.expires_at && new Date(s.expires_at) < new Date();
+          const url = `${window.location.origin}/share/${s.token}`;
+          return (
+            <div key={s.token} style={{ border: `1px solid ${isExpired ? 'rgba(239,68,68,0.2)' : 'var(--border)'}`, borderRadius: 8, padding: '10px 12px', marginBottom: 8, background: isExpired ? 'rgba(239,68,68,0.04)' : 'var(--surface)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: isExpired ? 'var(--red)' : 'var(--text)', marginBottom: 3 }}>
+                    {s.label || 'Link partajare'}
+                    {isExpired && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--red)' }}>(expirat)</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 4 }}>
+                    {s.can_read   && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.1)', color: '#15803d', borderRadius: 8, padding: '1px 6px' }}>Citire</span>}
+                    {s.can_upload && <span style={{ fontSize: 10, background: 'rgba(59,130,246,0.1)', color: '#1d4ed8', borderRadius: 8, padding: '1px 6px' }}>Upload</span>}
+                    {s.can_delete && <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.1)', color: '#b91c1c', borderRadius: 8, padding: '1px 6px' }}>Ștergere</span>}
+                    {s.expires_at && <span style={{ fontSize: 10, color: 'var(--text-3)' }}>Exp: {new Date(s.expires_at).toLocaleDateString('ro-RO')}</span>}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  <button onClick={() => copyLink(s.token)} className="btn-ghost" style={{ padding: '5px 10px', fontSize: 11, color: copied === s.token ? 'var(--green)' : 'var(--text-2)' }}>
+                    {copied === s.token ? '✓ Copiat' : '⎘ Copiază'}
+                  </button>
+                  <button onClick={() => handleRevoke(s.token)} className="btn-ghost" style={{ padding: '5px 10px', fontSize: 11, color: 'var(--red)' }}>
+                    Revocă
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ModalOverlay>
   );
 }
 
@@ -968,6 +1237,11 @@ export function DocumentsPage() {
   const [officeDoc, setOfficeDoc] = useState<{ id: number; name: string } | null>(null);
   const [movingDoc, setMovingDoc] = useState<Document | null>(null);
   const [movingFolder, setMovingFolder] = useState<FolderItem | null>(null);
+  const [sharingFolder, setSharingFolder] = useState<FolderItem | null>(null);
+  const [versionsDocId, setVersionsDocId] = useState<{ id: number; name: string } | null>(null);
+  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkMoving, setBulkMoving] = useState(false);
   const [filterCat, setFilterCat] = useState('');
   const [filterSite, setFilterSite] = useState('');
   const [search, setSearch] = useState('');
@@ -1053,6 +1327,26 @@ export function DocumentsPage() {
     } catch (err: any) { toast.error(err?.response?.data?.detail || t('documentsExtra.folderMoveError')); }
   }
 
+  async function handleBulkDelete() {
+    if (!bulkSelected.size) return;
+    if (!confirm(`Ștergi ${bulkSelected.size} documente?`)) return;
+    try {
+      await bulkDocAction([...bulkSelected], 'delete');
+      toast.success(`${bulkSelected.size} documente șterse`);
+      setBulkSelected(new Set()); setBulkMode(false); setSelected(null);
+      loadDocs(filterCat, filterSite, search, selectedFolder?.id);
+    } catch (e: any) { toast.error(e?.response?.data?.detail || t('common.error')); }
+  }
+
+  async function handleBulkMove(targetFolderId: number | null) {
+    try {
+      await bulkDocAction([...bulkSelected], 'move', targetFolderId);
+      toast.success(`${bulkSelected.size} documente mutate`);
+      setBulkSelected(new Set()); setBulkMode(false); setBulkMoving(false); setSelected(null);
+      loadDocs(filterCat, filterSite, search, selectedFolder?.id);
+    } catch (e: any) { toast.error(e?.response?.data?.detail || t('common.error')); }
+  }
+
   const catCounts = categories.map(c => ({ ...c, count: docs.filter(d => d.category === c.key).length }));
   // always show all categories (count is just informational)
   const subfolders = selectedFolder ? folders.filter(f => f.parent_id === selectedFolder.id) : folders.filter(f => f.parent_id === null);
@@ -1123,6 +1417,18 @@ export function DocumentsPage() {
           )}
         </div>
 
+        {/* Bulk toggle */}
+        <button
+          className="btn-ghost"
+          onClick={() => { setBulkMode(p => !p); setBulkSelected(new Set()); }}
+          style={{ height: 34, display: 'flex', alignItems: 'center', gap: 6, color: bulkMode ? 'var(--green)' : 'var(--text-2)', borderColor: bulkMode ? 'rgba(34,197,94,0.4)' : undefined }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>
+          </svg>
+          Selecție
+        </button>
+
         {/* Upload toggle */}
         <button
           className="btn-primary"
@@ -1174,6 +1480,32 @@ export function DocumentsPage() {
         ))}
       </div>
 
+      {/* ── Bulk action bar ── */}
+      {bulkMode && (
+        <div className="dp-fade-in" style={{
+          background: bulkSelected.size > 0 ? 'rgba(34,197,94,0.06)' : 'var(--surface-2)',
+          border: `1px solid ${bulkSelected.size > 0 ? 'rgba(34,197,94,0.25)' : 'var(--border)'}`,
+          borderRadius: 10, padding: '10px 16px', marginBottom: 12,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)' }}>
+            <input type="checkbox"
+              checked={docs.length > 0 && bulkSelected.size === docs.length}
+              onChange={e => setBulkSelected(e.target.checked ? new Set(docs.map(d => d.id)) : new Set())} />
+            Selectează tot
+          </label>
+          <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>
+            {bulkSelected.size > 0 ? `${bulkSelected.size} selectate` : 'Niciun document selectat'}
+          </span>
+          {bulkSelected.size > 0 && (
+            <>
+              <button onClick={() => setBulkMoving(true)} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: '#60A5FA' }}>↗ Mută</button>
+              <button onClick={handleBulkDelete} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: 'var(--red)' }}>✕ Șterge</button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── Upload panel ── */}
       {showUpload && (
         <div className="dp-fade-in" style={{
@@ -1207,6 +1539,7 @@ export function DocumentsPage() {
           onFolderRenamed={handleFolderRenamed}
           onFolderDeleted={handleFolderDeleted}
           onMoveFolder={setMovingFolder}
+          onShare={setSharingFolder}
         />
 
         {/* MIDDLE: Content browser */}
@@ -1303,13 +1636,38 @@ export function DocumentsPage() {
 
             {/* Document rows */}
             {docs.map(d => (
-              <DocRow
-                key={d.id}
-                doc={d as any}
-                selected={selected?.id === d.id}
-                catMap={catMap}
-                onClick={() => { setSelected(d); setShowUpload(false); }}
-              />
+              <div key={d.id} style={{ display: 'flex', alignItems: 'center' }}>
+                {bulkMode && (
+                  <div style={{ paddingLeft: 12, flexShrink: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={bulkSelected.has(d.id)}
+                      onChange={e => {
+                        setBulkSelected(prev => {
+                          const next = new Set(prev);
+                          e.target.checked ? next.add(d.id) : next.delete(d.id);
+                          return next;
+                        });
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <DocRow
+                    doc={d as any}
+                    selected={!bulkMode && selected?.id === d.id}
+                    catMap={catMap}
+                    onClick={() => {
+                      if (bulkMode) {
+                        setBulkSelected(prev => { const next = new Set(prev); next.has(d.id) ? next.delete(d.id) : next.add(d.id); return next; });
+                      } else {
+                        setSelected(d); setShowUpload(false);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
             ))}
 
             {/* Load more */}
@@ -1364,13 +1722,15 @@ export function DocumentsPage() {
         <div style={{ width: 300, flexShrink: 0 }}>
           {selected ? (
             <DocDetail
-              doc={selected} catMap={catMap}
+              doc={selected as any} catMap={catMap}
               onDelete={handleDelete}
               onClose={() => setSelected(null)}
               onView={() => setViewingDocId(selected.id)}
               onEdit={() => setEditingDoc({ id: selected.id, name: selected.name })}
               onOfficeEdit={() => setOfficeDoc({ id: selected.id, name: selected.name })}
               onMove={() => setMovingDoc(selected)}
+              onMetaUpdated={(updated) => { setSelected(updated); setDocs(prev => prev.map(d => d.id === updated.id ? updated : d)); }}
+              onVersions={() => setVersionsDocId({ id: selected.id, name: selected.name })}
             />
           ) : (
             <div style={{
@@ -1418,6 +1778,27 @@ export function DocumentsPage() {
           sites={sites}
           onCreated={folder => { setFolders(prev => [...prev, folder]); setShowCreateFolder(false); }}
           onClose={() => setShowCreateFolder(false)}
+        />
+      )}
+      {versionsDocId && (
+        <VersionHistoryModal
+          docId={versionsDocId.id}
+          docName={versionsDocId.name}
+          onClose={() => setVersionsDocId(null)}
+        />
+      )}
+      {sharingFolder && (
+        <ShareFolderModal
+          folder={sharingFolder}
+          onClose={() => setSharingFolder(null)}
+        />
+      )}
+      {bulkMoving && (
+        <MovePicker
+          folders={folders} currentFolderId={selectedFolder?.id ?? null}
+          title={`Mută ${bulkSelected.size} documente`}
+          onConfirm={async (fid) => { await handleBulkMove(fid); setBulkMoving(false); }}
+          onClose={() => setBulkMoving(false)}
         />
       )}
     </div>

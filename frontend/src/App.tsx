@@ -2,6 +2,7 @@ import './i18n';
 import { Toaster } from 'react-hot-toast';
 import { useState } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { SharePage } from './pages/SharePage';
 import { LoginPage } from './pages/LoginPage';
 import { Layout } from './components/Layout';
 import { DashboardPage } from './pages/DashboardPage';
@@ -28,6 +29,12 @@ import type { User } from './types';
 export default function App() {
   const { user, signIn, signOut, isAuthenticated } = useAuth();
   const [page, setPage] = useState('dashboard');
+
+  // Public share pages — no auth needed
+  const sharePath = window.location.pathname.match(/^\/share\/([a-f0-9]{32})$/);
+  if (sharePath) {
+    return <SharePage token={sharePath[1]} />;
+  }
 
   if (!isAuthenticated) {
     return (

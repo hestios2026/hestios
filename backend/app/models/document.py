@@ -22,6 +22,9 @@ class Document(Base):
     uploaded_by  = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     notes        = Column(Text, nullable=True)
+    tags         = Column(String(500), nullable=True)           # comma-separated tags
+    expires_at   = Column(DateTime(timezone=True), nullable=True)
+    version      = Column(Integer, default=1, nullable=False)
 
     site         = relationship("Site")
     employee     = relationship("Employee")

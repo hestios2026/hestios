@@ -20,3 +20,11 @@ export const updateDocumentContent = (id: number, content: string) =>
 
 export const moveDocument = (id: number, folder_id: number | null) =>
   api.patch(`/documents/${id}/move/`, { folder_id }).then(r => r.data);
+
+export const updateDocMeta = (id: number, body: { name?: string; tags?: string; expires_at?: string }) =>
+  api.patch(`/documents/${id}/meta/`, body).then(r => r.data);
+
+export const getDocVersions = (id: number) => api.get(`/documents/${id}/versions/`).then(r => r.data);
+
+export const bulkDocAction = (ids: number[], action: 'delete' | 'move', folder_id?: number | null) =>
+  api.post('/documents/bulk/', { ids, action, folder_id }).then(r => r.data);

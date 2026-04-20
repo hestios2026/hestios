@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.core.storage import upload_file, get_presigned_url, delete_file, get_file_content
 from app.models.document import Document
+from app.models.document_version import DocumentVersion
 from app.models.user import User
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -59,6 +60,9 @@ def _doc_dict(d: Document, include_url=False):
         "uploader_name": d.uploader.full_name if d.uploader else None,
         "created_at": d.created_at.isoformat() if d.created_at else None,
         "notes": d.notes,
+        "tags": d.tags,
+        "expires_at": d.expires_at.isoformat() if d.expires_at else None,
+        "version": getattr(d, 'version', 1) or 1,
     }
     if include_url:
         try:
@@ -109,6 +113,8 @@ async def upload_document(
     equipment_id: Optional[str] = Form(None),
     folder_id: Optional[str] = Form(None),
     notes: str = Form(""),
+    tags: str = Form(""),
+    expires_at: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
@@ -127,6 +133,13 @@ async def upload_document(
 
     upload_file(file_key, data, content_type)
 
+    exp = None
+    if expires_at:
+        try:
+            exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
     doc = Document(
         name=file.filename or file_key,
         description=description or None,
@@ -140,6 +153,9 @@ async def upload_document(
         content_type=content_type,
         uploaded_by=current.id,
         notes=notes or None,
+        tags=tags.strip() or None,
+        expires_at=exp,
+        version=1,
     )
     db.add(doc)
     db.commit()
@@ -451,8 +467,26 @@ async def office_callback(
             r.raise_for_status()
             data = r.content
 
+        # Save current version before overwriting
+        from app.models.document_version import DocumentVersion
+        current_version = getattr(d, 'version', 1) or 1
+        old_version_key = f"versions/{d.id}/v{current_version}_{uuid.uuid4().hex[:8]}_{os.path.basename(d.file_key)}"
+        try:
+            old_data = get_file_content(d.file_key)
+            upload_file(old_version_key, old_data, d.content_type)
+            ver = DocumentVersion(
+                document_id=d.id,
+                version=current_version,
+                file_key=old_version_key,
+                file_size=d.file_size or 0,
+            )
+            db.add(ver)
+        except Exception as ve:
+            logging.getLogger(__name__).warning(f"Could not save version snapshot: {ve}")
+
         upload_file(d.file_key, data, d.content_type)
         d.file_size = len(data)
+        d.version = current_version + 1
         from datetime import timezone
         d.created_at = datetime.now(timezone.utc)
         db.commit()
@@ -501,3 +535,115 @@ def delete_document(doc_id: int, db: Session = Depends(get_db), current: User = 
     db.delete(d)
     db.commit()
     return {"ok": True}
+
+
+# ── Rename ─────────────────────────────────────────────────────────────────────
+
+class RenameBody(BaseModel):
+    name: str
+    tags: Optional[str] = None
+    expires_at: Optional[str] = None   # ISO or empty string to clear
+
+
+@router.patch("/{doc_id}/meta/")
+def update_meta(
+    doc_id: int,
+    body: RenameBody,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    if current.role not in ("director", "projekt_leiter") and d.uploaded_by != current.id:
+        raise HTTPException(403, "Acces interzis")
+    if body.name.strip():
+        d.name = body.name.strip()
+    if body.tags is not None:
+        d.tags = body.tags.strip() or None
+    if body.expires_at is not None:
+        if body.expires_at == "":
+            d.expires_at = None
+        else:
+            try:
+                d.expires_at = datetime.fromisoformat(body.expires_at.replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(400, "Format dată invalid")
+    db.commit()
+    db.refresh(d)
+    return _doc_dict(d, include_url=True)
+
+
+# ── Versions ───────────────────────────────────────────────────────────────────
+
+@router.get("/{doc_id}/versions/")
+def list_versions(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    versions = db.query(DocumentVersion).filter(
+        DocumentVersion.document_id == doc_id
+    ).order_by(DocumentVersion.version.desc()).all()
+    return {
+        "current_version": getattr(d, 'version', 1) or 1,
+        "versions": [
+            {
+                "id": v.id,
+                "version": v.version,
+                "file_size": v.file_size,
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+                "uploader_name": v.uploader.full_name if v.uploader else None,
+                "download_url": get_presigned_url(v.file_key) if v.file_key else None,
+            }
+            for v in versions
+        ],
+    }
+
+
+# ── Bulk operations ────────────────────────────────────────────────────────────
+
+class BulkBody(BaseModel):
+    ids: list[int]
+    action: str        # "delete" | "move"
+    folder_id: Optional[int] = None
+
+
+@router.post("/bulk/")
+def bulk_action(
+    body: BulkBody,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    if body.action not in ("delete", "move"):
+        raise HTTPException(400, "Acțiune invalidă")
+    docs = db.query(Document).filter(Document.id.in_(body.ids)).all()
+    if not docs:
+        raise HTTPException(404, "Niciun document găsit")
+
+    for d in docs:
+        if current.role not in ("director", "projekt_leiter") and d.uploaded_by != current.id:
+            raise HTTPException(403, f"Acces interzis pentru documentul {d.name}")
+
+    if body.action == "delete":
+        for d in docs:
+            try:
+                delete_file(d.file_key)
+            except Exception:
+                pass
+            db.delete(d)
+        db.commit()
+        return {"deleted": len(docs)}
+
+    if body.action == "move":
+        if body.folder_id is not None:
+            from app.models.folder import Folder
+            if not db.query(Folder).filter(Folder.id == body.folder_id).first():
+                raise HTTPException(404, "Folder negăsit")
+        for d in docs:
+            d.folder_id = body.folder_id
+        db.commit()
+        return {"moved": len(docs)}

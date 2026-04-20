@@ -12,6 +12,7 @@ from app.api import situatii
 from app.api import tagesbericht
 from app.api import bauzeitenplan
 from app.api import reclamatii
+from app.api import folder_shares
 
 
 def _run_migrations():
@@ -27,6 +28,7 @@ def _run_migrations():
     import app.models.daily_report, app.models.timesheet, app.models.folder
     import app.models.tagesbericht, app.models.bauzeitenplan
     import app.models.reclamatie
+    import app.models.document_version, app.models.folder_share
     logger = logging.getLogger(__name__)
     try:
         Base.metadata.create_all(bind=engine)
@@ -176,6 +178,34 @@ def _run_migrations():
         "  updated_at TIMESTAMPTZ,"
         "  resolved_at TIMESTAMPTZ"
         ")",
+        # Document enhancements
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS tags VARCHAR(500)",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1",
+        # Document version history
+        "CREATE TABLE IF NOT EXISTS document_versions ("
+        "  id SERIAL PRIMARY KEY,"
+        "  document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE NOT NULL,"
+        "  version INTEGER NOT NULL,"
+        "  file_key VARCHAR(500) NOT NULL,"
+        "  file_size BIGINT DEFAULT 0,"
+        "  uploaded_by INTEGER REFERENCES users(id),"
+        "  created_at TIMESTAMPTZ DEFAULT NOW(),"
+        "  notes TEXT"
+        ")",
+        # Folder public share links
+        "CREATE TABLE IF NOT EXISTS folder_shares ("
+        "  id SERIAL PRIMARY KEY,"
+        "  token VARCHAR(64) UNIQUE NOT NULL,"
+        "  folder_id INTEGER REFERENCES folders(id) ON DELETE CASCADE NOT NULL,"
+        "  label VARCHAR(200),"
+        "  can_read BOOLEAN DEFAULT TRUE,"
+        "  can_upload BOOLEAN DEFAULT FALSE,"
+        "  can_delete BOOLEAN DEFAULT FALSE,"
+        "  expires_at TIMESTAMPTZ,"
+        "  created_by INTEGER REFERENCES users(id),"
+        "  created_at TIMESTAMPTZ DEFAULT NOW()"
+        ")",
     ]
     for sql in migrations:
         try:
@@ -247,6 +277,7 @@ app.include_router(situatii.router,      prefix="/api")
 app.include_router(tagesbericht.router,    prefix="/api")
 app.include_router(bauzeitenplan.router,  prefix="/api")
 app.include_router(reclamatii.router,     prefix="/api")
+app.include_router(folder_shares.router,  prefix="/api")
 
 
 @app.get("/")
