@@ -79,6 +79,7 @@ export default {
     tagesbericht: 'Daily Report',
     pontaj: 'Attendance',
     bauzeitenplan: 'Construction Schedule',
+    reclamatii: 'Complaints',
     users: 'Users',
     settings: 'Settings',
     logout: 'Logout',

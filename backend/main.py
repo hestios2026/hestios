@@ -11,6 +11,7 @@ from app.api import invoices
 from app.api import situatii
 from app.api import tagesbericht
 from app.api import bauzeitenplan
+from app.api import reclamatii
 
 
 def _run_migrations():
@@ -25,6 +26,7 @@ def _run_migrations():
     import app.models.notification, app.models.setting, app.models.lv
     import app.models.daily_report, app.models.timesheet, app.models.folder
     import app.models.tagesbericht, app.models.bauzeitenplan
+    import app.models.reclamatie
     logger = logging.getLogger(__name__)
     try:
         Base.metadata.create_all(bind=engine)
@@ -158,6 +160,22 @@ def _run_migrations():
         "  meters FLOAT DEFAULT 0,"
         "  note VARCHAR(200)"
         ")",
+        # Reclamații (support tickets)
+        "CREATE TABLE IF NOT EXISTS reclamatii ("
+        "  id SERIAL PRIMARY KEY,"
+        "  title VARCHAR(200) NOT NULL,"
+        "  type VARCHAR(20) NOT NULL DEFAULT 'internal',"
+        "  priority VARCHAR(10) NOT NULL DEFAULT 'normal',"
+        "  status VARCHAR(15) NOT NULL DEFAULT 'open',"
+        "  description TEXT NOT NULL,"
+        "  resolution_notes TEXT,"
+        "  site_id INTEGER REFERENCES sites(id),"
+        "  assigned_to INTEGER REFERENCES users(id),"
+        "  created_by INTEGER REFERENCES users(id) NOT NULL,"
+        "  created_at TIMESTAMPTZ DEFAULT NOW(),"
+        "  updated_at TIMESTAMPTZ,"
+        "  resolved_at TIMESTAMPTZ"
+        ")",
     ]
     for sql in migrations:
         try:
@@ -228,6 +246,7 @@ app.include_router(lv.router,            prefix="/api")
 app.include_router(situatii.router,      prefix="/api")
 app.include_router(tagesbericht.router,    prefix="/api")
 app.include_router(bauzeitenplan.router,  prefix="/api")
+app.include_router(reclamatii.router,     prefix="/api")
 
 
 @app.get("/")

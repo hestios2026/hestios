@@ -21,6 +21,7 @@ import { PontajPage } from './pages/PontajPage';
 import { LVCatalogPage } from './pages/LVCatalogPage';
 import { InvoiceScannerPage } from './pages/InvoiceScannerPage';
 import { BauzeitenplanPage } from './pages/BauzeitenplanPage';
+import { ReclamatiiPage } from './pages/ReclamatiiPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import type { User } from './types';
 
@@ -53,6 +54,7 @@ export default function App() {
       case 'pontaj':        return <PontajPage />;
       case 'lv':            return <LVCatalogPage />;
       case 'bauzeitenplan': return <BauzeitenplanPage />;
+      case 'reclamatii':    return <ReclamatiiPage />;
       case 'hausanschluss': return <ProgramariPage />;
       case 'users':         return <UsersPage />;
       case 'settings':      return <SettingsPage />;
