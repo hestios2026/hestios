@@ -35,8 +35,11 @@ export const translations = {
     syncComplete: 'Sincronizare completă',
     syncError: 'Eroare sync',
     clearQueueTitle: 'Golire coadă',
-    clearQueueMsg: 'Șterge toate rapoartele locale nesincronizate? Această acțiune nu poate fi anulată.',
+    clearQueueMsg: 'Șterge toate rapoartele locale? Această acțiune nu poate fi anulată.',
+    clearSyncedMsg: (synced: number, pending: number) =>
+      `${synced} raport${synced > 1 ? 'e' : ''} sincronizat${synced > 1 ? 'e' : ''}${pending > 0 ? `, ${pending} în așteptare` : ''}.`,
     cancel: 'Anulează',
+    deleteSynced: 'Șterge sincronizate',
     deleteAll: 'Șterge tot',
     pending: (n: number) => `${n} raport${n > 1 ? 'e' : ''} nesincronizat${n > 1 ? 'e' : ''} — Apasă`,
     pendingOffline: (n: number) => `${n} raport${n > 1 ? 'e' : ''} în așteptare (offline)`,
@@ -240,7 +243,10 @@ export const translations = {
     syncError: 'Sync-Fehler',
     clearQueueTitle: 'Warteschlange leeren',
     clearQueueMsg: 'Alle lokalen Berichte löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    clearSyncedMsg: (synced: number, pending: number) =>
+      `${synced} synchronisierter Bericht${synced > 1 ? 'e' : ''}${pending > 0 ? `, ${pending} ausstehend` : ''}.`,
     cancel: 'Abbrechen',
+    deleteSynced: 'Synchronisierte löschen',
     deleteAll: 'Alles löschen',
     pending: (n: number) => `${n} Bericht${n > 1 ? 'e' : ''} ungesendet — Tippen`,
     pendingOffline: (n: number) => `${n} Bericht${n > 1 ? 'e' : ''} ausstehend (offline)`,

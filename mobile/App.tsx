@@ -12,6 +12,7 @@ import PontajScreen from './src/screens/PontajScreen';
 import ProgramariScreen from './src/screens/ProgramariScreen';
 import { LangProvider } from './src/i18n';
 import { getQueue, syncQueue } from './src/store/offlineQueue';
+import { getPontajQueue, syncPontajQueue } from './src/store/pontajQueue';
 import type { WorkType, WorkEntry } from './src/types';
 
 type Screen = 'login' | 'home' | 'type-select' | 'form' | 'detail' | 'pontaj' | 'programari';
@@ -34,23 +35,40 @@ function AppInner() {
     });
   }, []);
 
-  // Token check + auto-sync when app comes to foreground
+  // Silent sync helper — runs both queues if online
+  const runAutoSync = async () => {
+    try {
+      const net = await Network.getNetworkStateAsync();
+      if (!net.isConnected) return;
+      const [queue, pontajQ] = await Promise.all([getQueue(), getPontajQueue()]);
+      if (queue.some(e => !e.synced))   syncQueue().catch(() => {});
+      if (pontajQ.some(p => !p.synced)) syncPontajQueue().catch(() => {});
+    } catch {}
+  };
+
+  // Auto-sync on foreground + token check
   useEffect(() => {
     const sub = AppState.addEventListener('change', async state => {
       if (state !== 'active') return;
       const token = await AsyncStorage.getItem('hestios_token');
       if (!token) { setScreen('login'); return; }
-      // Silent auto-sync if online + pending items
-      try {
-        const net = await Network.getNetworkStateAsync();
-        if (!net.isConnected) return;
-        const queue = await getQueue();
-        if (queue.some(e => !e.synced)) {
-          syncQueue().catch(() => {});
-        }
-      } catch {}
+      runAutoSync();
     });
     return () => sub.remove();
+  }, []);
+
+  // Auto-sync when network comes back online while app is open
+  useEffect(() => {
+    let lastOnline = true;
+    const interval = setInterval(async () => {
+      try {
+        const net = await Network.getNetworkStateAsync();
+        const online = !!net.isConnected;
+        if (online && !lastOnline) runAutoSync();
+        lastOnline = online;
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

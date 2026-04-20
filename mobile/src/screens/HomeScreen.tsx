@@ -6,7 +6,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Network from 'expo-network';
 import { fetchSites } from '../api/auth';
-import { getQueue, syncQueue } from '../store/offlineQueue';
+import { getQueue, syncQueue, clearSynced } from '../store/offlineQueue';
 import type { AuthUser, Site, WorkEntry } from '../types';
 import { T } from '../theme';
 import { useLang } from '../i18n';
@@ -117,14 +117,26 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
   };
 
   const handleClearQueue = () => {
+    const syncedCount = queue.filter(e => e.synced).length;
+    const pendingCount2 = queue.filter(e => !e.synced).length;
     Alert.alert(
       tr.clearQueueTitle,
-      tr.clearQueueMsg,
+      syncedCount > 0
+        ? tr.clearSyncedMsg(syncedCount, pendingCount2)
+        : tr.clearQueueMsg,
       [
         { text: tr.cancel, style: 'cancel' },
+        ...(syncedCount > 0 ? [{
+          text: tr.deleteSynced,
+          onPress: async () => {
+            await clearSynced();
+            const q = await getQueue();
+            setQueue(q.reverse());
+          },
+        }] : []),
         {
           text: tr.deleteAll,
-          style: 'destructive',
+          style: 'destructive' as const,
           onPress: async () => {
             await AsyncStorage.removeItem('hestios_offline_queue');
             setQueue([]);
