@@ -54,6 +54,39 @@ function useDocPageStyles() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// ─── Document name helpers ────────────────────────────────────────────────────
+
+/** Returns just the filename, decoding URL-encoded WebDAV/Nextcloud paths. */
+function cleanDocName(raw: string): string {
+  try {
+    const decoded = decodeURIComponent(raw);
+    const last = decoded.split('/').filter(Boolean).pop();
+    return last || decoded;
+  } catch {
+    return raw;
+  }
+}
+
+/** Returns the decoded folder path portion, or null if it's a plain filename. */
+function docRemotePath(raw: string): string | null {
+  try {
+    const decoded = decodeURIComponent(raw);
+    const parts = decoded.split('/').filter(Boolean);
+    if (parts.length <= 1) return null;
+    // Nextcloud WebDAV: .../dav/files/<user>/<Folder>/<Sub>/file.ext
+    const filesIdx = parts.findIndex(p => p === 'files');
+    if (filesIdx !== -1 && parts.length > filesIdx + 3) {
+      return parts.slice(filesIdx + 2, parts.length - 1).join(' › ');
+    }
+    // Generic path
+    const folderParts = parts.slice(0, parts.length - 1);
+    const meaningful = folderParts.filter(p => !p.includes('://') && !p.includes('.php'));
+    return meaningful.length > 0 ? meaningful.join(' › ') : null;
+  } catch {
+    return null;
+  }
+}
+
 function flattenFolders(items: FolderItem[]): FolderItem[] {
   const result: FolderItem[] = [];
   function walk(list: FolderItem[]) {
@@ -259,7 +292,7 @@ function MovePicker({ folders, currentFolderId, excludeFolderId, title, onConfir
             <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
           </svg>
           <span style={{ fontSize: 13, fontWeight: 600, color: selected === null ? '#22C55E' : 'var(--text)', flex: 1 }}>
-            Rădăcină (fără folder)
+            {t('documentsExtra.rootFolder')}
           </span>
           {selected === null && (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
@@ -745,11 +778,11 @@ function UploadForm({ sites, folders, categories, onUploaded, onCancel }: {
           <input value={form.description} onChange={e => ff('description', e.target.value)} placeholder={t('documents.descPlaceholder')} style={{ width: '100%' }} />
         </div>
         <div>
-          <label style={lbl}>Taguri</label>
+          <label style={lbl}>{t('documentsExtra.tagsLabel')}</label>
           <input value={form.tags} onChange={e => ff('tags', e.target.value)} placeholder="tag1, tag2, ..." style={{ width: '100%' }} />
         </div>
         <div>
-          <label style={lbl}>Data expirare</label>
+          <label style={lbl}>{t('documentsExtra.expiryLabel')}</label>
           <input type="date" value={form.expires_at} onChange={e => ff('expires_at', e.target.value)} style={{ width: '100%' }} />
         </div>
       </div>
@@ -797,8 +830,13 @@ function DocRow({ doc, selected, catMap, onClick }: {
       <FileTypeBadge contentType={doc.content_type} size={36} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {doc.name}
+          {cleanDocName(doc.name)}
         </div>
+        {docRemotePath(doc.name) && (
+          <div style={{ fontSize: 10, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+            {docRemotePath(doc.name)}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginTop: 3, flexWrap: 'wrap' }}>
           <span style={{
             fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 8,
@@ -851,8 +889,8 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
       });
       onMetaUpdated(updated);
       setRenaming(false);
-      toast.success('Salvat');
-    } catch { toast.error('Eroare la salvare'); }
+      toast.success(t('documentsExtra.metaSaved'));
+    } catch { toast.error(t('documentsExtra.metaSaveError')); }
     finally { setSavingMeta(false); }
   }
 
@@ -882,8 +920,13 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
           <FileTypeBadge contentType={doc.content_type} size={52} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word', lineHeight: 1.35 }}>
-              {doc.name}
+              {cleanDocName(doc.name)}
             </div>
+            {docRemotePath(doc.name) && (
+              <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>
+                {t('documentsExtra.remotePath')}: {docRemotePath(doc.name)}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ background: cat.color + '20', color: cat.color, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10 }}>
                 {t(`documents.categories.${cat.key}` as any, cat.label)}
@@ -939,15 +982,14 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
             borderColor: expiryOverdue ? 'rgba(239,68,68,0.3)' : expirySoon ? 'rgba(245,158,11,0.3)' : 'var(--border)',
             color: expiryOverdue ? 'var(--red)' : expirySoon ? '#d97706' : 'var(--text-2)',
           }}>
-            {expiryOverdue ? '⚠ Expirat: ' : 'Expiră: '}
-            {expiry.toLocaleDateString(locale)}
+            {t(expiryOverdue ? 'documentsExtra.expiryOverdue' : 'documentsExtra.expirySoon')}: {expiry.toLocaleDateString(locale)}
           </div>
         )}
 
         {/* Version */}
         {(doc.version || 0) > 1 && (
           <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-3)' }}>
-            Versiunea {doc.version}
+            {t('documentsExtra.versionLabel', { n: doc.version })}
           </div>
         )}
       </div>
@@ -955,24 +997,24 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
       {/* Rename / meta edit panel */}
       {renaming && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Editează metadate</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>{t('documentsExtra.editMeta')}</div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Nume fișier</label>
+            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>{t('documentsExtra.metaFileName')}</label>
             <input value={renameVal} onChange={e => setRenameVal(e.target.value)} style={{ width: '100%' }} />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Taguri (virgulă-separate)</label>
+            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>{t('documentsExtra.metaTags')}</label>
             <input value={tagsVal} onChange={e => setTagsVal(e.target.value)} placeholder="contract, semnat, urgent" style={{ width: '100%' }} />
           </div>
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>Data expirare</label>
+            <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>{t('documentsExtra.metaExpiry')}</label>
             <input type="date" value={expiryVal} onChange={e => setExpiryVal(e.target.value)} style={{ width: '100%' }} />
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={saveMeta} disabled={savingMeta} className="btn-primary" style={{ flex: 1, padding: '7px', fontSize: 12 }}>
-              {savingMeta ? 'Se salvează...' : 'Salvează'}
+              {savingMeta ? t('documentsExtra.metaSaving') : t('documentsExtra.metaSave')}
             </button>
-            <button onClick={() => setRenaming(false)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 12 }}>Anulează</button>
+            <button onClick={() => setRenaming(false)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 12 }}>{t('documentsExtra.metaCancel')}</button>
           </div>
         </div>
       )}
@@ -988,7 +1030,7 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
           )}
           {canOfficeEdit && (
             <button onClick={onOfficeEdit} className="btn-primary" style={{ flex: 1, padding: '8px 12px', fontSize: 12, background: 'var(--green-dark)' }}>
-              ✏ Editează
+              ✏ {t('documentsExtra.officeEditBtn')}
             </button>
           )}
           {canEdit && (
@@ -1017,7 +1059,7 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
             ↓ {t('documents.downloadBtn')}
           </button>
           <button onClick={onMove} className="btn-ghost" style={{ padding: '7px 14px', fontSize: 12, color: '#60A5FA' }}>
-            ↗ Mută
+            ↗ {t('documentsExtra.moveDocBtn')}
           </button>
         </div>
 
@@ -1025,10 +1067,10 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={() => { setRenaming(r => !r); setRenameVal(doc.name); setTagsVal(doc.tags || ''); setExpiryVal(doc.expires_at ? doc.expires_at.split('T')[0] : ''); }}
             className="btn-ghost" style={{ flex: 1, padding: '7px 12px', fontSize: 12 }}>
-            ✎ Redenumește / Taguri
+            ✎ {t('documentsExtra.renameTagsBtn')}
           </button>
           <button onClick={onVersions} className="btn-ghost" style={{ padding: '7px 14px', fontSize: 12, color: 'var(--text-2)' }}>
-            ⊞ Versiuni
+            ⊞ {t('documentsExtra.versionsBtn')}
           </button>
         </div>
 
@@ -1048,37 +1090,38 @@ function DocDetail({ doc, catMap, onDelete, onClose, onView, onEdit, onOfficeEdi
 // ─── Version History Modal ────────────────────────────────────────────────────
 
 function VersionHistoryModal({ docId, docName, onClose }: { docId: number; docName: string; onClose: () => void }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'de' ? 'de-DE' : i18n.language === 'en' ? 'en-US' : 'ro-RO';
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getDocVersions(docId).then(setData).catch(() => toast.error('Eroare la încărcare versiuni')).finally(() => setLoading(false));
+    getDocVersions(docId).then(setData).catch(() => toast.error(t('documentsExtra.versionsLoadError'))).finally(() => setLoading(false));
   }, [docId]);
 
   return (
     <ModalOverlay onClose={onClose}>
-      <ModalHeader title={`Versiuni: ${docName}`} onClose={onClose} />
+      <ModalHeader title={t('documentsExtra.versionsModalTitle', { name: cleanDocName(docName) })} onClose={onClose} />
       <div style={{ padding: '12px 16px', overflowY: 'auto', maxHeight: 420 }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-2)', fontSize: 13 }}>Se încarcă...</div>
+          <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-2)', fontSize: 13 }}>{t('documentsExtra.versionsLoading')}</div>
         ) : !data ? null : (
           <>
-            {/* Current version */}
             <div style={{ padding: '10px 12px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', background: 'rgba(34,197,94,0.12)', borderRadius: 10, padding: '2px 8px' }}>CURENT v{data.current_version}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>Versiunea activă</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', background: 'rgba(34,197,94,0.12)', borderRadius: 10, padding: '2px 8px' }}>{t('documentsExtra.versionsCurrent', { n: data.current_version })}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>{t('documentsExtra.versionsActive')}</span>
             </div>
             {data.versions.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>Nicio versiune anterioară</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>{t('documentsExtra.versionsNone')}</div>
             ) : data.versions.map((v: any) => (
               <div key={v.id} style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', background: 'var(--surface-2)', borderRadius: 10, padding: '2px 8px' }}>v{v.version}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: 'var(--text)' }}>{formatSize(v.file_size)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{v.created_at ? new Date(v.created_at).toLocaleString('ro-RO') : '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{v.created_at ? new Date(v.created_at).toLocaleString(locale) : '—'}</div>
                 </div>
                 {v.download_url && (
-                  <a href={v.download_url} download style={{ fontSize: 11, color: '#60A5FA', textDecoration: 'none', padding: '4px 10px', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 6 }}>↓ Descarcă</a>
+                  <a href={v.download_url} download style={{ fontSize: 11, color: '#60A5FA', textDecoration: 'none', padding: '4px 10px', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 6 }}>↓ {t('documentsExtra.versionsDownload')}</a>
                 )}
               </div>
             ))}
@@ -1094,6 +1137,8 @@ function VersionHistoryModal({ docId, docName, onClose }: { docId: number; docNa
 interface ShareItem { id: number; token: string; label: string | null; can_read: boolean; can_upload: boolean; can_delete: boolean; expires_at: string | null; creator_name: string | null; created_at: string; }
 
 function ShareFolderModal({ folder, onClose }: { folder: FolderItem; onClose: () => void }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'de' ? 'de-DE' : i18n.language === 'en' ? 'en-US' : 'ro-RO';
   const [shares, setShares] = useState<ShareItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -1102,7 +1147,7 @@ function ShareFolderModal({ folder, onClose }: { folder: FolderItem; onClose: ()
 
   async function load() {
     setLoading(true);
-    try { setShares(await listShares(folder.id)); } catch { toast.error('Eroare la încărcare'); } finally { setLoading(false); }
+    try { setShares(await listShares(folder.id)); } catch { toast.error(t('documentsExtra.shareLoadError')); } finally { setLoading(false); }
   }
 
   useEffect(() => { load(); }, [folder.id]);
@@ -1115,13 +1160,13 @@ function ShareFolderModal({ folder, onClose }: { folder: FolderItem; onClose: ()
       await createShare(folder.id, body);
       setForm({ label: '', can_read: true, can_upload: false, can_delete: false, expires_at: '' });
       await load();
-      toast.success('Link creat');
-    } catch { toast.error('Eroare la creare'); } finally { setCreating(false); }
+      toast.success(t('documentsExtra.shareCreateOk'));
+    } catch { toast.error(t('documentsExtra.shareCreateError')); } finally { setCreating(false); }
   }
 
   async function handleRevoke(token: string) {
-    if (!confirm('Revoci accesul pentru acest link?')) return;
-    try { await revokeShare(token); await load(); toast.success('Link revocat'); } catch { toast.error('Eroare'); }
+    if (!confirm(t('documentsExtra.shareRevokeConfirm'))) return;
+    try { await revokeShare(token); await load(); toast.success(t('documentsExtra.shareRevokeOk')); } catch { toast.error(t('documentsExtra.shareRevokeError')); }
   }
 
   function copyLink(token: string) {
@@ -1130,23 +1175,28 @@ function ShareFolderModal({ folder, onClose }: { folder: FolderItem; onClose: ()
   }
 
   const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 4 };
+  const permKeys: [keyof typeof form, string][] = [
+    ['can_read', t('documentsExtra.shareRead')],
+    ['can_upload', t('documentsExtra.shareUpload')],
+    ['can_delete', t('documentsExtra.shareDeletePerm')],
+  ];
 
   return (
     <ModalOverlay onClose={onClose} width={520}>
-      <ModalHeader title={`Partajează: ${folder.name}`} onClose={onClose} />
+      <ModalHeader title={t('documentsExtra.shareModalTitle', { name: folder.name })} onClose={onClose} />
       <div style={{ padding: '14px 18px', overflowY: 'auto', maxHeight: '70vh' }}>
 
         {/* Create new share */}
         <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>Link nou</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>{t('documentsExtra.shareNewLink')}</div>
           <div style={{ marginBottom: 10 }}>
-            <label style={lbl}>Etichetă (opțional)</label>
-            <input value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))} placeholder="ex: Client ABC — vizualizare" style={{ width: '100%' }} />
+            <label style={lbl}>{t('documentsExtra.shareLabel')}</label>
+            <input value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))} placeholder={t('documentsExtra.shareLabelPlaceholder')} style={{ width: '100%' }} />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={lbl}>Permisiuni</label>
+            <label style={lbl}>{t('documentsExtra.sharePermissions')}</label>
             <div style={{ display: 'flex', gap: 10 }}>
-              {([['can_read', 'Citire'], ['can_upload', 'Upload'], ['can_delete', 'Ștergere']] as [keyof typeof form, string][]).map(([key, label]) => (
+              {permKeys.map(([key, label]) => (
                 <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text)' }}>
                   <input type="checkbox" checked={form[key] as boolean} onChange={e => setForm(p => ({ ...p, [key]: e.target.checked }))} />
                   {label}
@@ -1155,22 +1205,22 @@ function ShareFolderModal({ folder, onClose }: { folder: FolderItem; onClose: ()
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>
-            <label style={lbl}>Expiră la (opțional)</label>
+            <label style={lbl}>{t('documentsExtra.shareExpiry')}</label>
             <input type="datetime-local" value={form.expires_at} onChange={e => setForm(p => ({ ...p, expires_at: e.target.value }))} style={{ width: '100%' }} />
           </div>
           <button onClick={handleCreate} disabled={creating || !form.can_read} className="btn-primary" style={{ width: '100%', opacity: creating ? 0.6 : 1 }}>
-            {creating ? 'Se creează...' : '+ Generează link'}
+            {creating ? t('documentsExtra.shareCreating') : t('documentsExtra.shareCreate')}
           </button>
         </div>
 
         {/* Existing shares */}
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Link-uri active ({shares.length})
+          {t('documentsExtra.shareActive', { count: shares.length })}
         </div>
         {loading ? (
-          <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '12px 0' }}>Se încarcă...</div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '12px 0' }}>{t('documentsExtra.shareLoading')}</div>
         ) : shares.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '12px 0' }}>Niciun link activ</div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '12px 0' }}>{t('documentsExtra.shareNone')}</div>
         ) : shares.map(s => {
           const isExpired = s.expires_at && new Date(s.expires_at) < new Date();
           const url = `${window.location.origin}/share/${s.token}`;
@@ -1179,23 +1229,23 @@ function ShareFolderModal({ folder, onClose }: { folder: FolderItem; onClose: ()
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600, color: isExpired ? 'var(--red)' : 'var(--text)', marginBottom: 3 }}>
-                    {s.label || 'Link partajare'}
-                    {isExpired && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--red)' }}>(expirat)</span>}
+                    {s.label || t('documentsExtra.shareNewLink')}
+                    {isExpired && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--red)' }}>{t('documentsExtra.shareExpired')}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 4 }}>
-                    {s.can_read   && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.1)', color: '#15803d', borderRadius: 8, padding: '1px 6px' }}>Citire</span>}
-                    {s.can_upload && <span style={{ fontSize: 10, background: 'rgba(59,130,246,0.1)', color: '#1d4ed8', borderRadius: 8, padding: '1px 6px' }}>Upload</span>}
-                    {s.can_delete && <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.1)', color: '#b91c1c', borderRadius: 8, padding: '1px 6px' }}>Ștergere</span>}
-                    {s.expires_at && <span style={{ fontSize: 10, color: 'var(--text-3)' }}>Exp: {new Date(s.expires_at).toLocaleDateString('ro-RO')}</span>}
+                    {s.can_read   && <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.1)', color: '#15803d', borderRadius: 8, padding: '1px 6px' }}>{t('documentsExtra.shareRead')}</span>}
+                    {s.can_upload && <span style={{ fontSize: 10, background: 'rgba(59,130,246,0.1)', color: '#1d4ed8', borderRadius: 8, padding: '1px 6px' }}>{t('documentsExtra.shareUpload')}</span>}
+                    {s.can_delete && <span style={{ fontSize: 10, background: 'rgba(239,68,68,0.1)', color: '#b91c1c', borderRadius: 8, padding: '1px 6px' }}>{t('documentsExtra.shareDeletePerm')}</span>}
+                    {s.expires_at && <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{t('documentsExtra.shareExp')} {new Date(s.expires_at).toLocaleDateString(locale)}</span>}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                   <button onClick={() => copyLink(s.token)} className="btn-ghost" style={{ padding: '5px 10px', fontSize: 11, color: copied === s.token ? 'var(--green)' : 'var(--text-2)' }}>
-                    {copied === s.token ? '✓ Copiat' : '⎘ Copiază'}
+                    {copied === s.token ? `✓ ${t('documentsExtra.shareCopied')}` : `⎘ ${t('documentsExtra.shareCopy')}`}
                   </button>
                   <button onClick={() => handleRevoke(s.token)} className="btn-ghost" style={{ padding: '5px 10px', fontSize: 11, color: 'var(--red)' }}>
-                    Revocă
+                    {t('documentsExtra.shareRevoke')}
                   </button>
                 </div>
               </div>
@@ -1329,10 +1379,10 @@ export function DocumentsPage() {
 
   async function handleBulkDelete() {
     if (!bulkSelected.size) return;
-    if (!confirm(`Ștergi ${bulkSelected.size} documente?`)) return;
+    if (!confirm(t('documentsExtra.bulkDeleteConfirm', { count: bulkSelected.size }))) return;
     try {
       await bulkDocAction([...bulkSelected], 'delete');
-      toast.success(`${bulkSelected.size} documente șterse`);
+      toast.success(t('documentsExtra.bulkDeleteOk', { count: bulkSelected.size }));
       setBulkSelected(new Set()); setBulkMode(false); setSelected(null);
       loadDocs(filterCat, filterSite, search, selectedFolder?.id);
     } catch (e: any) { toast.error(e?.response?.data?.detail || t('common.error')); }
@@ -1341,7 +1391,7 @@ export function DocumentsPage() {
   async function handleBulkMove(targetFolderId: number | null) {
     try {
       await bulkDocAction([...bulkSelected], 'move', targetFolderId);
-      toast.success(`${bulkSelected.size} documente mutate`);
+      toast.success(t('documentsExtra.bulkMoveOk', { count: bulkSelected.size }));
       setBulkSelected(new Set()); setBulkMode(false); setBulkMoving(false); setSelected(null);
       loadDocs(filterCat, filterSite, search, selectedFolder?.id);
     } catch (e: any) { toast.error(e?.response?.data?.detail || t('common.error')); }
@@ -1426,7 +1476,7 @@ export function DocumentsPage() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>
           </svg>
-          Selecție
+          {t('documentsExtra.bulkToggle')}
         </button>
 
         {/* Upload toggle */}
@@ -1492,15 +1542,15 @@ export function DocumentsPage() {
             <input type="checkbox"
               checked={docs.length > 0 && bulkSelected.size === docs.length}
               onChange={e => setBulkSelected(e.target.checked ? new Set(docs.map(d => d.id)) : new Set())} />
-            Selectează tot
+            {t('documentsExtra.bulkSelectAll')}
           </label>
           <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>
-            {bulkSelected.size > 0 ? `${bulkSelected.size} selectate` : 'Niciun document selectat'}
+            {bulkSelected.size > 0 ? t('documentsExtra.bulkCount', { count: bulkSelected.size }) : t('documentsExtra.bulkNone')}
           </span>
           {bulkSelected.size > 0 && (
             <>
-              <button onClick={() => setBulkMoving(true)} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: '#60A5FA' }}>↗ Mută</button>
-              <button onClick={handleBulkDelete} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: 'var(--red)' }}>✕ Șterge</button>
+              <button onClick={() => setBulkMoving(true)} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: '#60A5FA' }}>↗ {t('documentsExtra.bulkMoveBtn')}</button>
+              <button onClick={handleBulkDelete} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: 'var(--red)' }}>✕ {t('documentsExtra.bulkDeleteBtn')}</button>
             </>
           )}
         </div>
@@ -1591,7 +1641,7 @@ export function DocumentsPage() {
             {subfolders.length > 0 && !hasFilter && (
               <div style={{ padding: '12px 12px 8px' }}>
                 <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-                  {subfolders.length} {subfolders.length === 1 ? 'subfolder' : 'subfoldere'}
+                  {t('documentsExtra.subfolderCount', { count: subfolders.length })}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 6, marginBottom: docs.length > 0 ? 12 : 0 }}>
                   {subfolders.map(sf => (
@@ -1796,7 +1846,7 @@ export function DocumentsPage() {
       {bulkMoving && (
         <MovePicker
           folders={folders} currentFolderId={selectedFolder?.id ?? null}
-          title={`Mută ${bulkSelected.size} documente`}
+          title={`${t('documentsExtra.bulkMoveBtn')} — ${t('documentsExtra.bulkCount', { count: bulkSelected.size })}`}
           onConfirm={async (fid) => { await handleBulkMove(fid); setBulkMoving(false); }}
           onClose={() => setBulkMoving(false)}
         />
