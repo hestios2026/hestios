@@ -27,11 +27,11 @@ interface Reclamatie {
 
 interface AppUser { id: number; full_name: string; role: string; }
 
-const PRIORITY_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
-  urgent: { bg: '#fef2f2', color: '#dc2626', label: 'Urgent' },
-  high:   { bg: '#fff7ed', color: '#ea580c', label: 'High' },
-  normal: { bg: '#eff6ff', color: '#2563eb', label: 'Normal' },
-  low:    { bg: '#f0fdf4', color: '#16a34a', label: 'Low' },
+const PRIORITY_CONFIG: Record<string, { bg: string; color: string }> = {
+  urgent: { bg: '#fef2f2', color: '#dc2626' },
+  high:   { bg: '#fff7ed', color: '#ea580c' },
+  normal: { bg: '#eff6ff', color: '#2563eb' },
+  low:    { bg: '#f0fdf4', color: '#16a34a' },
 };
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; dot: string }> = {
@@ -39,11 +39,6 @@ const STATUS_CONFIG: Record<string, { bg: string; color: string; dot: string }> 
   in_progress: { bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
   resolved:    { bg: '#f0fdf4', color: '#15803d', dot: '#22c55e' },
   closed:      { bg: '#f8fafc', color: '#475569', dot: '#94a3b8' },
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  client: 'Client', equipment: 'Utilaje', site: 'Șantier',
-  supplier: 'Furnizor', internal: 'Intern', other: 'Altele',
 };
 
 const inp: React.CSSProperties = {
@@ -63,24 +58,22 @@ const EMPTY_UPDATE = {
 };
 
 export function ReclamatiiPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'de' ? 'de-DE' : i18n.language === 'en' ? 'en-US' : 'ro-RO';
 
   const [items, setItems]           = useState<Reclamatie[]>([]);
   const [sites, setSites]           = useState<Site[]>([]);
   const [users, setUsers]           = useState<AppUser[]>([]);
   const [loading, setLoading]       = useState(true);
 
-  // Filters
   const [filterStatus,   setFilterStatus]   = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterType,     setFilterType]     = useState('');
 
-  // Modals
   const [createOpen, setCreateOpen] = useState(false);
   const [editItem,   setEditItem]   = useState<Reclamatie | null>(null);
   const [detailItem, setDetailItem] = useState<Reclamatie | null>(null);
 
-  // Forms
   const [form,   setForm]   = useState({ ...EMPTY_FORM });
   const [update, setUpdate] = useState({ ...EMPTY_UPDATE });
   const [saving, setSaving] = useState(false);
@@ -92,10 +85,9 @@ export function ReclamatiiPage() {
       if (filterStatus)   params.status   = filterStatus;
       if (filterPriority) params.priority = filterPriority;
       if (filterType)     params.type     = filterType;
-      const data = await fetchReclamatii(params);
-      setItems(data);
+      setItems(await fetchReclamatii(params));
     } catch {
-      toast.error('Eroare la încărcare reclamații');
+      toast.error(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -108,7 +100,6 @@ export function ReclamatiiPage() {
     fetchUsers().then(setUsers).catch(() => {});
   }, []);
 
-  // Stats
   const stats = {
     open:        items.filter(r => r.status === 'open').length,
     in_progress: items.filter(r => r.status === 'in_progress').length,
@@ -118,29 +109,24 @@ export function ReclamatiiPage() {
 
   async function handleCreate() {
     if (!form.title.trim() || !form.description.trim()) {
-      toast.error('Titlul și descrierea sunt obligatorii');
+      toast.error(t('reclamatii.requiredFields'));
       return;
     }
     setSaving(true);
     try {
       const body: Record<string, unknown> = {
-        title: form.title.trim(),
-        type: form.type,
-        priority: form.priority,
-        description: form.description.trim(),
+        title: form.title.trim(), type: form.type,
+        priority: form.priority, description: form.description.trim(),
       };
-      if (form.site_id)    body.site_id    = parseInt(form.site_id);
+      if (form.site_id)     body.site_id    = parseInt(form.site_id);
       if (form.assigned_to) body.assigned_to = parseInt(form.assigned_to);
       await createReclamatie(body);
-      toast.success('Reclamație creată');
+      toast.success(t('reclamatii.createOk'));
       setCreateOpen(false);
       setForm({ ...EMPTY_FORM });
       load();
-    } catch {
-      toast.error('Eroare la creare');
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error(t('common.error')); }
+    finally { setSaving(false); }
   }
 
   async function handleUpdate() {
@@ -148,31 +134,26 @@ export function ReclamatiiPage() {
     setSaving(true);
     try {
       const body: Record<string, unknown> = {};
-      if (update.status)          body.status           = update.status;
+      if (update.status)   body.status = update.status;
       if (update.resolution_notes !== '') body.resolution_notes = update.resolution_notes;
-      if (update.priority)        body.priority         = update.priority;
-      if (update.assigned_to)     body.assigned_to      = parseInt(update.assigned_to);
+      if (update.priority) body.priority = update.priority;
+      if (update.assigned_to) body.assigned_to = parseInt(update.assigned_to);
       await updateReclamatie(editItem.id, body);
-      toast.success('Actualizat');
+      toast.success(t('reclamatii.updateOk'));
       setEditItem(null);
       setUpdate({ ...EMPTY_UPDATE });
       load();
-    } catch {
-      toast.error('Eroare la actualizare');
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error(t('common.error')); }
+    finally { setSaving(false); }
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Ștergi această reclamație?')) return;
+    if (!confirm(t('reclamatii.deleteConfirm'))) return;
     try {
       await deleteReclamatie(id);
-      toast.success('Șters');
+      toast.success(t('reclamatii.deleteOk'));
       load();
-    } catch {
-      toast.error('Eroare la ștergere');
-    }
+    } catch { toast.error(t('common.error')); }
   }
 
   function openEdit(r: Reclamatie) {
@@ -187,7 +168,32 @@ export function ReclamatiiPage() {
 
   function fmtDate(d: string | null) {
     if (!d) return '—';
-    return new Date(d).toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return new Date(d).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function statusLabel(s: string) {
+    const map: Record<string, string> = {
+      open: t('reclamatii.statusOpen'), in_progress: t('reclamatii.statusInProgress'),
+      resolved: t('reclamatii.statusResolved'), closed: t('reclamatii.statusClosed'),
+    };
+    return map[s] || s;
+  }
+
+  function priorityLabel(p: string) {
+    const map: Record<string, string> = {
+      urgent: t('reclamatii.priorityUrgent'), high: t('reclamatii.priorityHigh'),
+      normal: t('reclamatii.priorityNormal'), low: t('reclamatii.priorityLow'),
+    };
+    return map[p] || p;
+  }
+
+  function typeLabel(ty: string) {
+    const map: Record<string, string> = {
+      client: t('reclamatii.typeClient'), equipment: t('reclamatii.typeEquipment'),
+      site: t('reclamatii.typeSite'), supplier: t('reclamatii.typeSupplier'),
+      internal: t('reclamatii.typeInternal'), other: t('reclamatii.typeOther'),
+    };
+    return map[ty] || ty;
   }
 
   return (
@@ -196,10 +202,8 @@ export function ReclamatiiPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0f172a' }}>Reclamații</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-            Monitorizare și gestiune reclamații interne
-          </p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0f172a' }}>{t('reclamatii.title')}</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{t('reclamatii.subtitle')}</p>
         </div>
         <button
           onClick={() => { setCreateOpen(true); setForm({ ...EMPTY_FORM }); }}
@@ -210,17 +214,17 @@ export function ReclamatiiPage() {
             fontSize: 13, fontWeight: 600, cursor: 'pointer',
           }}
         >
-          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Reclamație nouă
+          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> {t('reclamatii.newBtn')}
         </button>
       </div>
 
       {/* Stats bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
         {([
-          ['open', 'Deschise', '#fef2f2', '#b91c1c'],
-          ['in_progress', 'În lucru', '#eff6ff', '#1d4ed8'],
-          ['resolved', 'Rezolvate', '#f0fdf4', '#15803d'],
-          ['closed', 'Închise', '#f8fafc', '#475569'],
+          ['open',        t('reclamatii.open'),       '#fef2f2', '#b91c1c'],
+          ['in_progress', t('reclamatii.inProgress'), '#eff6ff', '#1d4ed8'],
+          ['resolved',    t('reclamatii.resolved'),   '#f0fdf4', '#15803d'],
+          ['closed',      t('reclamatii.closed'),     '#f8fafc', '#475569'],
         ] as [keyof typeof stats, string, string, string][]).map(([key, label, bg, color]) => (
           <div
             key={key}
@@ -240,50 +244,47 @@ export function ReclamatiiPage() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          style={{ ...sel, width: 140 }}>
-          <option value="">Toate statusurile</option>
-          <option value="open">Deschis</option>
-          <option value="in_progress">În lucru</option>
-          <option value="resolved">Rezolvat</option>
-          <option value="closed">Închis</option>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...sel, width: 160 }}>
+          <option value="">{t('reclamatii.allStatuses')}</option>
+          <option value="open">{t('reclamatii.statusOpen')}</option>
+          <option value="in_progress">{t('reclamatii.statusInProgress')}</option>
+          <option value="resolved">{t('reclamatii.statusResolved')}</option>
+          <option value="closed">{t('reclamatii.statusClosed')}</option>
         </select>
-        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}
-          style={{ ...sel, width: 140 }}>
-          <option value="">Toate prioritățile</option>
-          <option value="urgent">Urgent</option>
-          <option value="high">Ridicat</option>
-          <option value="normal">Normal</option>
-          <option value="low">Scăzut</option>
+        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ ...sel, width: 160 }}>
+          <option value="">{t('reclamatii.allPriorities')}</option>
+          <option value="urgent">{t('reclamatii.priorityUrgent')}</option>
+          <option value="high">{t('reclamatii.priorityHigh')}</option>
+          <option value="normal">{t('reclamatii.priorityNormal')}</option>
+          <option value="low">{t('reclamatii.priorityLow')}</option>
         </select>
-        <select value={filterType} onChange={e => setFilterType(e.target.value)}
-          style={{ ...sel, width: 140 }}>
-          <option value="">Toate tipurile</option>
-          <option value="client">Client</option>
-          <option value="equipment">Utilaje</option>
-          <option value="site">Șantier</option>
-          <option value="supplier">Furnizor</option>
-          <option value="internal">Intern</option>
-          <option value="other">Altele</option>
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ ...sel, width: 150 }}>
+          <option value="">{t('reclamatii.allTypes')}</option>
+          <option value="client">{t('reclamatii.typeClient')}</option>
+          <option value="equipment">{t('reclamatii.typeEquipment')}</option>
+          <option value="site">{t('reclamatii.typeSite')}</option>
+          <option value="supplier">{t('reclamatii.typeSupplier')}</option>
+          <option value="internal">{t('reclamatii.typeInternal')}</option>
+          <option value="other">{t('reclamatii.typeOther')}</option>
         </select>
         {(filterStatus || filterPriority || filterType) && (
           <button
             onClick={() => { setFilterStatus(''); setFilterPriority(''); setFilterType(''); }}
             style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#64748b', cursor: 'pointer' }}
           >
-            Resetează filtre
+            {t('reclamatii.resetFilters')}
           </button>
         )}
       </div>
 
       {/* List */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Se încarcă...</div>
+        <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('common.loading')}</div>
       ) : items.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8', background: '#f8fafc', borderRadius: 12, border: '1px dashed #e2e8f0' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>⚑</div>
-          <div style={{ fontWeight: 500 }}>Nicio reclamație</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>Adaugă prima reclamație folosind butonul de mai sus</div>
+          <div style={{ fontWeight: 500 }}>{t('reclamatii.noData')}</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>{t('reclamatii.noDataSub')}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -295,39 +296,22 @@ export function ReclamatiiPage() {
                 background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
                 padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 14,
               }}>
-                {/* Priority stripe */}
                 <div style={{ width: 4, borderRadius: 4, alignSelf: 'stretch', background: pCfg.color, flexShrink: 0 }} />
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span
-                      onClick={() => setDetailItem(r)}
-                      style={{ fontWeight: 600, fontSize: 14, color: '#0f172a', cursor: 'pointer' }}
-                    >
+                    <span onClick={() => setDetailItem(r)} style={{ fontWeight: 600, fontSize: 14, color: '#0f172a', cursor: 'pointer' }}>
                       {r.title}
                     </span>
-                    {/* Status badge */}
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      background: sCfg.bg, color: sCfg.color,
-                      borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600,
-                    }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: sCfg.bg, color: sCfg.color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: sCfg.dot, display: 'inline-block' }} />
-                      {r.status === 'open' ? 'Deschis' : r.status === 'in_progress' ? 'În lucru' : r.status === 'resolved' ? 'Rezolvat' : 'Închis'}
+                      {statusLabel(r.status)}
                     </span>
-                    {/* Priority badge */}
-                    <span style={{
-                      background: pCfg.bg, color: pCfg.color,
-                      borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600,
-                    }}>
-                      {pCfg.label}
+                    <span style={{ background: pCfg.bg, color: pCfg.color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>
+                      {priorityLabel(r.priority)}
                     </span>
-                    {/* Type badge */}
-                    <span style={{
-                      background: '#f1f5f9', color: '#475569',
-                      borderRadius: 20, padding: '2px 10px', fontSize: 11,
-                    }}>
-                      {TYPE_LABELS[r.type] || r.type}
+                    <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 20, padding: '2px 10px', fontSize: 11 }}>
+                      {typeLabel(r.type)}
                     </span>
                   </div>
 
@@ -338,42 +322,29 @@ export function ReclamatiiPage() {
                   <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                     {r.site_name && (
                       <span style={{ fontSize: 12, color: '#64748b' }}>
-                        <b style={{ color: '#334155' }}>Șantier:</b> {r.site_name}
+                        <b style={{ color: '#334155' }}>{t('reclamatii.site')}:</b> {r.site_name}
                       </span>
                     )}
                     {r.assigned_name && (
                       <span style={{ fontSize: 12, color: '#64748b' }}>
-                        <b style={{ color: '#334155' }}>Atribuit:</b> {r.assigned_name}
+                        <b style={{ color: '#334155' }}>{t('reclamatii.assignedTo')}:</b> {r.assigned_name}
                       </span>
                     )}
                     {r.created_by_name && (
                       <span style={{ fontSize: 12, color: '#64748b' }}>
-                        <b style={{ color: '#334155' }}>Creat de:</b> {r.created_by_name}
+                        <b style={{ color: '#334155' }}>{t('reclamatii.createdBy')}:</b> {r.created_by_name}
                       </span>
                     )}
                     <span style={{ fontSize: 12, color: '#94a3b8' }}>{fmtDate(r.created_at)}</span>
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button
-                    onClick={() => openEdit(r)}
-                    style={{
-                      background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 6,
-                      padding: '6px 12px', fontSize: 12, color: '#334155', cursor: 'pointer',
-                    }}
-                  >
-                    Editează
+                  <button onClick={() => openEdit(r)} style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 12px', fontSize: 12, color: '#334155', cursor: 'pointer' }}>
+                    {t('reclamatii.editBtn')}
                   </button>
-                  <button
-                    onClick={() => handleDelete(r.id)}
-                    style={{
-                      background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6,
-                      padding: '6px 12px', fontSize: 12, color: '#b91c1c', cursor: 'pointer',
-                    }}
-                  >
-                    Șterge
+                  <button onClick={() => handleDelete(r.id)} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '6px 12px', fontSize: 12, color: '#b91c1c', cursor: 'pointer' }}>
+                    {t('common.delete')}
                   </button>
                 </div>
               </div>
@@ -384,92 +355,92 @@ export function ReclamatiiPage() {
 
       {/* Create modal */}
       {createOpen && (
-        <Modal title="Reclamație nouă" onClose={() => setCreateOpen(false)}>
-          <FormRow label="Titlu *">
-            <input style={inp} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Descriere scurtă..." />
+        <Modal title={t('reclamatii.createTitle')} onClose={() => setCreateOpen(false)}>
+          <FormRow label={t('reclamatii.fieldTitle')}>
+            <input style={inp} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder={t('reclamatii.titlePlaceholder')} />
           </FormRow>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <FormRow label="Tip">
+            <FormRow label={t('reclamatii.fieldType')}>
               <select style={sel} value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                <option value="internal">Intern</option>
-                <option value="client">Client</option>
-                <option value="equipment">Utilaje</option>
-                <option value="site">Șantier</option>
-                <option value="supplier">Furnizor</option>
-                <option value="other">Altele</option>
+                <option value="internal">{t('reclamatii.typeInternal')}</option>
+                <option value="client">{t('reclamatii.typeClient')}</option>
+                <option value="equipment">{t('reclamatii.typeEquipment')}</option>
+                <option value="site">{t('reclamatii.typeSite')}</option>
+                <option value="supplier">{t('reclamatii.typeSupplier')}</option>
+                <option value="other">{t('reclamatii.typeOther')}</option>
               </select>
             </FormRow>
-            <FormRow label="Prioritate">
+            <FormRow label={t('reclamatii.fieldPriority')}>
               <select style={sel} value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
-                <option value="urgent">Urgent</option>
-                <option value="high">Ridicat</option>
-                <option value="normal">Normal</option>
-                <option value="low">Scăzut</option>
+                <option value="urgent">{t('reclamatii.priorityUrgent')}</option>
+                <option value="high">{t('reclamatii.priorityHigh')}</option>
+                <option value="normal">{t('reclamatii.priorityNormal')}</option>
+                <option value="low">{t('reclamatii.priorityLow')}</option>
               </select>
             </FormRow>
           </div>
-          <FormRow label="Descriere *">
+          <FormRow label={t('reclamatii.fieldDescription')}>
             <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }} value={form.description}
-              onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Detalii..." />
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder={t('reclamatii.descPlaceholder')} />
           </FormRow>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <FormRow label="Șantier">
+            <FormRow label={t('reclamatii.fieldSite')}>
               <select style={sel} value={form.site_id} onChange={e => setForm(p => ({ ...p, site_id: e.target.value }))}>
-                <option value="">— Fără șantier —</option>
+                <option value="">{t('reclamatii.noSite')}</option>
                 {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </FormRow>
-            <FormRow label="Atribuit la">
+            <FormRow label={t('reclamatii.fieldAssigned')}>
               <select style={sel} value={form.assigned_to} onChange={e => setForm(p => ({ ...p, assigned_to: e.target.value }))}>
-                <option value="">— Neatribuit —</option>
+                <option value="">{t('reclamatii.noAssigned')}</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </select>
             </FormRow>
           </div>
           <ModalActions>
-            <button onClick={() => setCreateOpen(false)} style={btnSecondary}>Anulează</button>
-            <button onClick={handleCreate} disabled={saving} style={btnPrimary}>{saving ? 'Se salvează...' : 'Creează'}</button>
+            <button onClick={() => setCreateOpen(false)} style={btnSecondary}>{t('common.cancel')}</button>
+            <button onClick={handleCreate} disabled={saving} style={btnPrimary}>{saving ? t('common.saving') : t('reclamatii.createBtn')}</button>
           </ModalActions>
         </Modal>
       )}
 
-      {/* Edit/update modal */}
+      {/* Edit modal */}
       {editItem && (
-        <Modal title={`Actualizează: ${editItem.title}`} onClose={() => setEditItem(null)}>
+        <Modal title={`${t('reclamatii.editTitle')}: ${editItem.title}`} onClose={() => setEditItem(null)}>
           <div style={{ marginBottom: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
             {editItem.description}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <FormRow label="Status">
+            <FormRow label={t('reclamatii.fieldStatus')}>
               <select style={sel} value={update.status} onChange={e => setUpdate(p => ({ ...p, status: e.target.value }))}>
-                <option value="open">Deschis</option>
-                <option value="in_progress">În lucru</option>
-                <option value="resolved">Rezolvat</option>
-                <option value="closed">Închis</option>
+                <option value="open">{t('reclamatii.statusOpen')}</option>
+                <option value="in_progress">{t('reclamatii.statusInProgress')}</option>
+                <option value="resolved">{t('reclamatii.statusResolved')}</option>
+                <option value="closed">{t('reclamatii.statusClosed')}</option>
               </select>
             </FormRow>
-            <FormRow label="Prioritate">
+            <FormRow label={t('reclamatii.fieldPriority')}>
               <select style={sel} value={update.priority} onChange={e => setUpdate(p => ({ ...p, priority: e.target.value }))}>
-                <option value="urgent">Urgent</option>
-                <option value="high">Ridicat</option>
-                <option value="normal">Normal</option>
-                <option value="low">Scăzut</option>
+                <option value="urgent">{t('reclamatii.priorityUrgent')}</option>
+                <option value="high">{t('reclamatii.priorityHigh')}</option>
+                <option value="normal">{t('reclamatii.priorityNormal')}</option>
+                <option value="low">{t('reclamatii.priorityLow')}</option>
               </select>
             </FormRow>
           </div>
-          <FormRow label="Atribuit la">
+          <FormRow label={t('reclamatii.fieldAssigned')}>
             <select style={sel} value={update.assigned_to} onChange={e => setUpdate(p => ({ ...p, assigned_to: e.target.value }))}>
-              <option value="">— Neatribuit —</option>
+              <option value="">{t('reclamatii.noAssigned')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
           </FormRow>
-          <FormRow label="Note rezoluție">
+          <FormRow label={t('reclamatii.fieldResolutionNotes')}>
             <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }} value={update.resolution_notes}
-              onChange={e => setUpdate(p => ({ ...p, resolution_notes: e.target.value }))} placeholder="Cum a fost rezolvat..." />
+              onChange={e => setUpdate(p => ({ ...p, resolution_notes: e.target.value }))} placeholder={t('reclamatii.resolutionPlaceholder')} />
           </FormRow>
           <ModalActions>
-            <button onClick={() => setEditItem(null)} style={btnSecondary}>Anulează</button>
-            <button onClick={handleUpdate} disabled={saving} style={btnPrimary}>{saving ? 'Se salvează...' : 'Salvează'}</button>
+            <button onClick={() => setEditItem(null)} style={btnSecondary}>{t('common.cancel')}</button>
+            <button onClick={handleUpdate} disabled={saving} style={btnPrimary}>{saving ? t('common.saving') : t('reclamatii.updateBtn')}</button>
           </ModalActions>
         </Modal>
       )}
@@ -483,34 +454,28 @@ export function ReclamatiiPage() {
               const pCfg = PRIORITY_CONFIG[detailItem.priority] || PRIORITY_CONFIG.normal;
               return (
                 <>
-                  <span style={{ background: sCfg.bg, color: sCfg.color, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 600 }}>
-                    {detailItem.status === 'open' ? 'Deschis' : detailItem.status === 'in_progress' ? 'În lucru' : detailItem.status === 'resolved' ? 'Rezolvat' : 'Închis'}
-                  </span>
-                  <span style={{ background: pCfg.bg, color: pCfg.color, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 600 }}>
-                    {pCfg.label}
-                  </span>
-                  <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>
-                    {TYPE_LABELS[detailItem.type] || detailItem.type}
-                  </span>
+                  <span style={{ background: sCfg.bg, color: sCfg.color, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 600 }}>{statusLabel(detailItem.status)}</span>
+                  <span style={{ background: pCfg.bg, color: pCfg.color, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 600 }}>{priorityLabel(detailItem.priority)}</span>
+                  <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 20, padding: '3px 12px', fontSize: 12 }}>{typeLabel(detailItem.type)}</span>
                 </>
               );
             })()}
           </div>
 
-          <DetailField label="Descriere" value={detailItem.description} />
-          {detailItem.resolution_notes && <DetailField label="Note rezoluție" value={detailItem.resolution_notes} />}
+          <DetailField label={t('reclamatii.fieldDescription')} value={detailItem.description} />
+          {detailItem.resolution_notes && <DetailField label={t('reclamatii.fieldResolutionNotes')} value={detailItem.resolution_notes} />}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-            <DetailField label="Șantier" value={detailItem.site_name || '—'} />
-            <DetailField label="Atribuit" value={detailItem.assigned_name || '—'} />
-            <DetailField label="Creat de" value={detailItem.created_by_name || '—'} />
-            <DetailField label="Creat la" value={fmtDate(detailItem.created_at)} />
-            {detailItem.resolved_at && <DetailField label="Rezolvat la" value={fmtDate(detailItem.resolved_at)} />}
+            <DetailField label={t('reclamatii.site')}       value={detailItem.site_name || '—'} />
+            <DetailField label={t('reclamatii.assignedTo')} value={detailItem.assigned_name || '—'} />
+            <DetailField label={t('reclamatii.createdBy')}  value={detailItem.created_by_name || '—'} />
+            <DetailField label={t('reclamatii.createdAt')}  value={fmtDate(detailItem.created_at)} />
+            {detailItem.resolved_at && <DetailField label={t('reclamatii.resolvedAt')} value={fmtDate(detailItem.resolved_at)} />}
           </div>
 
           <ModalActions>
-            <button onClick={() => { setDetailItem(null); openEdit(detailItem); }} style={btnSecondary}>Editează</button>
-            <button onClick={() => setDetailItem(null)} style={btnPrimary}>Închide</button>
+            <button onClick={() => { setDetailItem(null); openEdit(detailItem); }} style={btnSecondary}>{t('reclamatii.editBtn')}</button>
+            <button onClick={() => setDetailItem(null)} style={btnPrimary}>{t('common.close')}</button>
           </ModalActions>
         </Modal>
       )}
@@ -518,18 +483,12 @@ export function ReclamatiiPage() {
   );
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 14, width: '100%', maxWidth: 540,
-        maxHeight: '90vh', overflowY: 'auto', padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{title}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>×</button>
