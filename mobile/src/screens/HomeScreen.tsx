@@ -15,7 +15,8 @@ interface Props {
   onAddReport: (siteId: number, siteName: string, nvtNumber: string) => void;
   onLogout: () => void;
   onPontaj: (siteId: number, siteName: string) => void;
-  onProgramari: () => void;
+  onProgramari: (siteId: number) => void;
+  onDetail: (entry: WorkEntry) => void;
 }
 
 function Initials({ name }: { name: string }) {
@@ -30,7 +31,7 @@ function Initials({ name }: { name: string }) {
   );
 }
 
-export default function HomeScreen({ onAddReport, onLogout, onPontaj, onProgramari }: Props) {
+export default function HomeScreen({ onAddReport, onLogout, onPontaj, onProgramari, onDetail }: Props) {
   const { tr } = useLang();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
@@ -286,7 +287,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
                 <TouchableOpacity style={[styles.btnSecondary, { flex: 1 }]} onPress={handlePontaj} activeOpacity={0.85}>
                   <Text style={styles.btnSecondaryText}>{tr.teamAttendance}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.btnProgramari, { flex: 1 }]} onPress={onProgramari} activeOpacity={0.85}>
+                <TouchableOpacity style={[styles.btnProgramari, { flex: 1 }]} onPress={() => onProgramari(selectedSite?.id ?? 0)} activeOpacity={0.85}>
                   <Text style={styles.btnProgramariText}>{tr.appointments}</Text>
                 </TouchableOpacity>
               </View>
@@ -298,7 +299,11 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
           </View>
         )}
         renderItem={({ item }) => (
-          <View style={[styles.entryCard, item.synced && styles.entryCardSynced]}>
+          <TouchableOpacity
+            style={[styles.entryCard, item.synced && styles.entryCardSynced]}
+            onPress={() => onDetail(item)}
+            activeOpacity={0.75}
+          >
             <View style={styles.entryRow}>
               <Text style={styles.entryType}>{tr.workTypeLabels[item.work_type]}</Text>
               <View style={[styles.badge, item.synced ? styles.badgeSynced : styles.badgePending]}>
@@ -309,7 +314,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
             </View>
             <Text style={styles.entrySite}>{item.site_name}{item.nvt_number ? ` — ${item.nvt_number}` : ''}</Text>
             <Text style={styles.entryDate}>{(() => { const d = new Date(item.created_at); return `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; })()}</Text>
-          </View>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={(
           <View style={styles.empty}>

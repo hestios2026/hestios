@@ -18,8 +18,10 @@ export interface Programare {
   completed_at: string | null;
 }
 
-export async function fetchProgramariZi(day: string): Promise<Programare[]> {
-  const { data } = await api.get('/programari/', { params: { day } });
+export async function fetchProgramariZi(day: string, siteId?: number): Promise<Programare[]> {
+  const params: Record<string, any> = { day };
+  if (siteId) params.site_id = siteId;
+  const { data } = await api.get('/programari/', { params });
   return data;
 }
 

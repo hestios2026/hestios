@@ -36,10 +36,11 @@ function toDateStr(d: Date): string {
 }
 
 interface Props {
+  siteId?: number;
   onBack: () => void;
 }
 
-export default function ProgramariScreen({ onBack }: Props) {
+export default function ProgramariScreen({ siteId, onBack }: Props) {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
@@ -64,12 +65,8 @@ export default function ProgramariScreen({ onBack }: Props) {
   const load = useCallback(async (day: string, quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const data = await fetchProgramariZi(day);
-      // Filter: show only items assigned to current user (as team leader) or unassigned
-      setItems(data.filter(p =>
-        p.status !== 'cancelled' &&
-        (p.assigned_team_id === null || p.assigned_team_id === userId)
-      ));
+      const data = await fetchProgramariZi(day, siteId);
+      setItems(data.filter(p => p.status !== 'cancelled'));
     } catch {
       if (!quiet) Alert.alert('Eroare', 'Nu s-au putut încărca programările.');
     } finally {

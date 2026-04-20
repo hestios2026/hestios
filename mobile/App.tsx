@@ -1,17 +1,20 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BackHandler, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Network from 'expo-network';
 import PinLoginScreen from './src/screens/PinLoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import WorkTypeSelectorScreen from './src/screens/WorkTypeSelectorScreen';
 import ReportFormScreen from './src/screens/ReportFormScreen';
+import ReportDetailScreen from './src/screens/ReportDetailScreen';
 import PontajScreen from './src/screens/PontajScreen';
 import ProgramariScreen from './src/screens/ProgramariScreen';
 import { LangProvider } from './src/i18n';
-import type { WorkType } from './src/types';
+import { getQueue, syncQueue } from './src/store/offlineQueue';
+import type { WorkType, WorkEntry } from './src/types';
 
-type Screen = 'login' | 'home' | 'type-select' | 'form' | 'pontaj' | 'programari';
+type Screen = 'login' | 'home' | 'type-select' | 'form' | 'detail' | 'pontaj' | 'programari';
 
 interface ReportContext {
   siteId: number;
@@ -23,6 +26,7 @@ interface ReportContext {
 function AppInner() {
   const [screen, setScreen] = useState<Screen>('login');
   const [ctx, setCtx] = useState<ReportContext>({ siteId: 0, siteName: '', nvtNumber: '' });
+  const [selectedEntry, setSelectedEntry] = useState<WorkEntry | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem('hestios_token').then(token => {
@@ -30,25 +34,33 @@ function AppInner() {
     });
   }, []);
 
-  // Re-check token whenever app comes to foreground (catches mid-session expiry cleared by interceptor)
+  // Token check + auto-sync when app comes to foreground
   useEffect(() => {
-    const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        AsyncStorage.getItem('hestios_token').then(token => {
-          if (!token) setScreen('login');
-        });
-      }
+    const sub = AppState.addEventListener('change', async state => {
+      if (state !== 'active') return;
+      const token = await AsyncStorage.getItem('hestios_token');
+      if (!token) { setScreen('login'); return; }
+      // Silent auto-sync if online + pending items
+      try {
+        const net = await Network.getNetworkStateAsync();
+        if (!net.isConnected) return;
+        const queue = await getQueue();
+        if (queue.some(e => !e.synced)) {
+          syncQueue().catch(() => {});
+        }
+      } catch {}
     });
     return () => sub.remove();
   }, []);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (screen === 'form') { setScreen('type-select'); return true; }
-      if (screen === 'type-select') { setScreen('home'); return true; }
-      if (screen === 'pontaj') { setScreen('home'); return true; }
-      if (screen === 'programari') { setScreen('home'); return true; }
-      return false; // default behavior (exit app) on home/login
+      if (screen === 'detail')      { setScreen('home');        return true; }
+      if (screen === 'form')        { setScreen('type-select'); return true; }
+      if (screen === 'type-select') { setScreen('home');        return true; }
+      if (screen === 'pontaj')      { setScreen('home');        return true; }
+      if (screen === 'programari')  { setScreen('home');        return true; }
+      return false;
     });
     return () => sub.remove();
   }, [screen]);
@@ -70,11 +82,19 @@ function AppInner() {
     setScreen('pontaj');
   };
 
-  const handleProgramari = () => setScreen('programari');
+  const handleProgramari = (siteId: number) => {
+    setCtx(c => ({ ...c, siteId }));
+    setScreen('programari');
+  };
 
   const handleSelectType = (workType: WorkType) => {
     setCtx(c => ({ ...c, workType }));
     setScreen('form');
+  };
+
+  const handleDetail = (entry: WorkEntry) => {
+    setSelectedEntry(entry);
+    setScreen('detail');
   };
 
   switch (screen) {
@@ -89,7 +109,13 @@ function AppInner() {
       return (
         <>
           <StatusBar style="light" />
-          <HomeScreen onAddReport={handleAddReport} onLogout={handleLogout} onPontaj={handlePontaj} onProgramari={handleProgramari} />
+          <HomeScreen
+            onAddReport={handleAddReport}
+            onLogout={handleLogout}
+            onPontaj={handlePontaj}
+            onProgramari={handleProgramari}
+            onDetail={handleDetail}
+          />
         </>
       );
     case 'type-select':
@@ -119,6 +145,16 @@ function AppInner() {
           />
         </>
       );
+    case 'detail':
+      return (
+        <>
+          <StatusBar style="light" />
+          <ReportDetailScreen
+            entry={selectedEntry!}
+            onBack={() => setScreen('home')}
+          />
+        </>
+      );
     case 'pontaj':
       return (
         <>
@@ -134,7 +170,10 @@ function AppInner() {
       return (
         <>
           <StatusBar style="light" />
-          <ProgramariScreen onBack={() => setScreen('home')} />
+          <ProgramariScreen
+            siteId={ctx.siteId || undefined}
+            onBack={() => setScreen('home')}
+          />
         </>
       );
   }
