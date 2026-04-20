@@ -64,10 +64,12 @@ const EMPTY_MAT     = (): MatRow      => ({ material_name: '', unit: 'Stk', quan
 
 // ─── Map helpers ─────────────────────────────────────────────────────────────
 
-/** Parse "lat, lng" string → [lat, lng] or null */
+/** Parse "lat,lng" or "Address | lat,lng" string → [lat, lng] or null */
 function parseCoord(v: string): [number, number] | null {
   if (!v || typeof v !== 'string') return null;
-  const parts = v.split(',').map(s => parseFloat(s.trim()));
+  // Strip optional "Address | " prefix (format used by mobile v1.0.13+)
+  const coordStr = v.includes('|') ? v.slice(v.lastIndexOf('|') + 1) : v;
+  const parts = coordStr.split(',').map(s => parseFloat(s.trim()));
   if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) &&
       parts[0] >= -90 && parts[0] <= 90 && parts[1] >= -180 && parts[1] <= 180) {
     return [parts[0], parts[1]];
@@ -76,15 +78,18 @@ function parseCoord(v: string): [number, number] | null {
 }
 
 /** Extract coordinate fields from data JSON */
-function extractCoords(data: Record<string, unknown>): { start: [number,number] | null; stop: [number,number] | null; single: [number,number] | null } {
+function extractCoords(data: Record<string, unknown>): { start: [number,number] | null; stop: [number,number] | null; single: [number,number] | null; waypoints: [number,number][] } {
   const start = parseCoord(String(data.start ?? data.locatie_start ?? ''));
   const stop  = parseCoord(String(data.stop  ?? data.locatie_stop  ?? ''));
   const single = parseCoord(String(data.locatie ?? ''));
-  return { start, stop, single };
+  const waypoints: [number,number][] = Array.isArray(data.waypoints)
+    ? (data.waypoints as string[]).map(w => parseCoord(w)).filter(Boolean) as [number,number][]
+    : [];
+  return { start, stop, single, waypoints };
 }
 
 /** Build Leaflet HTML for iframe */
-function buildMapHtml(start: [number,number] | null, stop: [number,number] | null, single: [number,number] | null): string {
+function buildMapHtml(start: [number,number] | null, stop: [number,number] | null, single: [number,number] | null, waypoints: [number,number][] = []): string {
   const center = start ?? single ?? stop ?? [48.7758, 9.1829];
   const zoom   = (start || single || stop) ? 14 : 10;
 
@@ -99,12 +104,19 @@ function buildMapHtml(start: [number,number] | null, stop: [number,number] | nul
     markersJs.push(`L.circleMarker([${start[0]},${start[1]}],{radius:8,color:'#22c55e',fillColor:'#22c55e',fillOpacity:1,weight:2}).bindTooltip('Start',{permanent:true,direction:'top',offset:[0,-8]}).addTo(map);`);
     bounds.push(start);
   }
+  waypoints.forEach((wp, i) => {
+    markersJs.push(`L.circleMarker([${wp[0]},${wp[1]}],{radius:6,color:'#f97316',fillColor:'#f97316',fillOpacity:1,weight:2}).bindTooltip('W${i+1}',{permanent:true,direction:'top',offset:[0,-8]}).addTo(map);`);
+    bounds.push(wp);
+  });
   if (stop) {
     markersJs.push(`L.circleMarker([${stop[0]},${stop[1]}],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:1,weight:2}).bindTooltip('Stop',{permanent:true,direction:'top',offset:[0,-8]}).addTo(map);`);
     bounds.push(stop);
   }
-  if (start && stop) {
-    markersJs.push(`L.polyline([[${start[0]},${start[1]}],[${stop[0]},${stop[1]}]],{color:'#f97316',weight:3,opacity:0.9}).addTo(map);`);
+  if (start || stop) {
+    const routePoints = [start, ...waypoints, stop].filter(Boolean) as [number,number][];
+    if (routePoints.length >= 2) {
+      markersJs.push(`L.polyline([${routePoints.map(p => `[${p[0]},${p[1]}]`).join(',')}],{color:'#f97316',weight:3,opacity:0.9}).addTo(map);`);
+    }
   }
 
   const fitBoundsJs = bounds.length >= 2
@@ -125,9 +137,9 @@ ${fitBoundsJs}
 }
 
 function MiniMap({ data }: { data: Record<string, unknown> }) {
-  const { start, stop, single } = extractCoords(data);
+  const { start, stop, single, waypoints } = extractCoords(data);
   if (!start && !stop && !single) return null;
-  const html = buildMapHtml(start, stop, single);
+  const html = buildMapHtml(start, stop, single, waypoints);
   return (
     <div style={{ marginTop: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', height: 260 }}>
       <iframe
