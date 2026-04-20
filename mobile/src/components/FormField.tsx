@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import LocationPicker, { LocationPoint } from './LocationPicker';
+import LocationPicker, { type LocationPoint } from './LocationPicker';
 import { T } from '../theme';
+import { useLang } from '../i18n';
+
+export { LocationPoint };
+
+// ─── TextField ────────────────────────────────────────────────────────────────
 
 interface TextFieldProps {
   label: string;
@@ -36,6 +41,8 @@ export function TextField({
   );
 }
 
+// ─── Dropdown ─────────────────────────────────────────────────────────────────
+
 interface DropdownProps {
   label: string;
   value: string;
@@ -46,6 +53,7 @@ interface DropdownProps {
 }
 
 export function Dropdown({ label, value, options, onChange, required, placeholder }: DropdownProps) {
+  const { tr } = useLang();
   const [open, setOpen] = React.useState(false);
   const selected = options.find(o => o.value === value);
 
@@ -56,7 +64,7 @@ export function Dropdown({ label, value, options, onChange, required, placeholde
       </Text>
       <TouchableOpacity style={styles.dropdown} onPress={() => setOpen(!open)} activeOpacity={0.8}>
         <Text style={[styles.dropdownText, !selected && styles.placeholder]}>
-          {selected?.label ?? placeholder ?? 'Selectează...'}
+          {selected?.label ?? placeholder ?? tr.selectPlaceholder}
         </Text>
         <Text style={styles.chevron}>{open ? '▲' : '▼'}</Text>
       </TouchableOpacity>
@@ -79,29 +87,67 @@ export function Dropdown({ label, value, options, onChange, required, placeholde
   );
 }
 
-// ─── Location field ────────────────────────────────────────────────────────────
+// ─── Location helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Stored format: "Street Name Nr. | lat,lng"
+ * If GPS was not used, just the address text is stored.
+ */
+export function parsePoint(v: string): LocationPoint | undefined {
+  if (!v.trim()) return undefined;
+  const pipeIdx = v.lastIndexOf('|');
+  const coordStr = pipeIdx >= 0 ? v.slice(pipeIdx + 1) : v;
+  const parts = coordStr.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    return {
+      lat: parts[0],
+      lng: parts[1],
+      label: pipeIdx >= 0 ? v.slice(0, pipeIdx).trim() : undefined,
+    };
+  }
+  return undefined;
+}
+
+export function formatPoint(p: LocationPoint): string {
+  const coords = `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
+  return p.label ? `${p.label} | ${coords}` : coords;
+}
+
+/** Returns the human-readable part of a stored location value */
+function displayAddress(v: string): string {
+  const pipeIdx = v.lastIndexOf('|');
+  return pipeIdx >= 0 ? v.slice(0, pipeIdx).trim() : v;
+}
+
+/** Returns coordinates string if present */
+function displayCoords(v: string): string {
+  const pipeIdx = v.lastIndexOf('|');
+  return pipeIdx >= 0 ? v.slice(pipeIdx + 1).trim() : '';
+}
+
+// ─── LocationField ────────────────────────────────────────────────────────────
 
 interface LocationFieldProps {
   label: string;
   mode: 'single' | 'route';
   startValue: string;
   stopValue?: string;
+  waypointValues?: string[];
   onChangeStart: (v: string) => void;
   onChangeStop?: (v: string) => void;
+  onChangeWaypoints?: (v: string[]) => void;
   required?: boolean;
 }
 
-export function LocationField({ label, mode, startValue, stopValue, onChangeStart, onChangeStop, required }: LocationFieldProps) {
+export function LocationField({
+  label, mode, startValue, stopValue, waypointValues,
+  onChangeStart, onChangeStop, onChangeWaypoints, required,
+}: LocationFieldProps) {
+  const { tr } = useLang();
   const [showPicker, setShowPicker] = useState(false);
 
-  const parsePoint = (v: string): LocationPoint | undefined => {
-    const parts = v.split(',').map(s => parseFloat(s.trim()));
-    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]))
-      return { lat: parts[0], lng: parts[1] };
-    return undefined;
-  };
-
-  const formatPoint = (p: LocationPoint) => `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+  const startCoords = displayCoords(startValue);
+  const stopCoords  = stopValue ? displayCoords(stopValue) : '';
 
   return (
     <View style={styles.field}>
@@ -109,28 +155,46 @@ export function LocationField({ label, mode, startValue, stopValue, onChangeStar
         {label}{required && <Text style={styles.required}> *</Text>}
       </Text>
 
-      {/* Manual text inputs */}
+      {/* Start address input */}
       <TextInput
         style={styles.input}
-        value={startValue}
-        onChangeText={onChangeStart}
-        placeholder={mode === 'route' ? 'Start — STR. + NR.' : 'Locație — STR. + NR.'}
+        value={displayAddress(startValue)}
+        onChangeText={text => onChangeStart(text)}
+        placeholder={mode === 'route' ? tr.startPlaceholder : tr.singlePlaceholder}
         placeholderTextColor="#94A3B8"
       />
+      {startCoords ? <Text style={styles.gpsCoords}>📍 {startCoords}</Text> : null}
+
+      {/* Stop address input */}
       {mode === 'route' && (
-        <TextInput
-          style={[styles.input, { marginTop: 6 }]}
-          value={stopValue ?? ''}
-          onChangeText={onChangeStop}
-          placeholder="Stop — STR. + NR."
-          placeholderTextColor="#94A3B8"
-        />
+        <>
+          <TextInput
+            style={[styles.input, { marginTop: 6 }]}
+            value={displayAddress(stopValue ?? '')}
+            onChangeText={text => onChangeStop?.(text)}
+            placeholder={tr.stopPlaceholder}
+            placeholderTextColor="#94A3B8"
+          />
+          {stopCoords ? <Text style={styles.gpsCoords}>📍 {stopCoords}</Text> : null}
+        </>
+      )}
+
+      {/* Waypoints summary */}
+      {mode === 'route' && waypointValues && waypointValues.length > 0 && (
+        <View style={styles.waypointsBar}>
+          {waypointValues.map((wp, idx) => (
+            <View key={idx} style={styles.waypointChip}>
+              <View style={styles.wpDot} />
+              <Text style={styles.wpText} numberOfLines={1}>{displayAddress(wp) || `W${idx + 1}`}</Text>
+            </View>
+          ))}
+        </View>
       )}
 
       {/* Map button */}
       <TouchableOpacity style={styles.mapBtn} onPress={() => setShowPicker(true)} activeOpacity={0.8}>
         <Text style={styles.mapBtnTxt}>
-          {mode === 'route' ? '🗺  Marchează pe hartă' : '📍  Selectează pe hartă'}
+          {mode === 'route' ? tr.mapBtnRoute : tr.mapBtnSingle}
         </Text>
       </TouchableOpacity>
 
@@ -139,9 +203,11 @@ export function LocationField({ label, mode, startValue, stopValue, onChangeStar
           mode={mode}
           initialStart={parsePoint(startValue)}
           initialStop={mode === 'route' ? parsePoint(stopValue ?? '') : undefined}
+          initialWaypoints={waypointValues?.map(parsePoint).filter(Boolean) as LocationPoint[]}
           onConfirm={result => {
             onChangeStart(formatPoint(result.start));
             if (mode === 'route' && result.stop) onChangeStop?.(formatPoint(result.stop));
+            if (mode === 'route') onChangeWaypoints?.(result.waypoints?.map(formatPoint) ?? []);
             setShowPicker(false);
           }}
           onClose={() => setShowPicker(false)}
@@ -151,18 +217,13 @@ export function LocationField({ label, mode, startValue, stopValue, onChangeStar
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  mapBtn: {
-    marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: T.bg, borderWidth: 1, borderColor: T.border,
-    borderRadius: 8, paddingVertical: 10,
-  },
-  mapBtnTxt: { fontSize: 13, color: T.green, fontWeight: '600' },
   field: { marginBottom: 16 },
   label: {
     fontSize: 11, fontWeight: '700', color: T.text2,
-    marginBottom: 6, letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase',
   },
   required: { color: T.danger },
   input: {
@@ -172,6 +233,25 @@ const styles = StyleSheet.create({
   },
   inputMulti: { minHeight: 80, textAlignVertical: 'top' },
   hint: { fontSize: 11, color: T.text3, marginTop: 4 },
+  gpsCoords: { fontSize: 10, color: T.text3, marginTop: 3, fontFamily: 'monospace', marginLeft: 2 },
+
+  waypointsBar: { marginTop: 6, gap: 4 },
+  waypointChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(249,115,22,0.08)', borderRadius: 6,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 1, borderColor: 'rgba(249,115,22,0.2)',
+  },
+  wpDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#f97316' },
+  wpText: { fontSize: 12, color: '#c2410c', flex: 1, fontWeight: '500' },
+
+  mapBtn: {
+    marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: T.bg, borderWidth: 1, borderColor: T.border,
+    borderRadius: 8, paddingVertical: 10,
+  },
+  mapBtnTxt: { fontSize: 13, color: T.green, fontWeight: '600' },
+
   dropdown: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: T.surface, borderWidth: 1, borderColor: T.border,

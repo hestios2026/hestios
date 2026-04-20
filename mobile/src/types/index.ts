@@ -57,6 +57,7 @@ export interface DataPozeInainte {
   tip: 'public' | 'privat' | '';
   start: string;
   stop: string;
+  waypoints?: string[];
   photos: PhotoEntry[];
 }
 
@@ -68,6 +69,7 @@ export interface DataTeratest {
 export interface DataSemneCirculatie {
   start: string;
   stop: string;
+  waypoints?: string[];
   photos: PhotoEntry[];
 }
 
@@ -103,6 +105,7 @@ export interface DataReparatie {
 export interface DataTrasTeava {
   start: string;
   stop: string;
+  waypoints?: string[];
   nr_cabluri: string;
   lungime: string;
   photos: PhotoEntry[];
@@ -121,6 +124,7 @@ export interface DataGroapa {
 export interface DataTraversare {
   start: string;
   stop: string;
+  waypoints?: string[];
   lungime: string;
   latime: string;
   adancime: string;
@@ -134,6 +138,7 @@ export interface DataTraversare {
 export interface DataSapatura {
   start: string;
   stop: string;
+  waypoints?: string[];
   terasament: 'asfalt' | 'alta' | '';
   grosime_asfalt: string;
   lungime: string;

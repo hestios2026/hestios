@@ -36,7 +36,7 @@ export default function ReportFormScreen({
 
   // A — Poze Înainte
   const [pozeData, setPozeData] = useState<DataPozeInainte>({
-    tip: '', start: '', stop: '', photos: [],
+    tip: '', start: '', stop: '', waypoints: [], photos: [],
   });
 
   // B — Teratest
@@ -46,7 +46,7 @@ export default function ReportFormScreen({
 
   // C — Semne Circulatie
   const [semneData, setSemneData] = useState<DataSemneCirculatie>({
-    start: '', stop: '', photos: [],
+    start: '', stop: '', waypoints: [], photos: [],
   });
 
   // D — Liefer Scheine
@@ -76,7 +76,7 @@ export default function ReportFormScreen({
 
   // I — Tras Teava
   const [trasData, setTrasData] = useState<DataTrasTeava>({
-    start: '', stop: '', nr_cabluri: '', lungime: '', photos: [],
+    start: '', stop: '', waypoints: [], nr_cabluri: '', lungime: '', photos: [],
   });
 
   // J — Groapa
@@ -86,13 +86,13 @@ export default function ReportFormScreen({
 
   // K — Traversare
   const [traversareData, setTraversareData] = useState<DataTraversare>({
-    start: '', stop: '', lungime: '', latime: '', adancime: '', terasament: '',
+    start: '', stop: '', waypoints: [], lungime: '', latime: '', adancime: '', terasament: '',
     grosime_asfalt: '', nr_cabluri: '', teava_protectie: '', photos: [],
   });
 
   // L — Sapatura
   const [sapaturaData, setSapaturaData] = useState<DataSapatura>({
-    start: '', stop: '', terasament: '', grosime_asfalt: '', lungime: '',
+    start: '', stop: '', waypoints: [], terasament: '', grosime_asfalt: '', lungime: '',
     latime: '', adancime: '', tip: '', nr_cabluri: '', photos: [],
   });
 
@@ -109,11 +109,20 @@ export default function ReportFormScreen({
       case 'poze_inainte':
         if (!pozeData.tip) return tr.vSelectTip;
         if (!pozeData.start) return tr.vEnterStart;
+        if (!pozeData.stop) return tr.vEnterStop;
+        if (pozeData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'teratest':
         if (!teraData.moment) return tr.vSelectMoment;
+        if (teraData.photos.length < 2) return tr.vMinPhotos(2);
+        break;
+      case 'semne_circulatie':
+        if (!semneData.start) return tr.vEnterStart;
+        if (!semneData.stop) return tr.vEnterStop;
+        if (semneData.photos.length < 6) return tr.vMinPhotos(6);
         break;
       case 'liefer_scheine':
+        if (!lieferData.descriere) return tr.vEnterDescription;
         if (lieferData.photos.length === 0) return tr.vAddPhoto;
         break;
       case 'montaj_nvt_pdp':
@@ -128,36 +137,57 @@ export default function ReportFormScreen({
         if (!haData.locatie) return tr.vEnterLocationStreet;
         if (!haData.tip_conectare) return tr.vSelectConnectionType;
         if (!haData.suprafata) return tr.vSelectSurface;
+        if (haData.suprafata === 'mixt' && !haData.suprafata_mixt_detalii) return tr.vEnterDescription;
         if (haData.photos.length < 5) return tr.vMinPhotos(5);
         break;
       case 'reparatie':
         if (!repData.locatie) return tr.vEnterLocation;
         if (!repData.descriere) return tr.vEnterDescription;
+        if (repData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'tras_teava':
         if (!trasData.start) return tr.vEnterStart;
+        if (!trasData.stop) return tr.vEnterStop;
         if (!trasData.nr_cabluri) return tr.vEnterCables;
         if (!trasData.lungime) return tr.vEnterLength;
+        if (trasData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'groapa':
         if (!groapaData.locatie) return tr.vEnterLocation;
         if (!groapaData.terasament) return tr.vSelectTerrain;
         if (groapaData.terasament === 'asfalt' && !groapaData.grosime_asfalt)
           return tr.vEnterAsphalt;
+        if (!groapaData.lungime) return tr.vEnterLength;
+        if (!groapaData.latime) return tr.vEnterWidth;
+        if (!groapaData.adancime) return tr.vEnterDepth;
         if (groapaData.photos.length < 3) return tr.vMinPhotos(3);
         break;
       case 'traversare':
         if (!traversareData.start) return tr.vEnterStart;
+        if (!traversareData.stop) return tr.vEnterStop;
+        if (!traversareData.lungime) return tr.vEnterLength;
+        if (!traversareData.latime) return tr.vEnterWidth;
+        if (!traversareData.adancime) return tr.vEnterDepth;
         if (!traversareData.nr_cabluri) return tr.vEnterCablesMounted;
         if (traversareData.photos.length < 4) return tr.vMinPhotos(4);
         break;
       case 'sapatura':
         if (!sapaturaData.start) return tr.vEnterStart;
-        if (!sapaturaData.nr_cabluri) return tr.vEnterCablesMounted;
+        if (!sapaturaData.stop) return tr.vEnterStop;
         if (!sapaturaData.tip) return tr.vSelectSapaturaTip;
+        if (!sapaturaData.terasament) return tr.vSelectTerrain;
+        if (sapaturaData.terasament === 'asfalt' && !sapaturaData.grosime_asfalt)
+          return tr.vEnterAsphalt;
+        if (!sapaturaData.lungime) return tr.vEnterLength;
+        if (!sapaturaData.latime) return tr.vEnterWidth;
+        if (!sapaturaData.adancime) return tr.vEnterDepth;
+        if (!sapaturaData.nr_cabluri) return tr.vEnterCablesMounted;
+        if (sapaturaData.photos.length < 3) return tr.vMinPhotos(3);
         break;
       case 'raport_zilnic':
         if (!raportData.lungime_totala) return tr.vEnterTotalLength;
+        if (!raportData.nr_bransamente_ha) return tr.vEnterHaCount;
+        if (!raportData.nr_hp_plus) return tr.vEnterHpCount;
         if (!raportData.locatie_start) return tr.vEnterLocStart;
         if (!raportData.locatie_stop) return tr.vEnterLocStop;
         if (raportData.photos.length < 5) return tr.vMinPhotos(5);
@@ -227,11 +257,14 @@ export default function ReportFormScreen({
             />
             <LocationField label={tr.fLocation} mode="route" required
               startValue={pozeData.start} stopValue={pozeData.stop}
+              waypointValues={pozeData.waypoints}
               onChangeStart={v => setPozeData(p => ({ ...p, start: v }))}
               onChangeStop={v => setPozeData(p => ({ ...p, stop: v }))}
+              onChangeWaypoints={v => setPozeData(p => ({ ...p, waypoints: v }))}
             />
             <PhotoPicker photos={pozeData.photos}
               onChange={ph => setPozeData(p => ({ ...p, photos: ph }))}
+              minPhotos={2}
             />
           </>
         );
@@ -249,6 +282,7 @@ export default function ReportFormScreen({
             />
             <PhotoPicker photos={teraData.photos}
               onChange={ph => setTeraData(p => ({ ...p, photos: ph }))}
+              minPhotos={2}
               label={tr.photoPickerLabels.teratest}
             />
           </>
@@ -260,8 +294,10 @@ export default function ReportFormScreen({
           <>
             <LocationField label={tr.fLocationRoute} mode="route" required
               startValue={semneData.start} stopValue={semneData.stop}
+              waypointValues={semneData.waypoints}
               onChangeStart={v => setSemneData(p => ({ ...p, start: v }))}
               onChangeStop={v => setSemneData(p => ({ ...p, stop: v }))}
+              onChangeWaypoints={v => setSemneData(p => ({ ...p, waypoints: v }))}
             />
             <PhotoPicker photos={semneData.photos}
               onChange={ph => setSemneData(p => ({ ...p, photos: ph }))}
@@ -275,12 +311,13 @@ export default function ReportFormScreen({
       case 'liefer_scheine':
         return (
           <>
-            <TextField label={tr.fDescription} value={lieferData.descriere}
+            <TextField label={tr.fDescription} value={lieferData.descriere} required
               onChangeText={v => setLieferData(p => ({ ...p, descriere: v }))}
               multiline placeholder="..."
             />
             <PhotoPicker photos={lieferData.photos}
               onChange={ph => setLieferData(p => ({ ...p, photos: ph }))}
+              minPhotos={1}
             />
           </>
         );
@@ -370,6 +407,7 @@ export default function ReportFormScreen({
             />
             <PhotoPicker photos={repData.photos}
               onChange={ph => setRepData(p => ({ ...p, photos: ph }))}
+              minPhotos={2}
             />
           </>
         );
@@ -380,8 +418,10 @@ export default function ReportFormScreen({
           <>
             <LocationField label={tr.fLocation} mode="route" required
               startValue={trasData.start} stopValue={trasData.stop}
+              waypointValues={trasData.waypoints}
               onChangeStart={v => setTrasData(p => ({ ...p, start: v }))}
               onChangeStop={v => setTrasData(p => ({ ...p, stop: v }))}
+              onChangeWaypoints={v => setTrasData(p => ({ ...p, waypoints: v }))}
             />
             <TextField label={tr.fCables} value={trasData.nr_cabluri} required
               onChangeText={v => setTrasData(p => ({ ...p, nr_cabluri: v }))}
@@ -393,6 +433,7 @@ export default function ReportFormScreen({
             />
             <PhotoPicker photos={trasData.photos}
               onChange={ph => setTrasData(p => ({ ...p, photos: ph }))}
+              minPhotos={2}
             />
           </>
         );
@@ -419,15 +460,15 @@ export default function ReportFormScreen({
                 keyboardType="decimal-pad"
               />
             )}
-            <TextField label={tr.fLength} value={groapaData.lungime}
+            <TextField label={tr.fLength} value={groapaData.lungime} required
               onChangeText={v => setGroapaData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label={tr.fWidth} value={groapaData.latime}
+            <TextField label={tr.fWidth} value={groapaData.latime} required
               onChangeText={v => setGroapaData(p => ({ ...p, latime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label={tr.fDepth} value={groapaData.adancime}
+            <TextField label={tr.fDepth} value={groapaData.adancime} required
               onChangeText={v => setGroapaData(p => ({ ...p, adancime: v }))}
               keyboardType="decimal-pad"
             />
@@ -445,22 +486,24 @@ export default function ReportFormScreen({
           <>
             <LocationField label={tr.fLocation} mode="route" required
               startValue={traversareData.start} stopValue={traversareData.stop}
+              waypointValues={traversareData.waypoints}
               onChangeStart={v => setTraversareData(p => ({ ...p, start: v }))}
               onChangeStop={v => setTraversareData(p => ({ ...p, stop: v }))}
+              onChangeWaypoints={v => setTraversareData(p => ({ ...p, waypoints: v }))}
             />
-            <TextField label={tr.fLength} value={traversareData.lungime}
+            <TextField label={tr.fLength} value={traversareData.lungime} required
               onChangeText={v => setTraversareData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label={tr.fWidth} value={traversareData.latime}
+            <TextField label={tr.fWidth} value={traversareData.latime} required
               onChangeText={v => setTraversareData(p => ({ ...p, latime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label={tr.fDepth} value={traversareData.adancime}
+            <TextField label={tr.fDepth} value={traversareData.adancime} required
               onChangeText={v => setTraversareData(p => ({ ...p, adancime: v }))}
               keyboardType="decimal-pad"
             />
-            <Dropdown label={tr.fTerrain} value={traversareData.terasament}
+            <Dropdown label={tr.fTerrain} value={traversareData.terasament} required
               options={[
                 { value: 'asfalt', label: tr.optAsfalt },
                 { value: 'alta', label: tr.optAltaSup },
@@ -468,7 +511,7 @@ export default function ReportFormScreen({
               onChange={v => setTraversareData(p => ({ ...p, terasament: v as any }))}
             />
             {traversareData.terasament === 'asfalt' && (
-              <TextField label={tr.fAsphaltThickness} value={traversareData.grosime_asfalt}
+              <TextField label={tr.fAsphaltThickness} value={traversareData.grosime_asfalt} required
                 onChangeText={v => setTraversareData(p => ({ ...p, grosime_asfalt: v }))}
                 keyboardType="decimal-pad"
               />
@@ -477,7 +520,7 @@ export default function ReportFormScreen({
               onChangeText={v => setTraversareData(p => ({ ...p, nr_cabluri: v }))}
               keyboardType="numeric"
             />
-            <Dropdown label={tr.fProtPipe} value={traversareData.teava_protectie}
+            <Dropdown label={tr.fProtPipe} value={traversareData.teava_protectie} required
               options={[{ value: 'da', label: tr.optDa }, { value: 'nu', label: tr.optNu }]}
               onChange={v => setTraversareData(p => ({ ...p, teava_protectie: v as any }))}
             />
@@ -495,8 +538,10 @@ export default function ReportFormScreen({
           <>
             <LocationField label={tr.fLocation} mode="route" required
               startValue={sapaturaData.start} stopValue={sapaturaData.stop}
+              waypointValues={sapaturaData.waypoints}
               onChangeStart={v => setSapaturaData(p => ({ ...p, start: v }))}
               onChangeStop={v => setSapaturaData(p => ({ ...p, stop: v }))}
+              onChangeWaypoints={v => setSapaturaData(p => ({ ...p, waypoints: v }))}
             />
             <Dropdown label={tr.fTip} value={sapaturaData.tip} required
               options={[
@@ -506,7 +551,7 @@ export default function ReportFormScreen({
               ]}
               onChange={v => setSapaturaData(p => ({ ...p, tip: v as any }))}
             />
-            <Dropdown label={tr.fTerrain} value={sapaturaData.terasament}
+            <Dropdown label={tr.fTerrain} value={sapaturaData.terasament} required
               options={[
                 { value: 'asfalt', label: tr.optAsfalt },
                 { value: 'alta', label: tr.optAltaSup },
@@ -514,20 +559,20 @@ export default function ReportFormScreen({
               onChange={v => setSapaturaData(p => ({ ...p, terasament: v as any }))}
             />
             {sapaturaData.terasament === 'asfalt' && (
-              <TextField label={tr.fAsphaltThickness} value={sapaturaData.grosime_asfalt}
+              <TextField label={tr.fAsphaltThickness} value={sapaturaData.grosime_asfalt} required
                 onChangeText={v => setSapaturaData(p => ({ ...p, grosime_asfalt: v }))}
                 keyboardType="decimal-pad"
               />
             )}
-            <TextField label={tr.fLength} value={sapaturaData.lungime}
+            <TextField label={tr.fLength} value={sapaturaData.lungime} required
               onChangeText={v => setSapaturaData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label={tr.fWidth} value={sapaturaData.latime}
+            <TextField label={tr.fWidth} value={sapaturaData.latime} required
               onChangeText={v => setSapaturaData(p => ({ ...p, latime: v }))}
               keyboardType="decimal-pad"
             />
-            <TextField label={tr.fDepth} value={sapaturaData.adancime}
+            <TextField label={tr.fDepth} value={sapaturaData.adancime} required
               onChangeText={v => setSapaturaData(p => ({ ...p, adancime: v }))}
               keyboardType="decimal-pad"
             />
@@ -537,6 +582,7 @@ export default function ReportFormScreen({
             />
             <PhotoPicker photos={sapaturaData.photos}
               onChange={ph => setSapaturaData(p => ({ ...p, photos: ph }))}
+              minPhotos={3}
               label={sapaturaData.terasament === 'asfalt' ? tr.photoPickerLabels.sapaturaAsfalt : tr.photoPickerLabels.sapatura}
             />
           </>
@@ -554,11 +600,11 @@ export default function ReportFormScreen({
               keyboardType="decimal-pad"
               hint={tr.hPublicPrivat}
             />
-            <TextField label={tr.fHaCount} value={raportData.nr_bransamente_ha}
+            <TextField label={tr.fHaCount} value={raportData.nr_bransamente_ha} required
               onChangeText={v => setRaportData(p => ({ ...p, nr_bransamente_ha: v }))}
               keyboardType="numeric"
             />
-            <TextField label={tr.fHpCount} value={raportData.nr_hp_plus}
+            <TextField label={tr.fHpCount} value={raportData.nr_hp_plus} required
               onChangeText={v => setRaportData(p => ({ ...p, nr_hp_plus: v }))}
               keyboardType="numeric"
             />
