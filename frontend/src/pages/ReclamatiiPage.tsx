@@ -85,7 +85,9 @@ export function ReclamatiiPage() {
   const [editItem,         setEditItem]         = useState<Reclamatie | null>(null);
   const [detailItem,       setDetailItem]       = useState<Reclamatie | null>(null);
   const [uploadingAtt,     setUploadingAtt]     = useState(false);
-  const attFileRef = useRef<HTMLInputElement>(null);
+  const [createFiles,      setCreateFiles]      = useState<File[]>([]);
+  const attFileRef    = useRef<HTMLInputElement>(null);
+  const createFileRef = useRef<HTMLInputElement>(null);
 
   const [form,   setForm]   = useState({ ...EMPTY_FORM });
   const [update, setUpdate] = useState({ ...EMPTY_UPDATE });
@@ -133,10 +135,20 @@ export function ReclamatiiPage() {
       };
       if (form.site_id)     body.site_id    = parseInt(form.site_id);
       if (form.assigned_to) body.assigned_to = parseInt(form.assigned_to);
-      await createReclamatie(body);
+      const created = await createReclamatie(body);
+      // Upload any selected files
+      for (const file of createFiles) {
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          await uploadAttachment(created.id, fd);
+        } catch { /* non-fatal */ }
+      }
       toast.success(t('reclamatii.createOk'));
       setCreateOpen(false);
       setForm({ ...EMPTY_FORM });
+      setCreateFiles([]);
+      if (createFileRef.current) createFileRef.current.value = '';
       load();
     } catch { toast.error(t('common.error')); }
     finally { setSaving(false); }
@@ -382,6 +394,11 @@ export function ReclamatiiPage() {
                       </span>
                     )}
                     <span style={{ fontSize: 12, color: '#94a3b8' }}>{fmtDate(r.created_at)}</span>
+                    {r.attachments?.length > 0 && (
+                      <span style={{ fontSize: 11, color: '#6366f1', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 10, padding: '1px 7px', fontWeight: 600 }}>
+                        📎 {r.attachments.length}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -443,8 +460,43 @@ export function ReclamatiiPage() {
               </select>
             </FormRow>
           </div>
+          {/* File attachments */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+              {t('reclamatii.attachments')} <span style={{ fontWeight: 400, color: '#94a3b8' }}>({t('common.optional', 'opțional')})</span>
+            </div>
+            <input ref={createFileRef} type="file" style={{ display: 'none' }} multiple
+              accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx"
+              onChange={e => {
+                const files = Array.from(e.target.files || []);
+                setCreateFiles(prev => [...prev, ...files]);
+              }} />
+            <div
+              onClick={() => createFileRef.current?.click()}
+              style={{
+                border: '2px dashed #d1d5db', borderRadius: 8, padding: '14px 16px',
+                cursor: 'pointer', textAlign: 'center', background: '#f9fafb',
+                fontSize: 12.5, color: '#6b7280',
+              }}
+            >
+              {t('reclamatii.addAttachment')} — JPG, PNG, PDF, DOC, XLS
+            </div>
+            {createFiles.length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {createFiles.map((f, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f1f5f9', borderRadius: 6, fontSize: 12 }}>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#334155' }}>{f.name}</span>
+                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>{(f.size / 1024).toFixed(0)} KB</span>
+                    <button onClick={() => setCreateFiles(prev => prev.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <ModalActions>
-            <button onClick={() => setCreateOpen(false)} style={btnSecondary}>{t('common.cancel')}</button>
+            <button onClick={() => { setCreateOpen(false); setCreateFiles([]); }} style={btnSecondary}>{t('common.cancel')}</button>
             <button onClick={handleCreate} disabled={saving} style={btnPrimary}>{saving ? t('common.saving') : t('reclamatii.createBtn')}</button>
           </ModalActions>
         </Modal>
