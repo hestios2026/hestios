@@ -308,7 +308,7 @@ export default function HomeScreen({ onAddReport, onLogout, onPontaj, onPrograma
               </View>
             </View>
             <Text style={styles.entrySite}>{item.site_name}{item.nvt_number ? ` — ${item.nvt_number}` : ''}</Text>
-            <Text style={styles.entryDate}>{new Date(item.created_at).toLocaleString('ro-RO')}</Text>
+            <Text style={styles.entryDate}>{(() => { const d = new Date(item.created_at); return `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; })()}</Text>
           </View>
         )}
         ListEmptyComponent={(
@@ -348,12 +348,12 @@ const styles = StyleSheet.create({
   welcome: { color: T.textLight, fontSize: 14, fontWeight: '700' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { color: '#374151', fontSize: 10 },
+  statusText: { color: 'rgba(255,255,255,0.45)', fontSize: 10 },
   logoutBtn: {
     paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 6, borderWidth: 1, borderColor: '#1F2937',
+    borderRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
-  logoutText: { color: '#374151', fontSize: 12, fontWeight: '500' },
+  logoutText: { color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: '500' },
 
   // Selector card
   selectorCard: {

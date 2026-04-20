@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 },
   backText: { color: T.green, fontSize: 14, fontWeight: '600' },
   headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '700' },
-  headerSub: { color: '#374151', fontSize: 11, marginTop: 1 },
+  headerSub: { color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 1 },
   scroll: { padding: 16, paddingBottom: 40 },
   mandatoryBanner: {
     backgroundColor: T.greenBg, borderRadius: 8,

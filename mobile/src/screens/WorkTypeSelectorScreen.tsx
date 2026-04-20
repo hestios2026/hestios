@@ -57,10 +57,8 @@ export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, 
       <FlatList
         data={WORK_TYPES}
         keyExtractor={item => item}
-        numColumns={2}
         contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
-        columnWrapperStyle={{ gap: 10 }}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         renderItem={({ item }) => {
           const cfg = TYPE_CONFIG[item];
           const isMandatory = item === 'raport_zilnic';
@@ -70,12 +68,11 @@ export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, 
               onPress={() => onSelect(item)}
               activeOpacity={0.75}
             >
-              {/* Type badge */}
               <View style={[styles.typeBadge, { backgroundColor: `${cfg.color}18` }]}>
                 <Text style={[styles.typeAbbr, { color: cfg.color }]}>{cfg.abbr}</Text>
               </View>
 
-              <Text style={[styles.cardLabel, isMandatory && styles.cardLabelMandatory]}>
+              <Text style={[styles.cardLabel, isMandatory && styles.cardLabelMandatory]} numberOfLines={2}>
                 {tr.workTypeLabels[item]}
               </Text>
 
@@ -107,18 +104,16 @@ const styles = StyleSheet.create({
   backArrow: { color: T.green, fontSize: 16, fontWeight: '400' },
   backText: { color: T.green, fontSize: 14, fontWeight: '600' },
   headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '700' },
-  headerSub: { color: '#374151', fontSize: 11, marginTop: 1 },
+  headerSub: { color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 1 },
 
   card: {
-    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: T.surface,
     borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12,
     borderWidth: 1, borderColor: T.border,
-    minHeight: 110,
-    justifyContent: 'center',
-    gap: 8,
+    gap: 12,
   },
   cardMandatory: {
     borderColor: T.green,
@@ -128,18 +123,20 @@ const styles = StyleSheet.create({
   typeBadge: {
     width: 44, height: 44, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
   typeAbbr: {
     fontSize: 14, fontWeight: '900', letterSpacing: 0.5,
   },
   cardLabel: {
-    color: T.text, fontSize: 12, fontWeight: '600',
-    textAlign: 'center', lineHeight: 16,
+    color: T.text, fontSize: 14, fontWeight: '600',
+    flex: 1, lineHeight: 20,
   },
   cardLabelMandatory: { color: T.green },
   mandatoryPill: {
     backgroundColor: T.greenDim,
     borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+    flexShrink: 0,
   },
   mandatoryText: {
     fontSize: 8, fontWeight: '800', color: T.green, letterSpacing: 0.6,
