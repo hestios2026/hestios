@@ -164,9 +164,29 @@ style.textContent = `
   @media (max-width: 1023px) { .hide-tablet  { display: none !important; } }
   @media (max-width: 767px)  { .full-mobile  { width: 100% !important; } }
 
+  /* ── Filter row — flex bar that stacks full-width on mobile ── */
+  .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  @media (max-width: 767px) {
+    .filter-row > select,
+    .filter-row > input[type="date"],
+    .filter-row > input[type="text"],
+    .filter-row > input[type="search"],
+    .filter-row > input[type="number"] {
+      flex: 1 1 100%;
+      min-width: 0 !important;
+      width: 100% !important;
+    }
+  }
+
   /* ── Form grids ── */
   @media (max-width: 767px) {
     .form-grid-2, .form-grid-3 { grid-template-columns: 1fr !important; }
+  }
+
+  /* ── Card list header ── */
+  @media (max-width: 767px) {
+    .page-header { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+    .page-header > button { align-self: flex-start; }
   }
 
   /* ── Dashboard main grid ── */

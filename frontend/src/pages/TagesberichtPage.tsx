@@ -344,9 +344,9 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
   });
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="page-root">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{t('tagesbericht.title')}</h2>
         {mainTab === 'desktop' && <button style={btn('#22C55E')} onClick={openNew}>{t('tagesbericht.newReport')}</button>}
       </div>
@@ -367,12 +367,12 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
       {/* Desktop tab */}
       {mainTab === 'desktop' && (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-            <select style={{ ...inp, width: 220 }} value={filterSite} onChange={e => setFilterSite(e.target.value ? Number(e.target.value) : '')}>
+          <div className="filter-row" style={{ gap: 12, marginBottom: 16 }}>
+            <select style={{ ...inp, minWidth: 180 }} value={filterSite} onChange={e => setFilterSite(e.target.value ? Number(e.target.value) : '')}>
               <option value="">{t('tagesbericht.filterSite')}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <input type="date" style={{ ...inp, width: 160 }} value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+            <input type="date" style={{ ...inp, minWidth: 140 }} value={filterDate} onChange={e => setFilterDate(e.target.value)} />
             {filterDate && <button style={btn('#64748b')} onClick={() => setFilterDate('')}>×</button>}
           </div>
           <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
@@ -426,13 +426,13 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
       {/* Mobile tab */}
       {mainTab === 'mobile' && (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <select style={{ ...inp, width: 220 }} value={mobileFilterSite} onChange={e => setMobileFilterSite(e.target.value ? Number(e.target.value) : '')}>
+          <div className="filter-row" style={{ gap: 12, marginBottom: 16 }}>
+            <select style={{ ...inp, minWidth: 180 }} value={mobileFilterSite} onChange={e => setMobileFilterSite(e.target.value ? Number(e.target.value) : '')}>
               <option value="">{t('tagesbericht.filterSite')}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <input type="date" style={{ ...inp, width: 150 }} value={mobileFilterDateFrom} onChange={e => setMobileFilterDateFrom(e.target.value)} placeholder="De la" />
-            <input type="date" style={{ ...inp, width: 150 }} value={mobileFilterDateTo} onChange={e => setMobileFilterDateTo(e.target.value)} placeholder="Până la" />
+            <input type="date" style={{ ...inp, minWidth: 130 }} value={mobileFilterDateFrom} onChange={e => setMobileFilterDateFrom(e.target.value)} placeholder="De la" />
+            <input type="date" style={{ ...inp, minWidth: 130 }} value={mobileFilterDateTo} onChange={e => setMobileFilterDateTo(e.target.value)} placeholder="Până la" />
             {(mobileFilterDateFrom || mobileFilterDateTo) && (
               <button style={btn('#64748b')} onClick={() => { setMobileFilterDateFrom(''); setMobileFilterDateTo(''); }}>×</button>
             )}
@@ -531,8 +531,8 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
     });
 
     return (
-      <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div className="page-root" style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
             {selected ? `Tagesbericht ${selected.report_date}` : `Tagesbericht ${t('common.new')}`}
           </h2>
@@ -541,7 +541,7 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
 
         {/* Base info */}
         <div style={{ background: '#fff', borderRadius: 10, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div className="form-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
             <div>
               <label style={lbl}>{t('tagesbericht.fieldSite')} *</label>
               <select style={inp} value={fSiteId} onChange={e => setFSiteId(Number(e.target.value))} disabled={!!selected}>

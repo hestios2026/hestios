@@ -124,7 +124,7 @@ export function PontajPage() {
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
+    <div className="page-root" style={{ maxWidth: 1100, margin: '0 auto' }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', marginBottom: 24 }}>{t('pontaj.title')}</h2>
 
       {/* ── Team Assignment Section ── */}
@@ -217,21 +217,21 @@ export function PontajPage() {
 
       {/* ── Pontaj View Section ── */}
       <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 10, padding: 20 }}>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 20 }}>
-          <div>
+        <div className="filter-row" style={{ gap: 12, alignItems: 'flex-end', marginBottom: 20 }}>
+          <div style={{ flex: '1 1 140px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>{t('pontaj.dateFrom')}</div>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              style={{ padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B' }} />
+              style={{ padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B', width: '100%' }} />
           </div>
-          <div>
+          <div style={{ flex: '1 1 140px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>{t('pontaj.dateTo')}</div>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              style={{ padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B' }} />
+              style={{ padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B', width: '100%' }} />
           </div>
-          <div>
+          <div style={{ flex: '1 1 160px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: 0.8, marginBottom: 4 }}>{t('pontaj.teamLeadFilter')}</div>
             <select value={filterLead} onChange={e => setFilterLead(e.target.value ? Number(e.target.value) : '')}
-              style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B', background: '#fff' }}>
+              style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 6, fontSize: 14, color: '#1E293B', background: '#fff', width: '100%' }}>
               <option value="">{t('pontaj.allLeads')}</option>
               {mobileUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>

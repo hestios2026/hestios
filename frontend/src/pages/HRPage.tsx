@@ -832,10 +832,10 @@ export function HRPage({ user }: Props) {
       {/* ── CONCEDII ─────────────────────────────────────────────────────────── */}
       {mainTab === 'concedii' && (
         <div className="split-content page-root">
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
             <div style={{ fontWeight: 800, fontSize: 15, color: '#1e293b' }}>{t('hr.leaveRecord')}</div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              <select value={leaveFilter} onChange={e => setLeaveFilter(e.target.value)} style={{ ...inp, width: 160 }}>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select value={leaveFilter} onChange={e => setLeaveFilter(e.target.value)} style={{ ...inp, minWidth: 140 }}>
                 <option value="">{t('hr.allStatuses')}</option>
                 <option value="pending">{t('hr.leaveStatus.pending')}</option>
                 <option value="approved">{t('hr.leaveStatus.approved')}</option>
@@ -934,7 +934,7 @@ export function HRPage({ user }: Props) {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
             <div style={{ fontWeight: 800, fontSize: 15, color: '#1e293b' }}>{t('hr.payrollState')}</div>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-              <select value={salMonth} onChange={e => setSalMonth(Number(e.target.value))} style={{ ...inp, width: 140 }}>
+              <select value={salMonth} onChange={e => setSalMonth(Number(e.target.value))} style={{ ...inp, minWidth: 120 }}>
                 {Array.from({ length: 12 }, (_, i) => (
                   <option key={i+1} value={i+1}>{getMonthName(i+1)}</option>
                 ))}

@@ -23,12 +23,13 @@ interface Programare {
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, color, icon, sub, trend }: {
-  label: string; value: string | number; color: string; icon: React.ReactNode; sub?: string; trend?: string;
+function KpiCard({ label, value, color, icon, sub, trend, onClick }: {
+  label: string; value: string | number; color: string; icon: React.ReactNode; sub?: string; trend?: string; onClick?: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
+      onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -37,11 +38,19 @@ function KpiCard({ label, value, color, icon, sub, trend }: {
         border: hovered ? `1px solid ${color}30` : '1px solid var(--border)',
         padding: '16px 18px',
         transition: 'all 180ms ease',
-        cursor: 'default',
+        cursor: onClick ? 'pointer' : 'default',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
+      {onClick && (
+        <div style={{
+          position: 'absolute', top: 8, right: 10,
+          color: hovered ? color : 'var(--text-3)',
+          fontSize: 11, fontWeight: 600, opacity: hovered ? 1 : 0,
+          transition: 'opacity 150ms ease',
+        }}>→</div>
+      )}
       {/* Accent line top */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
@@ -239,12 +248,12 @@ export function DashboardPage({ user, onNavigate }: Props) {
 
       {/* 6 KPI cards */}
       <div className="stat-cards" style={{ marginBottom: 24 }}>
-        <KpiCard label={t('dashboard.activeSites')}     value={activeSites}  color="#22C55E" icon={<IconSite />}  />
-        <KpiCard label={t('dashboard.totalCosts')}      value={`€${totalCosts.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} color="#3B82F6" icon={<IconMoney />} />
-        <KpiCard label={t('dashboard.pendingOrders')}   value={0}            color="#F59E0B" icon={<IconBox />}   />
-        <KpiCard label={t('dashboard.todaySchedules')}  value={pendingHA}    color="#8B5CF6" icon={<IconCal />}   />
-        <KpiCard label={t('dashboard.overdueInvoices')} value={0}            color={0 > 0 ? '#EF4444' : '#22C55E'} icon={<IconAlert />} />
-        <KpiCard label={t('dashboard.activeEmployees')} value={empCount}     color="#06B6D4" icon={<IconUsers />} />
+        <KpiCard label={t('dashboard.activeSites')}     value={activeSites}  color="#22C55E" icon={<IconSite />}  onClick={() => onNavigate('sites')} />
+        <KpiCard label={t('dashboard.totalCosts')}      value={`€${totalCosts.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} color="#3B82F6" icon={<IconMoney />} onClick={() => onNavigate('sites')} />
+        <KpiCard label={t('dashboard.pendingOrders')}   value={0}            color="#F59E0B" icon={<IconBox />}   onClick={() => onNavigate('procurement')} />
+        <KpiCard label={t('dashboard.todaySchedules')}  value={pendingHA}    color="#8B5CF6" icon={<IconCal />}   onClick={() => onNavigate('hausanschluss')} />
+        <KpiCard label={t('dashboard.overdueInvoices')} value={0}            color={0 > 0 ? '#EF4444' : '#22C55E'} icon={<IconAlert />} onClick={() => onNavigate('billing')} />
+        <KpiCard label={t('dashboard.activeEmployees')} value={empCount}     color="#06B6D4" icon={<IconUsers />} onClick={() => onNavigate('hr')} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,320px)', gap: 18, alignItems: 'start' }} className="dashboard-main-grid">
@@ -256,23 +265,32 @@ export function DashboardPage({ user, onNavigate }: Props) {
           border: '1px solid var(--border)',
           overflow: 'hidden',
         }}>
-          <div style={{
-            padding: '13px 18px',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
+          <div
+            onClick={() => onNavigate('sites')}
+            style={{
+              padding: '13px 18px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
             <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text)', letterSpacing: '-0.01em' }}>
               {t('dashboard.kostenstellen')}
             </div>
-            <span style={{
-              fontSize: 10, color: 'var(--text-3)',
-              fontFamily: 'var(--font-mono)', fontWeight: 500,
-              background: 'var(--surface-2)',
-              padding: '2px 8px', borderRadius: 12,
-              border: '1px solid var(--border)',
-            }}>
-              {sites.length} {t('dashboard.totalCount', { count: sites.length }).replace(/\d+\s*/, '')}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                fontSize: 10, color: 'var(--text-3)',
+                fontFamily: 'var(--font-mono)', fontWeight: 500,
+                background: 'var(--surface-2)',
+                padding: '2px 8px', borderRadius: 12,
+                border: '1px solid var(--border)',
+              }}>
+                {sites.length} {t('dashboard.totalCount', { count: sites.length }).replace(/\d+\s*/, '')}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>→</span>
+            </div>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -298,7 +316,8 @@ export function DashboardPage({ user, onNavigate }: Props) {
                     ? (STATUS_META[sStatus] ?? { label: sStatus, color: '#6A7A90', bg: 'rgba(106,122,144,0.10)' })
                     : { label: t('sites.status.overhead'), color: 'var(--text-3)', bg: 'var(--surface-2)' };
                   return (
-                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border-light)' }}
+                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}
+                      onClick={() => onNavigate('sites')}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
@@ -386,20 +405,29 @@ export function DashboardPage({ user, onNavigate }: Props) {
             borderRadius: 10, border: '1px solid var(--border)',
             overflow: 'hidden',
           }}>
-            <div style={{
-              padding: '13px 14px',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
+            <div
+              onClick={() => onNavigate('hausanschluss')}
+              style={{
+                padding: '13px 14px',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
               <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--text)' }}>
                 {t('dashboard.todaySchedules')}
               </div>
-              <span style={{
-                fontSize: 10, color: 'var(--text-3)',
-                fontFamily: 'var(--font-mono)',
-              }}>
-                {new Date().toLocaleDateString(locale, { day: 'numeric', month: 'short' }).toUpperCase()}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontSize: 10, color: 'var(--text-3)',
+                  fontFamily: 'var(--font-mono)',
+                }}>
+                  {new Date().toLocaleDateString(locale, { day: 'numeric', month: 'short' }).toUpperCase()}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>→</span>
+              </div>
             </div>
 
             {!programari.length ? (
@@ -428,12 +456,15 @@ export function DashboardPage({ user, onNavigate }: Props) {
                       const s = STATUS_HA[p.status] || { bg: 'rgba(106,122,144,0.1)', color: 'var(--text-2)', label: p.status };
                       const time = p.scheduled_date.split('T')[1]?.slice(0, 5) || '';
                       return (
-                        <div key={p.id} style={{
-                          padding: '9px 12px',
-                          borderBottom: '1px solid var(--border-light)',
-                          display: 'flex', gap: 9, alignItems: 'flex-start',
-                          transition: 'background 120ms ease',
-                        }}
+                        <div key={p.id}
+                          onClick={() => onNavigate('hausanschluss')}
+                          style={{
+                            padding: '9px 12px',
+                            borderBottom: '1px solid var(--border-light)',
+                            display: 'flex', gap: 9, alignItems: 'flex-start',
+                            transition: 'background 120ms ease',
+                            cursor: 'pointer',
+                          }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >

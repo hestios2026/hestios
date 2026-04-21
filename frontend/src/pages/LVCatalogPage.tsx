@@ -304,7 +304,7 @@ export function LVCatalogPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column', gap: 0 }}>
+    <div className="page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>

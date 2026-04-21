@@ -280,7 +280,7 @@ export function BauzeitenplanPage() {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: '100%' }}>
+    <div className="page-root" style={{ maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', margin: 0 }}>{t('bauzeitenplan.title')}</h2>
 

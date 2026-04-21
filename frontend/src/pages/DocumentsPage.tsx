@@ -46,6 +46,27 @@ function useDocPageStyles() {
       .dp-cat-chip:hover { opacity: 0.85; }
       .dp-icon-btn { transition: all 0.12s; background: none; border: none; cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; }
       .dp-icon-btn:hover { background: var(--surface-3) !important; }
+      @media (max-width: 767px) {
+        .dp-three-panel { flex-direction: column !important; }
+        .dp-folder-sidebar { width: 100% !important; max-height: 220px !important; }
+        .dp-detail-panel { display: none !important; }
+        .dp-mobile-detail-overlay {
+          position: fixed; inset: 0; z-index: 500;
+          background: var(--surface);
+          overflow-y: auto;
+          padding: 0;
+        }
+        .dp-mobile-detail-back {
+          display: flex; align-items: center; gap: 8px;
+          padding: 12px 16px; font-size: 13px; font-weight: 600;
+          color: var(--green); background: var(--surface);
+          border-bottom: 1px solid var(--border);
+          cursor: pointer; position: sticky; top: 0; z-index: 1;
+        }
+      }
+      @media (min-width: 768px) {
+        .dp-mobile-detail-overlay { display: none !important; }
+      }
     `;
     document.head.appendChild(el);
     return () => { document.getElementById('docs-page-styles')?.remove(); };
@@ -591,7 +612,7 @@ function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, 
         onClose={() => setEditingFolder(null)}
       />
     )}
-    <div style={{
+    <div className="dp-folder-sidebar" style={{
       width: 236, flexShrink: 0,
       background: 'var(--surface)',
       border: '1px solid var(--border)',
@@ -1274,6 +1295,7 @@ function EmptyState({ icon, text, sub }: { icon: React.ReactNode; text: string; 
 export function DocumentsPage() {
   useDocPageStyles();
   const { t } = useTranslation();
+  const isMobile = window.innerWidth < 768;
   const [docs, setDocs] = useState<Document[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -1301,6 +1323,7 @@ export function DocumentsPage() {
   const [docsLoading, setDocsLoading] = useState(false);
   const PAGE_SIZE = 100;
   const searchRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const catMap = Object.fromEntries(categories.map(c => [c.key, c]));
   const hasFilter = !!(filterCat || filterSite || search);
@@ -1333,6 +1356,9 @@ export function DocumentsPage() {
 
   useEffect(() => {
     loadDocs(filterCat, filterSite, search, selectedFolder ? selectedFolder.id : undefined);
+    if (isMobile && selectedFolder && contentRef.current) {
+      setTimeout(() => contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
   }, [selectedFolder]);
 
   async function handleDelete() {
@@ -1418,7 +1444,7 @@ export function DocumentsPage() {
     <div className="page-root" style={{ display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0 }}>
 
       {/* ── Top bar ── */}
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="dp-topbar" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0, letterSpacing: '-0.02em' }}>
             {t('documents.title')}
@@ -1577,7 +1603,7 @@ export function DocumentsPage() {
       )}
 
       {/* ── Three-panel layout ── */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1 }}>
+      <div className="dp-three-panel" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1 }}>
 
         {/* LEFT: Folder sidebar */}
         <FolderSidebar
@@ -1593,7 +1619,7 @@ export function DocumentsPage() {
         />
 
         {/* MIDDLE: Content browser */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div ref={contentRef} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
 
           {/* Breadcrumb */}
           {breadcrumb.length > 0 && (
@@ -1769,7 +1795,7 @@ export function DocumentsPage() {
         </div>
 
         {/* RIGHT: Detail panel */}
-        <div style={{ width: 300, flexShrink: 0 }}>
+        <div className="dp-detail-panel" style={{ width: 300, flexShrink: 0 }}>
           {selected ? (
             <DocDetail
               doc={selected as any} catMap={catMap}
@@ -1850,6 +1876,31 @@ export function DocumentsPage() {
           onConfirm={async (fid) => { await handleBulkMove(fid); setBulkMoving(false); }}
           onClose={() => setBulkMoving(false)}
         />
+      )}
+
+      {/* ── Mobile detail overlay (shown instead of side panel on phones) ── */}
+      {isMobile && selected && (
+        <div className="dp-mobile-detail-overlay">
+          <div className="dp-mobile-detail-back" onClick={() => setSelected(null)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            {t('common.back', 'Înapoi')}
+          </div>
+          <div style={{ padding: '12px' }}>
+            <DocDetail
+              doc={selected as any} catMap={catMap}
+              onDelete={handleDelete}
+              onClose={() => setSelected(null)}
+              onView={() => setViewingDocId(selected.id)}
+              onEdit={() => setEditingDoc({ id: selected.id, name: selected.name })}
+              onOfficeEdit={() => setOfficeDoc({ id: selected.id, name: selected.name })}
+              onMove={() => setMovingDoc(selected)}
+              onMetaUpdated={(updated) => { setSelected(updated); setDocs(prev => prev.map(d => d.id === updated.id ? updated : d)); }}
+              onVersions={() => setVersionsDocId({ id: selected.id, name: selected.name })}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

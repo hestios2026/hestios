@@ -255,10 +255,10 @@ export function ReclamatiiPage() {
   }
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
+    <div className="page-root" style={{ maxWidth: 1200, margin: '0 auto' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0f172a' }}>{t('reclamatii.title')}</h1>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{t('reclamatii.subtitle')}</p>
@@ -277,7 +277,7 @@ export function ReclamatiiPage() {
       </div>
 
       {/* Stats bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid-4" style={{ gap: 12, marginBottom: 20 }}>
         {([
           ['open',        t('reclamatii.open'),       '#fef2f2', '#b91c1c'],
           ['in_progress', t('reclamatii.inProgress'), '#eff6ff', '#1d4ed8'],
@@ -301,22 +301,22 @@ export function ReclamatiiPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...sel, width: 160 }}>
+      <div className="filter-row" style={{ marginBottom: 18 }}>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...sel, minWidth: 140 }}>
           <option value="">{t('reclamatii.allStatuses')}</option>
           <option value="open">{t('reclamatii.statusOpen')}</option>
           <option value="in_progress">{t('reclamatii.statusInProgress')}</option>
           <option value="resolved">{t('reclamatii.statusResolved')}</option>
           <option value="closed">{t('reclamatii.statusClosed')}</option>
         </select>
-        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ ...sel, width: 160 }}>
+        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ ...sel, minWidth: 140 }}>
           <option value="">{t('reclamatii.allPriorities')}</option>
           <option value="urgent">{t('reclamatii.priorityUrgent')}</option>
           <option value="high">{t('reclamatii.priorityHigh')}</option>
           <option value="normal">{t('reclamatii.priorityNormal')}</option>
           <option value="low">{t('reclamatii.priorityLow')}</option>
         </select>
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ ...sel, width: 150 }}>
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ ...sel, minWidth: 130 }}>
           <option value="">{t('reclamatii.allTypes')}</option>
           <option value="client">{t('reclamatii.typeClient')}</option>
           <option value="equipment">{t('reclamatii.typeEquipment')}</option>
@@ -422,7 +422,7 @@ export function ReclamatiiPage() {
           <FormRow label={t('reclamatii.fieldTitle')}>
             <input style={inp} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder={t('reclamatii.titlePlaceholder')} />
           </FormRow>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <FormRow label={t('reclamatii.fieldType')}>
               <select style={sel} value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
                 <option value="internal">{t('reclamatii.typeInternal')}</option>
@@ -636,8 +636,8 @@ export function ReclamatiiPage() {
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '0 16px' }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{title}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>×</button>
