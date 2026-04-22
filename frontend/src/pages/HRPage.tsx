@@ -644,7 +644,7 @@ export function HRPage({ user }: Props) {
                 { key: 'schuhgroesse',         label: 'Bocanci',            type: 'text',     width: 80 },
                 { key: 'kleidergroesse',       label: 'Haine',              type: 'text',     width: 80 },
                 { key: 'notes',                label: 'Comentarii',         type: 'text',     width: 200 },
-                { key: 'actions',              label: '',                   type: 'readonly', width: 80 },
+                { key: 'actions',              label: '',                   type: 'readonly', width: 100 },
               ];
 
               const fmtDate = (v: string | null) => {
@@ -810,7 +810,13 @@ export function HRPage({ user }: Props) {
                               </td>
                             );
                             if (col.key === 'actions') return (
-                              <td key="actions" style={{ padding: '0 8px', height: 36, whiteSpace: 'nowrap' }}>
+                              <td key="actions" style={{ padding: '0 8px', height: 36, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button
+                                  onClick={() => handleDownloadContract(emp)}
+                                  title="Descarcă contract"
+                                  style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 700,
+                                    background: '#dbeafe', color: '#1d4ed8' }}
+                                >📄</button>
                                 <button
                                   onClick={() => toggleActive(emp)}
                                   title={emp.is_active ? 'Dezactivează' : 'Activează'}
