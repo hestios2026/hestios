@@ -69,6 +69,11 @@ class EmployeeCreate(BaseModel):
     steuerklasse: int = Field(default=1, ge=1, le=6)
     rentenversicherungsnr: Optional[OptStr100] = None
     personalnummer: Optional[OptStr100] = None
+    anmeldung_status: Optional[OptStr50] = None
+    heiratsort: Optional[OptStr100] = None
+    heiratsdatum: Optional[date] = None
+    schuhgroesse: Optional[OptStr50] = None
+    kleidergroesse: Optional[OptStr50] = None
     notes: Optional[OptText] = None
 
 
@@ -112,6 +117,11 @@ class EmployeeUpdate(BaseModel):
     bic: Optional[OptBIC] = None
     kreditinstitut: Optional[OptStr100] = None
     is_active: Optional[bool] = None
+    anmeldung_status: Optional[OptStr50] = None
+    heiratsort: Optional[OptStr100] = None
+    heiratsdatum: Optional[date] = None
+    schuhgroesse: Optional[OptStr50] = None
+    kleidergroesse: Optional[OptStr50] = None
     notes: Optional[OptText] = None
 
 
@@ -174,6 +184,11 @@ def _emp_dict(e: Employee):
         "rentenversicherungsnr": e.rentenversicherungsnr,
         "personalnummer": e.personalnummer,
         "is_active": e.is_active,
+        "anmeldung_status": e.anmeldung_status,
+        "heiratsort": e.heiratsort,
+        "heiratsdatum": e.heiratsdatum,
+        "schuhgroesse": e.schuhgroesse,
+        "kleidergroesse": e.kleidergroesse,
         "notes": e.notes,
         "created_at": e.created_at,
     }

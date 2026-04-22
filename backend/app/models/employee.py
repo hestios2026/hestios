@@ -75,6 +75,14 @@ class Employee(Base):
     steuerklasse            = Column(Integer, default=1)
     rentenversicherungsnr   = Column(String(20))
     personalnummer          = Column(String(20))
+    # Anmeldung
+    anmeldung_status        = Column(String(50))           # angemeldet / abgemeldet / ausstehend
+    # Casatorie
+    heiratsort              = Column(String(100))
+    heiratsdatum            = Column(Date)
+    # Echipament
+    schuhgroesse            = Column(String(10))           # bocanci, ex: "42"
+    kleidergroesse          = Column(String(20))           # haine, ex: "L" / "54"
     # Status
     is_active               = Column(Boolean, default=True)
     notes                   = Column(Text)

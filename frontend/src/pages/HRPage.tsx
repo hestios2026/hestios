@@ -58,6 +58,11 @@ interface Employee {
   steuerklasse: number;
   rentenversicherungsnr: string | null;
   personalnummer: string | null;
+  anmeldung_status: string | null;
+  heiratsort: string | null;
+  heiratsdatum: string | null;
+  schuhgroesse: string | null;
+  kleidergroesse: string | null;
   is_active: boolean;
   notes: string | null;
   stunden_pro_woche?: number;
@@ -196,6 +201,9 @@ export function HRPage({ user }: Props) {
   const [form, setForm]           = useState<FormState>(EMPTY_FORM);
   const [formTab, setFormTab]     = useState<'personal' | 'angajare' | 'financiar'>('personal');
   const [filter, setFilter]       = useState('');
+  const [editingCell, setEditingCell] = useState<{ empId: number; field: string } | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [savingCell, setSavingCell]   = useState<string | null>(null);
 
   // ── Pontaj state ────────────────────────────────────────────────────────────
   const now = new Date();
@@ -296,6 +304,22 @@ export function HRPage({ user }: Props) {
       setEmployees(updated);
       setSelected(updated.find((e: Employee) => e.id === emp.id) || null);
     } catch { toast.error(t('common.error')); }
+  }
+
+  async function saveCell(emp: Employee, field: string, rawValue: string) {
+    const cellKey = `${emp.id}-${field}`;
+    setSavingCell(cellKey);
+    setEditingCell(null);
+    try {
+      let parsed: string | number | null = rawValue === '' ? null : rawValue;
+      if (['kinder_anzahl', 'steuerklasse', 'lohngruppe', 'urlaubsanspruch_tage'].includes(field))
+        parsed = rawValue === '' ? null : parseInt(rawValue) || 0;
+      if (['tariflohn', 'bauzuschlag', 'stunden_pro_woche'].includes(field))
+        parsed = rawValue === '' ? null : parseFloat(rawValue) || 0;
+      await updateEmployee(emp.id, { [field]: parsed });
+      setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, [field]: parsed } : e));
+    } catch { toast.error(t('common.error')); }
+    finally { setSavingCell(null); }
   }
 
   async function handleDownloadContract(emp: Employee) {
@@ -425,60 +449,214 @@ export function HRPage({ user }: Props) {
 
       {/* ── ANGAJAȚI ─────────────────────────────────────────────────────────── */}
       {mainTab === 'angajati' && (
-        <div className="split-layout" style={{ flex: 1 }}>
-          {/* Left list */}
-          <div className="split-sidebar" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontWeight: 800, fontSize: 15, color: '#1e293b' }}>
-                  {t('hr.tabs.employees')} <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>({employees.filter(e => e.is_active).length} {t('common.active').toLowerCase()})</span>
-                </span>
-                <button onClick={() => { setShowForm(true); setSelected(null); setFormTab('personal'); }} style={{
-                  padding: '4px 12px', borderRadius: 6, border: 'none',
-                  background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
-                }}>+ {t('common.new')}</button>
-              </div>
-              <input placeholder={t('hr.searchPlaceholder')} value={filter} onChange={e => setFilter(e.target.value)} style={{ ...inp, fontSize: 12 }} />
-            </div>
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              {filtered.map(e => (
-                <div key={e.id} onClick={() => { setSelected(e); setShowForm(false); }} style={{
-                  padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f8fafc',
-                  background: selected?.id === e.id ? '#eff6ff' : '#fff',
-                  borderLeft: selected?.id === e.id ? '3px solid #22C55E' : '3px solid transparent',
-                  opacity: e.is_active ? 1 : 0.5,
-                }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{e.nachname} {e.vorname}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{e.taetigkeit}</div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 10, background: e.is_active ? '#d1fae5' : '#f1f5f9', color: e.is_active ? '#059669' : '#94a3b8' }}>
-                      {e.is_active ? t('common.active') : t('common.inactive')}
-                    </span>
-                    <span style={{ fontSize: 10, color: '#94a3b8' }}>LG {e.lohngruppe} · €{e.tariflohn.toFixed(2)}/h</span>
-                  </div>
-                </div>
-              ))}
-              {!filtered.length && (
-                <div style={{ padding: 24, color: '#94a3b8', textAlign: 'center', fontSize: 13 }}>
-                  {filter ? t('common.noResults') : t('hr.noEmployees')}
-                </div>
-              )}
-            </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+          {/* Toolbar */}
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <span style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+              {t('hr.tabs.employees')}
+              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500, marginLeft: 6 }}>
+                ({employees.filter(e => e.is_active).length} activi)
+              </span>
+            </span>
+            <input
+              placeholder={t('hr.searchPlaceholder')}
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              style={{ ...inp, width: 220, fontSize: 12, marginLeft: 8 }}
+            />
+            <button
+              onClick={() => { setShowForm(true); setSelected(null); setFormTab('personal'); }}
+              style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+            >+ {t('common.new')}</button>
           </div>
 
-          {/* Right panel */}
-          <div className="split-content page-root">
+          {/* Table */}
+          <div style={{ flex: 1, overflow: 'auto', padding: '0 0 24px 0' }}>
+            {(() => {
+              const COLS: { key: string; label: string; type: string; options?: string[]; width: number }[] = [
+                { key: 'nr',                   label: 'Nr',                 type: 'readonly', width: 42 },
+                { key: 'nachname',             label: 'Nume',               type: 'text',     width: 110 },
+                { key: 'vorname',              label: 'Prenume',            type: 'text',     width: 110 },
+                { key: 'geburtsdatum',         label: 'Data nașterii',      type: 'date',     width: 110 },
+                { key: 'arbeitsbeginn',        label: 'Început contract',   type: 'date',     width: 110 },
+                { key: 'befristung_bis',       label: 'Sfârșit contract',   type: 'date',     width: 110 },
+                { key: 'steuer_id',            label: 'Identifikationsnr.', type: 'text',     width: 130 },
+                { key: 'sozialversicherungsnr',label: 'SV-Nr.',             type: 'text',     width: 130 },
+                { key: 'adresse',              label: 'Anmeldung Adresse',  type: 'text',     width: 180 },
+                { key: 'anmeldung_status',     label: 'Anmeldung Status',   type: 'select',   width: 120,
+                  options: ['', 'angemeldet', 'abgemeldet', 'ausstehend'] },
+                { key: 'geburtsort',           label: 'Loc naștere',        type: 'text',     width: 120 },
+                { key: 'familienstand',        label: 'Stare civilă',       type: 'select',   width: 110,
+                  options: ['', 'ledig', 'verheiratet', 'geschieden', 'verwitwet'] },
+                { key: 'heiratsort',           label: 'Loc căsătorie',      type: 'text',     width: 120 },
+                { key: 'heiratsdatum',         label: 'Data căsătoriei',    type: 'date',     width: 110 },
+                { key: 'kinder_anzahl',        label: 'Copii',              type: 'number',   width: 60 },
+                { key: 'heimatadresse',        label: 'Adresă domiciliu',   type: 'text',     width: 180 },
+                { key: 'tariflohn',            label: 'Lohn (€/h)',         type: 'number',   width: 90 },
+                { key: 'iban',                 label: 'Cont bancar',        type: 'text',     width: 180 },
+                { key: 'taetigkeit',           label: 'Beruf',              type: 'text',     width: 130 },
+                { key: 'schuhgroesse',         label: 'Bocanci',            type: 'text',     width: 80 },
+                { key: 'kleidergroesse',       label: 'Haine',              type: 'text',     width: 80 },
+                { key: 'notes',                label: 'Comentarii',         type: 'text',     width: 200 },
+                { key: 'actions',              label: '',                   type: 'readonly', width: 80 },
+              ];
 
-            {/* New employee form */}
-            {showForm && (
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>{t('hr.addEmployee')}</div>
+              const fmtDate = (v: string | null) => {
+                if (!v) return '';
+                const [y, m, d] = v.split('T')[0].split('-');
+                return `${d}.${m}.${y}`;
+              };
+
+              const cellKey = (empId: number, field: string) => `${empId}-${field}`;
+
+              const startEdit = (emp: Employee, field: string) => {
+                const raw = (emp as any)[field];
+                setEditingCell({ empId: emp.id, field });
+                setEditingValue(raw === null || raw === undefined ? '' : String(raw));
+              };
+
+              const renderCellContent = (emp: Employee, col: typeof COLS[0]) => {
+                if (col.key === 'nr') return null; // handled outside
+                if (col.key === 'actions') return null; // handled outside
+                const isEditing = editingCell?.empId === emp.id && editingCell?.field === col.key;
+                const isSaving = savingCell === cellKey(emp.id, col.key);
+                const raw = (emp as any)[col.key];
+
+                const cellStyle: React.CSSProperties = {
+                  padding: '0 8px', height: '100%', display: 'flex', alignItems: 'center',
+                  cursor: 'text', minWidth: col.width,
+                  background: isSaving ? '#f0fdf4' : isEditing ? '#eff6ff' : undefined,
+                  outline: isEditing ? '2px solid #22C55E' : undefined,
+                  outlineOffset: -2,
+                };
+
+                if (isEditing) {
+                  if (col.type === 'select') {
+                    return (
+                      <div style={cellStyle}>
+                        <select
+                          autoFocus
+                          value={editingValue}
+                          onChange={e => setEditingValue(e.target.value)}
+                          onBlur={() => saveCell(emp, col.key, editingValue)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveCell(emp, col.key, editingValue); if (e.key === 'Escape') setEditingCell(null); }}
+                          style={{ border: 'none', background: 'transparent', fontSize: 12, width: '100%', outline: 'none', cursor: 'pointer' }}
+                        >
+                          {col.options!.map(o => <option key={o} value={o}>{o || '—'}</option>)}
+                        </select>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={cellStyle}>
+                      <input
+                        autoFocus
+                        type={col.type === 'date' ? 'date' : col.type === 'number' ? 'number' : 'text'}
+                        step={col.key === 'tariflohn' || col.key === 'bauzuschlag' ? '0.01' : undefined}
+                        value={editingValue}
+                        onChange={e => setEditingValue(e.target.value)}
+                        onBlur={() => saveCell(emp, col.key, editingValue)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveCell(emp, col.key, editingValue); if (e.key === 'Escape') setEditingCell(null); }}
+                        style={{ border: 'none', background: 'transparent', fontSize: 12, width: '100%', outline: 'none' }}
+                      />
+                    </div>
+                  );
+                }
+
+                let display = '';
+                if (col.type === 'date') display = fmtDate(raw);
+                else if (col.key === 'tariflohn') display = raw != null ? `€${Number(raw).toFixed(2)}` : '';
+                else display = raw != null ? String(raw) : '';
+
+                const isEmpty = !display;
+                return (
+                  <div
+                    style={{ ...cellStyle, color: isEmpty ? '#cbd5e1' : '#1e293b' }}
+                    onClick={() => { if (col.type !== 'readonly') startEdit(emp, col.key); }}
+                    title={isEmpty ? 'Click pentru editare' : display}
+                  >
+                    {isSaving ? (
+                      <span style={{ fontSize: 10, color: '#22C55E' }}>●</span>
+                    ) : (
+                      <span style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: col.width - 16 }}>
+                        {isEmpty ? '—' : display}
+                      </span>
+                    )}
+                  </div>
+                );
+              };
+
+              return (
+                <table style={{ borderCollapse: 'collapse', minWidth: '100%', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 2 }}>
+                      {COLS.map(col => (
+                        <th key={col.key} style={{
+                          padding: '8px 8px', textAlign: 'left', fontWeight: 700, fontSize: 11,
+                          color: '#64748b', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap',
+                          minWidth: col.width, width: col.width,
+                          position: col.key === 'nr' ? 'sticky' : undefined,
+                          left: col.key === 'nr' ? 0 : undefined,
+                          background: '#f8fafc',
+                          zIndex: col.key === 'nr' ? 3 : undefined,
+                        }}>
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((emp, idx) => (
+                      <tr key={emp.id} style={{ borderBottom: '1px solid #f1f5f9', background: emp.is_active ? '#fff' : '#fafafa', opacity: emp.is_active ? 1 : 0.55 }}>
+                        {COLS.map(col => {
+                          if (col.key === 'nr') return (
+                            <td key="nr" style={{ padding: '0 8px', height: 36, fontSize: 11, color: '#94a3b8', fontWeight: 600, minWidth: 42, background: '#f8fafc', position: 'sticky', left: 0, zIndex: 1, borderRight: '1px solid #e2e8f0' }}>
+                              {idx + 1}
+                            </td>
+                          );
+                          if (col.key === 'actions') return (
+                            <td key="actions" style={{ padding: '0 8px', height: 36, whiteSpace: 'nowrap' }}>
+                              <button
+                                onClick={() => toggleActive(emp)}
+                                title={emp.is_active ? 'Dezactivează' : 'Activează'}
+                                style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 700,
+                                  background: emp.is_active ? '#fee2e2' : '#d1fae5', color: emp.is_active ? '#dc2626' : '#059669' }}
+                              >{emp.is_active ? 'OFF' : 'ON'}</button>
+                            </td>
+                          );
+                          return (
+                            <td key={col.key} style={{ height: 36, padding: 0, maxWidth: col.width }}>
+                              {renderCellContent(emp, col)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                    {!filtered.length && (
+                      <tr><td colSpan={COLS.length} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                        {filter ? t('common.noResults') : t('hr.noEmployees')}
+                      </td></tr>
+                    )}
+                  </tbody>
+                </table>
+              );
+            })()}
+          </div>
+
+          {/* New employee modal */}
+          {showForm && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+              onClick={e => { if (e.target === e.currentTarget) { setShowForm(false); setForm(EMPTY_FORM); } }}>
+              <div style={{ background: '#f8fafc', borderRadius: 14, padding: 28, maxWidth: 720, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>{t('hr.addEmployee')}</div>
                 <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 4, width: 'fit-content', marginBottom: 20 }}>
                   {tabBtn('personal', t('hr.tabs.personal'))}
                   {tabBtn('angajare', t('hr.tabs.employment'))}
                   {tabBtn('financiar', t('hr.tabs.financial'))}
                 </div>
-                <form onSubmit={submitForm} style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 700, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                <form onSubmit={submitForm}>
+                  <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     {formTab === 'personal' && <>
                       {sectionHdr(t('hr.sections.identity'))}
@@ -616,107 +794,15 @@ export function HRPage({ user }: Props) {
                       <button type="button" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>{t('common.cancel')}</button>
                     </div>
                   </div>
+                  </div>
                 </form>
               </div>
-            )}
+            </div>
+        )}
 
-            {/* Employee detail */}
-            {!showForm && selected && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
-                  <div>
-                    <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', margin: 0 }}>{selected.nachname} {selected.vorname}</h2>
-                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{selected.taetigkeit} · LG {selected.lohngruppe}</div>
-                    {selected.personalnummer && <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace', marginTop: 2 }}>#{selected.personalnummer}</div>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => handleDownloadContract(selected)} style={{
-                      padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 11,
-                      background: '#dbeafe', color: '#22C55E',
-                    }}>{t('hr.downloadContract')}</button>
-                    <button onClick={() => toggleActive(selected)} style={{
-                      padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 11,
-                      background: selected.is_active ? '#fee2e2' : '#d1fae5', color: selected.is_active ? '#dc2626' : '#059669',
-                    }}>{selected.is_active ? t('common.inactive') : t('common.active')}</button>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
-                  {[
-                    ['Tariflohn', `€${selected.tariflohn.toFixed(2)}/h`],
-                    ['Bauzuschlag', `€${selected.bauzuschlag.toFixed(2)}/h`],
-                    ['Total/h', `€${(selected.tariflohn + selected.bauzuschlag).toFixed(2)}`],
-                    ['Steuerklasse', selected.steuerklasse],
-                    [t('hr.startDate'), new Date(selected.arbeitsbeginn).toLocaleDateString(i18n.language)],
-                    [t('hr.contract'), selected.contract_type === 'unbefristet' ? t('hr.contractUnlimited') : selected.contract_type === 'befristet' ? t('hr.contractFixed') : 'Minijob'],
-                  ].map(([label, val]) => (
-                    <div key={label as string} style={{ background: '#fff', borderRadius: 8, padding: '12px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-                      <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginTop: 2 }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                  <div style={{ background: '#fff', borderRadius: 10, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', marginBottom: 12 }}>{t('hr.sections.personalData')}</div>
-                    {[
-                      [t('hr.dateOfBirth'), selected.geburtsdatum ? new Date(selected.geburtsdatum).toLocaleDateString(i18n.language) : '—'],
-                      [t('hr.placeOfBirth'), selected.geburtsort || '—'],
-                      ...(selected.geburtsname ? [['Geburtsname', selected.geburtsname]] : []),
-                      ...(selected.geschlecht ? [['Geschlecht', selected.geschlecht]] : []),
-                      ...(selected.email ? [['E-Mail', selected.email]] : []),
-                      ...(selected.telefon ? [['Telefon', selected.telefon]] : []),
-                      [t('common.address'), selected.adresse || '—'],
-                      [t('hr.nationality'), selected.nationalitaet || '—'],
-                      [t('hr.maritalStatus'), selected.familienstand || '—'],
-                      [t('hr.children'), selected.kinder ? `${t('common.yes')} (${selected.kinder_anzahl})` : t('common.no')],
-                      ...(selected.kinder_pflegev ? [['Kinder u. 25 (Pflegev.)', String(selected.kinder_pflegev)]] : []),
-                      [t('hr.confession'), selected.konfession || '—'],
-                      ...(selected.reisepassnummer ? [['Reisepass Nr.', selected.reisepassnummer]] : []),
-                      ...(selected.notfallkontakt_name ? [['Notfallkontakt', `${selected.notfallkontakt_name}${selected.notfallkontakt_telefon ? ' · ' + selected.notfallkontakt_telefon : ''}`]] : []),
-                    ].map(([k, v]) => (
-                      <div key={k as string} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f8fafc', fontSize: 13 }}>
-                        <span style={{ color: '#64748b' }}>{k}</span>
-                        <span style={{ fontWeight: 600, color: '#1e293b', textAlign: 'right', maxWidth: '60%' }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ background: '#fff', borderRadius: 10, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', marginBottom: 12 }}>{t('hr.sections.fiscalBank')}</div>
-                    {[
-                      [t('hr.iban'), selected.iban || '—'],
-                      [t('hr.bankName'), selected.kreditinstitut || '—'],
-                      ['Krankenkasse', selected.krankenkasse || '—'],
-                      ...(selected.vorherige_krankenkasse ? [['Vorh. Krankenkasse', selected.vorherige_krankenkasse]] : []),
-                      [t('hr.taxId'), selected.steuer_id || '—'],
-                      ['SV-Nr.', selected.sozialversicherungsnr || '—'],
-                      ['Rentenvers.-Nr.', selected.rentenversicherungsnr || '—'],
-                    ].map(([k, v]) => (
-                      <div key={k as string} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f8fafc', fontSize: 13 }}>
-                        <span style={{ color: '#64748b' }}>{k}</span>
-                        <span style={{ fontWeight: 600, color: '#1e293b', fontFamily: (k as string).includes('IBAN') || (k as string).includes('Nr') ? 'monospace' : 'inherit', fontSize: 12 }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {selected.notes && (
-                  <div style={{ marginTop: 16, background: '#fff', borderRadius: 10, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', fontSize: 13, color: '#64748b', fontStyle: 'italic' }}>
-                    {selected.notes}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!showForm && !selected && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60%', color: '#94a3b8', fontSize: 15 }}>
-                {t('hr.selectEmployee')}
-              </div>
-            )}
-          </div>
         </div>
       )}
+
 
       {/* ── PONTAJ ───────────────────────────────────────────────────────────── */}
       {mainTab === 'pontaj' && (
