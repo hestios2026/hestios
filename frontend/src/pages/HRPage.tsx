@@ -1,4 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import toast from 'react-hot-toast';
@@ -204,6 +207,12 @@ export function HRPage({ user }: Props) {
   const [editingCell, setEditingCell] = useState<{ empId: number; field: string } | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [savingCell, setSavingCell]   = useState<string | null>(null);
+  const [sortCol, setSortCol]         = useState<string | null>(null);
+  const [sortDir, setSortDir]         = useState<'asc' | 'desc'>('asc');
+  const [colFilters, setColFilters]   = useState<Record<string, string>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showExport, setShowExport]   = useState(false);
+  const [exportFields, setExportFields] = useState<Set<string>>(new Set());
 
   // ── Pontaj state ────────────────────────────────────────────────────────────
   const now = new Date();
@@ -399,11 +408,130 @@ export function HRPage({ user }: Props) {
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
-  const filtered = employees.filter(e =>
-    !filter ||
-    `${e.vorname} ${e.nachname}`.toLowerCase().includes(filter.toLowerCase()) ||
-    (e.personalnummer || '').toLowerCase().includes(filter.toLowerCase())
-  );
+  const fmtDateStr = (v: string | null) => {
+    if (!v) return '';
+    const [y, m, d] = v.split('T')[0].split('-');
+    return `${d}.${m}.${y}`;
+  };
+
+  const filtered = useMemo(() => {
+    let list = employees.filter(e =>
+      !filter ||
+      `${e.vorname} ${e.nachname}`.toLowerCase().includes(filter.toLowerCase()) ||
+      (e.personalnummer || '').toLowerCase().includes(filter.toLowerCase())
+    );
+    // column filters
+    for (const [field, val] of Object.entries(colFilters)) {
+      if (!val) continue;
+      list = list.filter(e => {
+        const raw = (e as any)[field];
+        if (raw == null) return false;
+        return String(raw).toLowerCase().includes(val.toLowerCase());
+      });
+    }
+    // sort
+    if (sortCol) {
+      list = [...list].sort((a, b) => {
+        const av = (a as any)[sortCol] ?? '';
+        const bv = (b as any)[sortCol] ?? '';
+        const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+    }
+    return list;
+  }, [employees, filter, colFilters, sortCol, sortDir]);
+
+  function toggleSort(col: string) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length && filtered.length > 0)
+      setSelectedIds(new Set());
+    else
+      setSelectedIds(new Set(filtered.map(e => e.id)));
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
+  }
+
+  // ── Export ──────────────────────────────────────────────────────────────────
+  const EXPORT_COLS: { key: string; label: string }[] = [
+    { key: 'nachname',              label: 'Nume' },
+    { key: 'vorname',               label: 'Prenume' },
+    { key: 'geburtsdatum',          label: 'Data nașterii' },
+    { key: 'geburtsort',            label: 'Loc naștere' },
+    { key: 'arbeitsbeginn',         label: 'Început contract' },
+    { key: 'befristung_bis',        label: 'Sfârșit contract' },
+    { key: 'steuer_id',             label: 'Identifikationsnr.' },
+    { key: 'sozialversicherungsnr', label: 'SV-Nr.' },
+    { key: 'adresse',               label: 'Anmeldung Adresse' },
+    { key: 'anmeldung_status',      label: 'Anmeldung Status' },
+    { key: 'familienstand',         label: 'Stare civilă' },
+    { key: 'heiratsort',            label: 'Loc căsătorie' },
+    { key: 'heiratsdatum',          label: 'Data căsătoriei' },
+    { key: 'kinder_anzahl',         label: 'Copii' },
+    { key: 'heimatadresse',         label: 'Adresă domiciliu' },
+    { key: 'tariflohn',             label: 'Lohn (€/h)' },
+    { key: 'iban',                  label: 'Cont bancar' },
+    { key: 'taetigkeit',            label: 'Beruf' },
+    { key: 'schuhgroesse',          label: 'Bocanci' },
+    { key: 'kleidergroesse',        label: 'Haine' },
+    { key: 'telefon',               label: 'Telefon' },
+    { key: 'email',                 label: 'E-Mail' },
+    { key: 'nationalitaet',         label: 'Naționalitate' },
+    { key: 'krankenkasse',          label: 'Krankenkasse' },
+    { key: 'personalnummer',        label: 'Personalnummer' },
+    { key: 'notes',                 label: 'Comentarii' },
+  ];
+
+  function getCellValue(emp: Employee, key: string): string {
+    const v = (emp as any)[key];
+    if (v == null) return '';
+    if (key.includes('datum') || key === 'arbeitsbeginn' || key === 'befristung_bis') return fmtDateStr(v);
+    if (key === 'tariflohn') return `€${Number(v).toFixed(2)}`;
+    return String(v);
+  }
+
+  function exportToExcel() {
+    const toExport = filtered.filter(e => selectedIds.size === 0 || selectedIds.has(e.id));
+    const activeCols = EXPORT_COLS.filter(c => exportFields.has(c.key));
+    const headers = activeCols.map(c => c.label);
+    const rows = toExport.map(emp => activeCols.map(c => getCellValue(emp, c.key)));
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    // column widths
+    ws['!cols'] = activeCols.map(() => ({ wch: 20 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Angajați');
+    XLSX.writeFile(wb, `angajati_${new Date().toISOString().split('T')[0]}.xlsx`);
+    setShowExport(false);
+  }
+
+  function exportToPDF() {
+    const toExport = filtered.filter(e => selectedIds.size === 0 || selectedIds.has(e.id));
+    const activeCols = EXPORT_COLS.filter(c => exportFields.has(c.key));
+    const doc = new jsPDF({ orientation: activeCols.length > 8 ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFontSize(13);
+    doc.text('Angajați — HestiOS', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Export: ${new Date().toLocaleDateString('ro-RO')} · ${toExport.length} persoane`, 14, 21);
+    autoTable(doc, {
+      startY: 26,
+      head: [activeCols.map(c => c.label)],
+      body: toExport.map(emp => activeCols.map(c => getCellValue(emp, c.key))),
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    doc.save(`angajati_${new Date().toISOString().split('T')[0]}.pdf`);
+    setShowExport(false);
+  }
 
   const tabBtn = (key: typeof formTab, label: string) => (
     <button type="button" onClick={() => setFormTab(key)} style={{
@@ -452,23 +580,40 @@ export function HRPage({ user }: Props) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Toolbar */}
-          <div style={{ padding: '10px 20px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ padding: '10px 20px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
               {t('hr.tabs.employees')}
               <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500, marginLeft: 6 }}>
-                ({employees.filter(e => e.is_active).length} activi)
+                ({employees.filter(e => e.is_active).length} activi · {filtered.length} afișați)
               </span>
             </span>
             <input
-              placeholder={t('hr.searchPlaceholder')}
+              placeholder="Caută după nume / nr..."
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              style={{ ...inp, width: 220, fontSize: 12, marginLeft: 8 }}
+              style={{ ...inp, width: 200, fontSize: 12 }}
             />
-            <button
-              onClick={() => { setShowForm(true); setSelected(null); setFormTab('personal'); }}
-              style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-            >+ {t('common.new')}</button>
+            {Object.values(colFilters).some(Boolean) && (
+              <button onClick={() => setColFilters({})} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                ✕ Resetează filtre
+              </button>
+            )}
+            {selectedIds.size > 0 && (
+              <span style={{ fontSize: 12, color: '#22C55E', fontWeight: 700 }}>{selectedIds.size} selectați</span>
+            )}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  setShowExport(true);
+                  setExportFields(new Set(EXPORT_COLS.map(c => c.key)));
+                }}
+                style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#1e293b', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >↓ Export</button>
+              <button
+                onClick={() => { setShowForm(true); setSelected(null); setFormTab('personal'); }}
+                style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+              >+ {t('common.new')}</button>
+            </div>
           </div>
 
           {/* Table */}
@@ -587,55 +732,105 @@ export function HRPage({ user }: Props) {
                 );
               };
 
+              const allSelected = filtered.length > 0 && filtered.every(e => selectedIds.has(e.id));
+              const stickyHd: React.CSSProperties = { background: '#f8fafc', position: 'sticky', zIndex: 3, left: 0 };
+
               return (
                 <table style={{ borderCollapse: 'collapse', minWidth: '100%', fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 2 }}>
-                      {COLS.map(col => (
-                        <th key={col.key} style={{
-                          padding: '8px 8px', textAlign: 'left', fontWeight: 700, fontSize: 11,
-                          color: '#64748b', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap',
-                          minWidth: col.width, width: col.width,
-                          position: col.key === 'nr' ? 'sticky' : undefined,
-                          left: col.key === 'nr' ? 0 : undefined,
-                          background: '#f8fafc',
-                          zIndex: col.key === 'nr' ? 3 : undefined,
-                        }}>
-                          {col.label}
-                        </th>
-                      ))}
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
+                    {/* Sort row */}
+                    <tr style={{ background: '#f8fafc' }}>
+                      {/* checkbox sticky */}
+                      <th style={{ ...stickyHd, width: 36, minWidth: 36, padding: '8px 8px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>
+                        <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
+                      </th>
+                      {COLS.map(col => {
+                        const isSorted = sortCol === col.key;
+                        const sortable = col.type !== 'readonly' && col.key !== 'actions';
+                        return (
+                          <th key={col.key} onClick={() => sortable && toggleSort(col.key)}
+                            style={{
+                              padding: '8px 8px', textAlign: 'left', fontWeight: 700, fontSize: 11,
+                              color: isSorted ? '#22C55E' : '#64748b',
+                              borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap',
+                              minWidth: col.width, width: col.width,
+                              background: '#f8fafc',
+                              cursor: sortable ? 'pointer' : 'default',
+                              userSelect: 'none',
+                            }}>
+                            {col.label}
+                            {isSorted && <span style={{ marginLeft: 4 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                    {/* Filter row */}
+                    <tr style={{ background: '#fff' }}>
+                      <th style={{ ...stickyHd, borderBottom: '2px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }} />
+                      {COLS.map(col => {
+                        const filterable = col.type !== 'readonly' && col.key !== 'actions' && col.key !== 'nr';
+                        return (
+                          <th key={col.key} style={{ padding: '3px 4px', borderBottom: '2px solid #e2e8f0', background: '#fff', minWidth: col.width }}>
+                            {filterable && (
+                              col.type === 'select' ? (
+                                <select
+                                  value={colFilters[col.key] || ''}
+                                  onChange={e => setColFilters(p => ({ ...p, [col.key]: e.target.value }))}
+                                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 10, padding: '2px 4px', background: colFilters[col.key] ? '#eff6ff' : '#fff' }}
+                                >
+                                  <option value="">Toate</option>
+                                  {col.options!.filter(Boolean).map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              ) : (
+                                <input
+                                  value={colFilters[col.key] || ''}
+                                  onChange={e => setColFilters(p => ({ ...p, [col.key]: e.target.value }))}
+                                  placeholder="Filtrează..."
+                                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 10, padding: '2px 4px', background: colFilters[col.key] ? '#eff6ff' : '#fff', boxSizing: 'border-box' }}
+                                />
+                              )
+                            )}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((emp, idx) => (
-                      <tr key={emp.id} style={{ borderBottom: '1px solid #f1f5f9', background: emp.is_active ? '#fff' : '#fafafa', opacity: emp.is_active ? 1 : 0.55 }}>
-                        {COLS.map(col => {
-                          if (col.key === 'nr') return (
-                            <td key="nr" style={{ padding: '0 8px', height: 36, fontSize: 11, color: '#94a3b8', fontWeight: 600, minWidth: 42, background: '#f8fafc', position: 'sticky', left: 0, zIndex: 1, borderRight: '1px solid #e2e8f0' }}>
-                              {idx + 1}
-                            </td>
-                          );
-                          if (col.key === 'actions') return (
-                            <td key="actions" style={{ padding: '0 8px', height: 36, whiteSpace: 'nowrap' }}>
-                              <button
-                                onClick={() => toggleActive(emp)}
-                                title={emp.is_active ? 'Dezactivează' : 'Activează'}
-                                style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 700,
-                                  background: emp.is_active ? '#fee2e2' : '#d1fae5', color: emp.is_active ? '#dc2626' : '#059669' }}
-                              >{emp.is_active ? 'OFF' : 'ON'}</button>
-                            </td>
-                          );
-                          return (
-                            <td key={col.key} style={{ height: 36, padding: 0, maxWidth: col.width }}>
-                              {renderCellContent(emp, col)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                    {filtered.map((emp, idx) => {
+                      const isSelected = selectedIds.has(emp.id);
+                      return (
+                        <tr key={emp.id} style={{ borderBottom: '1px solid #f1f5f9', background: isSelected ? '#f0fdf4' : emp.is_active ? '#fff' : '#fafafa', opacity: emp.is_active ? 1 : 0.55 }}>
+                          <td style={{ padding: '0 8px', height: 36, background: isSelected ? '#f0fdf4' : '#f8fafc', position: 'sticky', left: 0, zIndex: 1, borderRight: '1px solid #e2e8f0', textAlign: 'center' }}>
+                            <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(emp.id)} style={{ cursor: 'pointer' }} />
+                          </td>
+                          {COLS.map(col => {
+                            if (col.key === 'nr') return (
+                              <td key="nr" style={{ padding: '0 8px', height: 36, fontSize: 11, color: '#94a3b8', fontWeight: 600, minWidth: 42 }}>
+                                {idx + 1}
+                              </td>
+                            );
+                            if (col.key === 'actions') return (
+                              <td key="actions" style={{ padding: '0 8px', height: 36, whiteSpace: 'nowrap' }}>
+                                <button
+                                  onClick={() => toggleActive(emp)}
+                                  title={emp.is_active ? 'Dezactivează' : 'Activează'}
+                                  style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 700,
+                                    background: emp.is_active ? '#fee2e2' : '#d1fae5', color: emp.is_active ? '#dc2626' : '#059669' }}
+                                >{emp.is_active ? 'OFF' : 'ON'}</button>
+                              </td>
+                            );
+                            return (
+                              <td key={col.key} style={{ height: 36, padding: 0, maxWidth: col.width }}>
+                                {renderCellContent(emp, col)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                     {!filtered.length && (
-                      <tr><td colSpan={COLS.length} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-                        {filter ? t('common.noResults') : t('hr.noEmployees')}
+                      <tr><td colSpan={COLS.length + 1} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                        Niciun rezultat
                       </td></tr>
                     )}
                   </tbody>
@@ -643,6 +838,65 @@ export function HRPage({ user }: Props) {
               );
             })()}
           </div>
+
+          {/* Export modal */}
+          {showExport && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+              onClick={e => { if (e.target === e.currentTarget) setShowExport(false); }}>
+              <div style={{ background: '#fff', borderRadius: 14, padding: 28, maxWidth: 560, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+                <div style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>Export angajați</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+                  {selectedIds.size > 0 ? `${selectedIds.size} selectați` : `Toți (${filtered.length})`} · alege câmpurile de inclus
+                </div>
+
+                {/* Field checkboxes */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', maxHeight: 320, overflowY: 'auto', marginBottom: 20 }}>
+                  {EXPORT_COLS.map(c => (
+                    <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', padding: '3px 0' }}>
+                      <input
+                        type="checkbox"
+                        checked={exportFields.has(c.key)}
+                        onChange={() => setExportFields(prev => {
+                          const s = new Set(prev);
+                          s.has(c.key) ? s.delete(c.key) : s.add(c.key);
+                          return s;
+                        })}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => setExportFields(new Set(EXPORT_COLS.map(c => c.key)))}
+                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
+                      Toate
+                    </button>
+                    <button onClick={() => setExportFields(new Set())}
+                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
+                      Niciunul
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setShowExport(false)}
+                      style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                      Anulează
+                    </button>
+                    <button onClick={exportToExcel} disabled={exportFields.size === 0}
+                      style={{ padding: '8px 16px', borderRadius: 7, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 13, cursor: exportFields.size ? 'pointer' : 'not-allowed', opacity: exportFields.size ? 1 : 0.5 }}>
+                      ↓ Excel
+                    </button>
+                    <button onClick={exportToPDF} disabled={exportFields.size === 0}
+                      style={{ padding: '8px 16px', borderRadius: 7, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13, cursor: exportFields.size ? 'pointer' : 'not-allowed', opacity: exportFields.size ? 1 : 0.5 }}>
+                      ↓ PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* New employee modal */}
           {showForm && (
