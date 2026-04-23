@@ -103,6 +103,11 @@ export const translations = {
     optTrotuar: 'Trotuar',
     optDa: 'DA',
     optNu: 'NU',
+    optNormal: 'Normal',
+    optUrgent: 'Urgent',
+    fMateriale: 'Ce materiale sunt necesare?',
+    fUrgenta: 'Urgență',
+    fNotesOptional: 'Observații (opțional)',
 
     // Map / location
     mapTitleSingle: 'Selectează locație',
@@ -150,6 +155,8 @@ export const translations = {
     vEnterLocStart: 'Locația Start este obligatorie.',
     vEnterLocStop: 'Locația Stop este obligatorie.',
     vMinPhotos: (n: number) => `Minim ${n} poze necesare.`,
+    vEnterMateriale: 'Descrierea materialelor este obligatorie.',
+    vSelectUrgenta: 'Selectează urgența.',
 
     // Photo picker labels
     photoPickerLabels: {
@@ -196,6 +203,7 @@ export const translations = {
       traversare:       'Traversare',
       sapatura:         'Săpătură',
       raport_zilnic:    'Raport Zilnic',
+      comanda_materiale: 'Comandă Materiale',
     },
 
     // ── Role labels ──────────────────────────────────────────────────────────
@@ -311,6 +319,11 @@ export const translations = {
     optTrotuar: 'Gehweg',
     optDa: 'JA',
     optNu: 'NEIN',
+    optNormal: 'Normal',
+    optUrgent: 'Dringend',
+    fMateriale: 'Welche Materialien werden benötigt?',
+    fUrgenta: 'Dringlichkeit',
+    fNotesOptional: 'Bemerkungen (optional)',
 
     // Map / location
     mapTitleSingle: 'Standort auswählen',
@@ -358,6 +371,8 @@ export const translations = {
     vEnterLocStart: 'Startstandort ist erforderlich.',
     vEnterLocStop: 'Stoppstandort ist erforderlich.',
     vMinPhotos: (n: number) => `Mindestens ${n} Fotos erforderlich.`,
+    vEnterMateriale: 'Materialbeschreibung ist erforderlich.',
+    vSelectUrgenta: 'Dringlichkeit auswählen.',
 
     // Photo picker labels
     photoPickerLabels: {
@@ -404,6 +419,7 @@ export const translations = {
       traversare:       'Querung',
       sapatura:         'Graben',
       raport_zilnic:    'Tagesbericht',
+      comanda_materiale: 'Materialbestellung',
     },
 
     // ── Role labels ──────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import type {
   DataPozeInainte, DataTeratest, DataSemneCirculatie, DataLieferScheine,
   DataMontajNvtPdp, DataHpPlus, DataHA, DataReparatie, DataTrasTeava,
   DataGroapa, DataTraversare, DataSapatura, DataRaportZilnic,
+  DataComandaMateriale,
 } from '../types';
 
 interface Props {
@@ -100,6 +101,11 @@ export default function ReportFormScreen({
   const [raportData, setRaportData] = useState<DataRaportZilnic>({
     lungime_totala: '', nr_bransamente_ha: '', nr_hp_plus: '',
     locatie_start: '', locatie_stop: '', waypoints: [], photos: [],
+  });
+
+  // N — Comandă Materiale
+  const [comandaData, setComandaData] = useState<DataComandaMateriale>({
+    materiale: '', urgenta: '', notes: '',
   });
 
   // ─── Validation ────────────────────────────────────────────────────────────
@@ -192,6 +198,10 @@ export default function ReportFormScreen({
         if (!raportData.locatie_stop) return tr.vEnterLocStop;
         if (raportData.photos.length < 5) return tr.vMinPhotos(5);
         break;
+      case 'comanda_materiale':
+        if (!comandaData.materiale.trim()) return tr.vEnterMateriale;
+        if (!comandaData.urgenta) return tr.vSelectUrgenta;
+        break;
     }
     return null;
   };
@@ -219,6 +229,7 @@ export default function ReportFormScreen({
         traversare: traversareData,
         sapatura: sapaturaData,
         raport_zilnic: raportData,
+        comanda_materiale: comandaData,
       };
 
       await enqueue({
@@ -626,6 +637,44 @@ export default function ReportFormScreen({
             />
           </>
         );
+
+      // N — Comandă Materiale
+      case 'comanda_materiale':
+        return (
+          <>
+            <View style={styles.comandaBanner}>
+              <Text style={styles.comandaIcon}>🛒</Text>
+              <Text style={styles.comandaBannerText}>Completează ce materiale sunt necesare pe șantier</Text>
+            </View>
+            <TextField
+              label={tr.fMateriale}
+              value={comandaData.materiale}
+              required
+              onChangeText={v => setComandaData(p => ({ ...p, materiale: v }))}
+              multiline
+              numberOfLines={6}
+              placeholder="ex: 50m țeavă HDPE 40mm, 10 buc. mufe, 2 role bandă de avertizare..."
+            />
+            <Dropdown
+              label={tr.fUrgenta}
+              value={comandaData.urgenta}
+              required
+              options={[
+                { value: 'normal', label: tr.optNormal },
+                { value: 'urgent', label: tr.optUrgent },
+              ]}
+              onChange={v => setComandaData(p => ({ ...p, urgenta: v as any }))}
+            />
+            <TextField
+              label={tr.fNotesOptional}
+              value={comandaData.notes}
+              onChangeText={v => setComandaData(p => ({ ...p, notes: v }))}
+              multiline
+              numberOfLines={3}
+              placeholder="Orice detalii suplimentare..."
+            />
+          </>
+        );
     }
   };
 
@@ -680,6 +729,15 @@ const styles = StyleSheet.create({
     marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)',
   },
   mandatoryText: { color: T.green, fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
+  comandaBanner: {
+    backgroundColor: 'rgba(245,158,11,0.08)', borderRadius: 10,
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderLeftWidth: 3, borderLeftColor: '#F59E0B',
+    marginBottom: 16, borderWidth: 1, borderColor: 'rgba(245,158,11,0.2)',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  comandaIcon: { fontSize: 22 },
+  comandaBannerText: { color: '#F59E0B', fontSize: 12, fontWeight: '700', flex: 1, lineHeight: 18 },
   saveBtn: {
     backgroundColor: T.green, borderRadius: 12,
     paddingVertical: 15, alignItems: 'center', marginTop: 8,

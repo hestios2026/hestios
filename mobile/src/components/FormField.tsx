@@ -15,12 +15,13 @@ interface TextFieldProps {
   placeholder?: string;
   required?: boolean;
   multiline?: boolean;
+  numberOfLines?: number;
   keyboardType?: 'default' | 'numeric' | 'decimal-pad';
   hint?: string;
 }
 
 export function TextField({
-  label, value, onChangeText, placeholder, required, multiline, keyboardType = 'default', hint,
+  label, value, onChangeText, placeholder, required, multiline, numberOfLines, keyboardType = 'default', hint,
 }: TextFieldProps) {
   return (
     <View style={styles.field}>
@@ -34,6 +35,7 @@ export function TextField({
         placeholder={placeholder ?? ''}
         placeholderTextColor="#94A3B8"
         multiline={multiline}
+        numberOfLines={numberOfLines}
         keyboardType={keyboardType}
       />
       {hint && <Text style={styles.hint}>{hint}</Text>}

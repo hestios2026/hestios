@@ -18,6 +18,7 @@ const WORK_TYPES: WorkType[] = [
   'poze_inainte', 'teratest', 'semne_circulatie', 'liefer_scheine',
   'montaj_nvt_pdp', 'hp_plus', 'ha', 'reparatie',
   'tras_teava', 'groapa', 'traversare', 'sapatura', 'raport_zilnic',
+  'comanda_materiale',
 ];
 
 const TYPE_ICON: Record<WorkType, string> = {
@@ -34,6 +35,7 @@ const TYPE_ICON: Record<WorkType, string> = {
   traversare:       '↔',
   sapatura:         '🚜',
   raport_zilnic:    '📄',
+  comanda_materiale: '🛒',
 };
 
 const TYPE_ACCENT: Record<WorkType, string> = {
@@ -50,6 +52,7 @@ const TYPE_ACCENT: Record<WorkType, string> = {
   traversare:       '#0891B2',
   sapatura:         '#B45309',
   raport_zilnic:    T.green,
+  comanda_materiale: '#F59E0B',
 };
 
 export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, onBack }: Props) {

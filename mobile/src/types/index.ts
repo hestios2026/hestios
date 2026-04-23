@@ -49,7 +49,8 @@ export type WorkType =
   | 'groapa'
   | 'traversare'
   | 'sapatura'
-  | 'raport_zilnic';
+  | 'raport_zilnic'
+  | 'comanda_materiale';
 
 // ─── Work type specific data ──────────────────────────────────────────────────
 
@@ -160,6 +161,12 @@ export interface DataRaportZilnic {
   photos: PhotoEntry[];
 }
 
+export interface DataComandaMateriale {
+  materiale: string;   // free text — what materials are needed
+  urgenta: 'normal' | 'urgent' | '';
+  notes: string;
+}
+
 export type WorkData =
   | DataPozeInainte
   | DataTeratest
@@ -173,7 +180,8 @@ export type WorkData =
   | DataGroapa
   | DataTraversare
   | DataSapatura
-  | DataRaportZilnic;
+  | DataRaportZilnic
+  | DataComandaMateriale;
 
 // Photo categories
 export const PHOTO_CATEGORIES = [
@@ -195,4 +203,5 @@ export const WORK_TYPE_LABELS: Record<WorkType, string> = {
   traversare:       'Traversare',
   sapatura:         'Săpătură',
   raport_zilnic:    'Raport Zilnic',
+  comanda_materiale: 'Comandă Materiale',
 };
