@@ -26,6 +26,6 @@ export async function fetchProgramariZi(day: string, siteId?: number): Promise<P
 }
 
 export async function updateProgramareStatus(id: number, status: string): Promise<Programare> {
-  const { data } = await api.patch(`/programari/${id}/`, { status });
+  const { data } = await api.put(`/programari/${id}/`, { status });
   return data;
 }

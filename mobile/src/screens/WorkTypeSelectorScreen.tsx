@@ -20,36 +20,75 @@ const WORK_TYPES: WorkType[] = [
   'tras_teava', 'groapa', 'traversare', 'sapatura', 'raport_zilnic',
 ];
 
-const TYPE_CONFIG: Record<WorkType, { abbr: string; color: string }> = {
-  poze_inainte:     { abbr: 'PI', color: '#3B82F6' },
-  teratest:         { abbr: 'TT', color: '#8B5CF6' },
-  semne_circulatie: { abbr: 'SC', color: '#F59E0B' },
-  liefer_scheine:   { abbr: 'LS', color: '#6B7280' },
-  montaj_nvt_pdp:   { abbr: 'NV', color: '#0891B2' },
-  hp_plus:          { abbr: 'HP', color: '#8B5CF6' },
-  ha:               { abbr: 'HA', color: T.green },
-  reparatie:        { abbr: 'RE', color: '#EF4444' },
-  tras_teava:       { abbr: 'TȚ', color: '#6B7280' },
-  groapa:           { abbr: 'GR', color: '#B45309' },
-  traversare:       { abbr: 'TR', color: '#0891B2' },
-  sapatura:         { abbr: 'SA', color: '#B45309' },
-  raport_zilnic:    { abbr: 'RZ', color: T.green },
+const TYPE_ICON: Record<WorkType, string> = {
+  poze_inainte:     '📷',
+  teratest:         '✅',
+  semne_circulatie: '🚧',
+  liefer_scheine:   '📦',
+  montaj_nvt_pdp:   '🔧',
+  hp_plus:          '⚡',
+  ha:               '🔌',
+  reparatie:        '🔨',
+  tras_teava:       '〰',
+  groapa:           '⛏',
+  traversare:       '↔',
+  sapatura:         '🚜',
+  raport_zilnic:    '📄',
+};
+
+const TYPE_ACCENT: Record<WorkType, string> = {
+  poze_inainte:     T.info,
+  teratest:         T.green,
+  semne_circulatie: T.warning,
+  liefer_scheine:   '#6B7280',
+  montaj_nvt_pdp:   '#0891B2',
+  hp_plus:          '#8B5CF6',
+  ha:               T.green,
+  reparatie:        T.danger,
+  tras_teava:       '#6B7280',
+  groapa:           '#B45309',
+  traversare:       '#0891B2',
+  sapatura:         '#B45309',
+  raport_zilnic:    T.green,
 };
 
 export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, onBack }: Props) {
   const { tr } = useLang();
+
+  const renderItem = ({ item }: { item: WorkType }) => {
+    const isMandatory = item === 'raport_zilnic';
+    const accent = TYPE_ACCENT[item];
+
+    return (
+      <TouchableOpacity
+        style={[S.card, isMandatory && S.cardMandatory]}
+        onPress={() => onSelect(item)}
+        activeOpacity={0.7}
+      >
+        <View style={[S.iconWrap, { backgroundColor: `${accent}18` }]}>
+          <Text style={S.icon}>{TYPE_ICON[item]}</Text>
+        </View>
+        <Text style={[S.cardLabel, isMandatory && { color: T.green }]} numberOfLines={2}>
+          {tr.workTypeLabels[item]}
+        </Text>
+        {isMandatory && (
+          <View style={S.mandatoryDot} />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={S.root}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>{tr.back.replace('‹ ', '')}</Text>
+      <View style={S.hdr}>
+        <TouchableOpacity style={S.backBtn} onPress={onBack} activeOpacity={0.7}>
+          <Text style={S.backTxt}>←</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.headerTitle}>{tr.workTypeTitle}</Text>
-          <Text style={styles.headerSub} numberOfLines={1}>
-            {siteName}{nvtNumber ? ` — ${nvtNumber}` : ''}
+        <View style={{ flex: 1 }}>
+          <Text style={S.hdrTitle}>{tr.workTypeTitle}</Text>
+          <Text style={S.hdrSub} numberOfLines={1}>
+            {siteName}{nvtNumber ? ` · ${nvtNumber}` : ''}
           </Text>
         </View>
       </View>
@@ -57,88 +96,62 @@ export default function WorkTypeSelectorScreen({ siteName, nvtNumber, onSelect, 
       <FlatList
         data={WORK_TYPES}
         keyExtractor={item => item}
-        contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        renderItem={({ item }) => {
-          const cfg = TYPE_CONFIG[item];
-          const isMandatory = item === 'raport_zilnic';
-          return (
-            <TouchableOpacity
-              style={[styles.card, isMandatory && styles.cardMandatory]}
-              onPress={() => onSelect(item)}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.typeBadge, { backgroundColor: `${cfg.color}18` }]}>
-                <Text style={[styles.typeAbbr, { color: cfg.color }]}>{cfg.abbr}</Text>
-              </View>
-
-              <Text style={[styles.cardLabel, isMandatory && styles.cardLabelMandatory]} numberOfLines={2}>
-                {tr.workTypeLabels[item]}
-              </Text>
-
-              {isMandatory && (
-                <View style={styles.mandatoryPill}>
-                  <Text style={styles.mandatoryText}>{tr.mandatory}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        }}
+        numColumns={3}
+        contentContainerStyle={S.grid}
+        columnWrapperStyle={S.row}
+        renderItem={renderItem}
       />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: T.bg },
+const CARD_SIZE = '31%';
 
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: T.dark, paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: T.borderDk,
-  },
-  backBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingVertical: 4, paddingRight: 4,
-  },
-  backArrow: { color: T.green, fontSize: 16, fontWeight: '400' },
-  backText: { color: T.green, fontSize: 14, fontWeight: '600' },
-  headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '700' },
-  headerSub: { color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 1 },
+const S = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.dark },
+
+  hdr:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13, backgroundColor: T.darkCard, borderBottomWidth: 1, borderBottomColor: T.borderDk },
+  backBtn:  { width: 34, height: 34, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: T.borderDk, alignItems: 'center', justifyContent: 'center' },
+  backTxt:  { color: T.text2, fontSize: 16 },
+  hdrTitle: { color: T.textLight, fontSize: 15, fontWeight: '800' },
+  hdrSub:   { color: T.text3, fontSize: 11, marginTop: 1 },
+
+  grid: { padding: 12, paddingBottom: 32, gap: 10 },
+  row:  { gap: 10, justifyContent: 'flex-start' },
 
   card: {
-    flexDirection: 'row',
+    width: CARD_SIZE,
+    aspectRatio: 0.9,
+    backgroundColor: T.darkCard,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: T.borderDk,
     alignItems: 'center',
-    backgroundColor: T.surface,
-    borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderWidth: 1, borderColor: T.border,
-    gap: 12,
+    justifyContent: 'center',
+    padding: 8,
+    gap: 7,
+    position: 'relative',
   },
   cardMandatory: {
-    borderColor: T.green,
-    borderWidth: 1.5,
-    backgroundColor: T.greenBg,
+    borderColor: 'rgba(34,197,94,0.35)',
+    backgroundColor: 'rgba(34,197,94,0.06)',
   },
-  typeBadge: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  typeAbbr: {
-    fontSize: 14, fontWeight: '900', letterSpacing: 0.5,
-  },
-  cardLabel: {
-    color: T.text, fontSize: 14, fontWeight: '600',
-    flex: 1, lineHeight: 20,
-  },
-  cardLabelMandatory: { color: T.green },
-  mandatoryPill: {
-    backgroundColor: T.greenDim,
-    borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
-    flexShrink: 0,
-  },
-  mandatoryText: {
-    fontSize: 8, fontWeight: '800', color: T.green, letterSpacing: 0.6,
+  icon:       { fontSize: 20 },
+  cardLabel:  { color: T.text2, fontSize: 10, fontWeight: '700', textAlign: 'center', lineHeight: 14 },
+  mandatoryDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: T.green,
   },
 });

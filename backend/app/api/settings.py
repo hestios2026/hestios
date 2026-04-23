@@ -11,6 +11,12 @@ from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
+MOBILE_VERSION_DEFAULTS = {
+    "mobile_version_code": "0",
+    "mobile_version_name": "",
+    "mobile_download_url": "https://erp.hesti-rossmann.de/downloads/hestios-latest.apk",
+}
+
 DEFAULTS = {
     # Firmendaten
     "company_name":        "Hesti Rossmann GmbH",
@@ -220,3 +226,31 @@ def save_connection_types(
         raise HTTPException(400, "Lista nu poate fi goală")
     _save_raw_conn_types(db, types)
     return {"status": "saved", "count": len(types)}
+
+
+# ─── Mobile Version (public — no auth) ────────────────────────────────────────
+
+@router.get("/mobile-version/")
+def get_mobile_version(db: Session = Depends(get_db)):
+    result = dict(MOBILE_VERSION_DEFAULTS)
+    for key in MOBILE_VERSION_DEFAULTS:
+        row = db.execute(text("SELECT value FROM settings WHERE key = :k"), {"k": key}).fetchone()
+        if row and row[0]:
+            result[key] = row[0]
+    return result
+
+
+@router.put("/mobile-version/")
+def save_mobile_version(body: dict, db: Session = Depends(get_db), _: User = Depends(require_director)):
+    for key in MOBILE_VERSION_DEFAULTS:
+        value = body.get(key)
+        if value is None:
+            continue
+        str_value = str(value)
+        existing = db.execute(text("SELECT key FROM settings WHERE key = :k"), {"k": key}).fetchone()
+        if existing:
+            db.execute(text("UPDATE settings SET value = :v, updated_at = NOW() WHERE key = :k"), {"k": key, "v": str_value})
+        else:
+            db.execute(text("INSERT INTO settings (key, value) VALUES (:k, :v)"), {"k": key, "v": str_value})
+    db.commit()
+    return {"status": "saved"}

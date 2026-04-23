@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HestiOS Raportare — UI Concept</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0C0F16;
+  --card:      #141D2E;
+  --card2:     #1A2438;
+  --green:     #22C55E;
+  --green-dim: rgba(34,197,94,0.12);
+  --green-glow:rgba(34,197,94,0.25);
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --text:      #F1F5F9;
+  --text2:     #94A3B8;
+  --text3:     #475569;
+  --warning:   #F59E0B;
+  --danger:    #EF4444;
+  --info:      #3B82F6;
+}
+
+body {
+  background: #070A0F;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text);
+  padding: 56px 32px 80px;
+  background-image:
+    linear-gradient(rgba(34,197,94,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,197,94,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.page-header .eyebrow {
+  font-family: 'Syne', sans-serif;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--green);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.page-header h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+.page-header h1 span { color: var(--green); }
+.page-header p {
+  margin-top: 8px;
+  color: var(--text2);
+  font-size: 13px;
+}
+
+.screens-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px 24px;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.screen-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: fadeUp 0.55s ease both;
+}
+.screen-wrap:nth-child(1) { animation-delay: 0.04s; }
+.screen-wrap:nth-child(2) { animation-delay: 0.10s; }
+.screen-wrap:nth-child(3) { animation-delay: 0.16s; }
+.screen-wrap:nth-child(4) { animation-delay: 0.22s; }
+.screen-wrap:nth-child(5) { animation-delay: 0.28s; }
+.screen-wrap:nth-child(6) { animation-delay: 0.34s; }
+.screen-wrap:nth-child(7) { animation-delay: 0.40s; }
+.screen-wrap:nth-child(8) { animation-delay: 0.46s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.screen-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+/* ── Phone frame ── */
+.phone {
+  width: 265px;
+  height: 560px;
+  background: #0A0D13;
+  border-radius: 40px;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  box-shadow:
+    0 0 0 5px #0C0F16,
+    0 0 0 6.5px rgba(255,255,255,0.06),
+    0 32px 64px rgba(0,0,0,0.65),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+/* Notch pill */
+.phone::before {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 20px;
+  background: #0A0D13;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  z-index: 100;
+}
+/* Home bar */
+.phone::after {
+  content: '';
+  position: absolute;
+  bottom: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 3.5px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 2px;
+  z-index: 100;
+}
+
+.phone-inner {
+  position: absolute;
+  inset: 0;
+  border-radius: 40px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* Status bar */
+.sbar {
+  height: 38px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 20px 5px;
+  flex-shrink: 0;
+}
+.sbar-time { font-size: 10px; font-weight: 800; color: var(--text); }
+.sbar-icons { display: flex; gap: 5px; align-items: center; }
+.sbar-icons i {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  background: var(--text3);
+  border-radius: 2px;
+  opacity: 0.6;
+}
+.sbar-icons .ico-wifi {
+  clip-path: polygon(50% 100%, 15% 40%, 85% 40%);
+  background: var(--text2);
+}
+.sbar-icons .ico-batt {
+  width: 18px;
+  height: 10px;
+  border: 1.5px solid var(--text2);
+  border-radius: 2px;
+  position: relative;
+  background: transparent;
+}
+.sbar-icons .ico-batt::after {
+  content: '';
+  position: absolute;
+  left: 2px; top: 1.5px;
+  width: 10px; height: 4px;
+  background: var(--text2);
+  border-radius: 1px;
+}
+.sbar-icons .ico-batt::before {
+  content: '';
+  position: absolute;
+  right: -4px; top: 2.5px;
+  width: 2.5px; height: 4px;
+  background: var(--text2);
+  border-radius: 0 1px 1px 0;
+}
+
+.screen-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 22px;
+}
+
+/* ── Shared utils ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.bg { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+.ba { background: rgba(245,158,11,0.12); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); }
+.bb { background: rgba(59,130,246,0.12); color: var(--info); border: 1px solid rgba(59,130,246,0.2); }
+.bd { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.bd-g { background: var(--green); }
+.bd-a { background: var(--warning); }
+
+.sec-label {
+  font-size: 8px; font-weight: 800;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 6px;
+}
+
+/* ══════════════════════════════════════════
+   SCREEN 1 — Login: Select User
+══════════════════════════════════════════ */
+.s1-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.s1-logo { display: flex; align-items: center; gap: 9px; }
+.s1-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--green) 0%, #16A34A 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; color: #fff;
+}
+.s1-appname { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 800; color: var(--text); letter-spacing: 0.5px; line-height: 1; }
+.s1-appsub  { font-size: 8px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-top: 1px; }
+.lang-sw { display: flex; gap: 3px; }
+.lb {
+  padding: 3px 7px; border-radius: 5px;
+  border: 1px solid var(--border2); background: rgba(255,255,255,0.03);
+  font-size: 8px; font-weight: 800; color: var(--text3); letter-spacing: 0.5px;
+}
+.lb.on { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+
+.s1-search {
+  margin: 10px 12px 6px;
+  display: flex; align-items: center; gap: 7px;
+  background: var(--card2); border: 1px solid var(--border2);
+  border-radius: 9px; padding: 8px 10px;
+}
+.s1-search-icon { font-size: 11px; flex-shrink: 0; }
+.s1-search span { font-size: 10px; color: var(--text3); }
+
+.s1-stitle { padding: 8px 12px 4px; font-size: 8px; font-weight: 800; color: var(--text3); letter-spacing: 1.3px; text-transform: uppercase; }
+.s1-list { flex: 1; overflow: hidden; padding: 0 12px; display: flex; flex-direction: column; gap: 4px; }
+.ur {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--border);
+}
+.ur.active { border-color: rgba(34,197,94,0.3); background: linear-gradient(135deg, rgba(34,197,94,0.07), var(--card)); }
+.ur-av {
+  width: 33px; height: 33px; border-radius: 50%; flex-shrink: 0;
+  background: var(--green-dim); border: 1.5px solid rgba(34,197,94,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: var(--green);
+}
+.ur-name { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.ur-role { font-size: 9px; color: var(--text3); margin-top: 1px; }
+.ur-chev { color: var(--text3); font-size: 14px; margin-left: auto; }
+
+/* ══════════════════════════════════════════
+   SCREEN 2 — PIN Entry (redesigned)
+══════════════════════════════════════════ */
+.s2-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+/* subtle radial glow behind avatar */
+.s2-screen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 200px; height: 180px;
+  background: radial-gradient(ellipse at top, rgba(34,197,94,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.s2-back-row {
+  padding: 10px 16px 0;
+  display: flex; align-items: center;
+}
+.s2-back-btn {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--green); font-size: 11px; font-weight: 700;
+  background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
+  border-radius: 20px; padding: 4px 10px 4px 8px;
+}
+.s2-top {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 0 0; gap: 4px;
+}
+.s2-av-ring {
+  width: 64px; height: 64px; border-radius: 50%; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(34,197,94,0.18), rgba(34,197,94,0.06));
+  border: 1.5px solid rgba(34,197,94,0.35);
+  box-shadow: 0 0 0 5px rgba(34,197,94,0.06), 0 8px 24px rgba(0,0,0,0.4);
+}
+.s2-av-initials {
+  font-size: 20px; font-weight: 800; color: var(--green);
+  font-family: 'Syne', sans-serif; letter-spacing: -0.5px;
+}
+.s2-uname { font-size: 15px; font-weight: 800; color: var(--text); margin-top: 8px; }
+.s2-urole {
+  font-size: 9px; font-weight: 700; color: var(--text3);
+  letter-spacing: 1.2px; text-transform: uppercase;
+  background: var(--card2); border: 1px solid var(--border2);
+  border-radius: 20px; padding: 3px 10px; margin-top: 2px;
+}
+.s2-hint-text {
+  font-size: 10px; color: var(--text3); margin-top: 14px;
+  font-weight: 500; letter-spacing: 0.3px;
+}
+.s2-dots-row {
+  display: flex; gap: 14px; margin-top: 10px;
+}
+.s2-d {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  transition: all 0.15s ease;
+}
+.s2-d.f {
+  background: var(--green); border-color: var(--green);
+  box-shadow: 0 0 10px rgba(34,197,94,0.55);
+}
+/* Keypad */
+.s2-kp-wrap {
+  flex: 1; display: flex; align-items: flex-end;
+  padding: 0 20px 10px;
+}
+.s2-kp {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; width: 100%;
+}
+.key {
+  height: 54px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--card2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 300; color: var(--text);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.key.emp { background: transparent; border-color: transparent; box-shadow: none; }
+.key.del { font-size: 14px; color: var(--text3); background: rgba(255,255,255,0.04); }
+
+/* ══════════════════════════════════════════
+   SCREEN 3 — Home Dashboard
+══════════════════════════════════════════ */
+.s3-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px 10px; background: var(--card); border-bottom: 1px solid var(--border);
+}
+.s3-user { display: flex; align-items: center; gap: 8px; }
+.s3-av {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--green-dim); border: 1.5px solid rgba(34,197,94,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: var(--green);
+}
+.s3-gname { font-size: 12px; font-weight: 800; color: var(--text); line-height: 1.2; }
+.s3-st { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.s3-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.s3-st span { font-size: 8.5px; color: var(--text3); }
+.logout-btn {
+  padding: 4px 8px; border-radius: 5px;
+  border: 1px solid var(--border2); background: rgba(255,255,255,0.03);
+  font-size: 8px; font-weight: 600; color: var(--text3);
+}
+.s3-body { flex: 1; overflow: hidden; padding: 9px 12px 0; display: flex; flex-direction: column; gap: 8px; }
+.site-card {
+  background: var(--card); border: 1px solid var(--border2); border-radius: 11px; padding: 10px 11px;
+}
+.flabel { font-size: 7.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.site-sel {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 8px 9px;
+}
+.kst { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.25); border-radius: 4px; padding: 1px 5px; font-size: 8px; font-weight: 800; color: var(--green); }
+.site-nm { flex: 1; font-size: 11px; font-weight: 600; color: var(--text); }
+.chv { font-size: 8px; color: var(--text3); }
+.nvt-row { display: flex; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid var(--border2); border-radius: 7px; padding: 7px 9px; margin-top: 8px; }
+.nvt-row span { font-size: 10px; color: var(--text2); }
+
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.act {
+  border-radius: 10px; padding: 11px 10px;
+  display: flex; flex-direction: column; gap: 5px; position: relative;
+}
+.act.prim { background: var(--green); box-shadow: 0 3px 14px rgba(34,197,94,0.28); }
+.act.drk  { background: var(--card2); border: 1px solid var(--border2); }
+.act.acc  { background: var(--card2); border: 1px solid rgba(34,197,94,0.28); }
+.act-ico { font-size: 16px; line-height: 1; }
+.act-lbl { font-size: 10px; font-weight: 700; line-height: 1.2; }
+.act.prim .act-lbl { color: #fff; }
+.act.drk  .act-lbl { color: var(--text2); }
+.act.acc  .act-lbl { color: var(--green); }
+.act-badge {
+  position: absolute; top: 7px; right: 7px;
+  background: var(--warning); border-radius: 9px;
+  padding: 1px 5px; font-size: 8px; font-weight: 800; color: #fff;
+}
+
+.ec {
+  background: var(--card); border: 1px solid var(--border); border-radius: 9px;
+  padding: 9px 10px; border-left: 2px solid transparent; margin-bottom: 5px;
+}
+.ec.pe { border-left-color: var(--warning); }
+.ec.sy { border-left-color: var(--green); opacity: 0.65; }
+.ec-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+.ec-type { font-size: 10px; font-weight: 700; color: var(--text); }
+.ec-meta { font-size: 9px; color: var(--text3); }
+
+/* ══════════════════════════════════════════
+   SCREEN 4 — Work Type (ALL 9, FIXED)
+══════════════════════════════════════════ */
+.s4-hdr {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px 11px; border-bottom: 1px solid var(--border); background: var(--card);
+}
+.bk {
+  width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+  background: var(--card2); border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--text2);
+}
+.s4-title { font-size: 13px; font-weight: 800; color: var(--text); }
+.s4-sub   { font-size: 8px; color: var(--text3); margin-top: 1px; }
+
+.wgrid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 7px; padding: 10px 12px;
+}
+.wc {
+  background: var(--card); border: 1px solid var(--border2); border-radius: 11px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; padding: 10px 6px;
+}
+.wc.on {
+  border-color: rgba(34,197,94,0.4);
+  background: linear-gradient(145deg, rgba(34,197,94,0.09), var(--card));
+  box-shadow: inset 0 0 0 1px rgba(34,197,94,0.12);
+}
+.wc-ico {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.wc.on .wc-ico { background: var(--green-dim); }
+.wc-lbl { font-size: 8px; font-weight: 700; color: var(--text2); text-align: center; line-height: 1.3; }
+.wc.on .wc-lbl { color: var(--green); }
+
+/* ══════════════════════════════════════════
+   SCREEN 5 — Form: Branșamente
+══════════════════════════════════════════ */
+.s5-hdr {
+  padding: 10px 14px 10px; border-bottom: 1px solid var(--border); background: var(--card);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.s5-nav { display: flex; align-items: center; gap: 8px; }
+.s5-ttl { font-size: 14px; font-weight: 800; color: var(--text); }
+.s5-sub { font-size: 8px; color: var(--text3); margin-top: 1px; }
+.prg-dots { display: flex; gap: 5px; margin-top: 2px; }
+.pd { height: 3px; border-radius: 2px; background: var(--border2); }
+.pd.done   { background: rgba(34,197,94,0.45); width: 22px; }
+.pd.active { background: var(--green); width: 30px; box-shadow: 0 0 6px rgba(34,197,94,0.4); }
+.pd.todo   { width: 18px; }
+
+.s5-body { flex: 1; overflow: hidden; padding: 9px 12px 0; display: flex; flex-direction: column; gap: 6px; }
+.ff {
+  background: var(--card); border: 1px solid var(--border2); border-radius: 9px;
+  padding: 7px 11px; position: relative;
+}
+.ff.focused { border-color: rgba(34,197,94,0.5); }
+.ff-lbl { font-size: 7.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--green); margin-bottom: 3px; }
+.ff-val { font-size: 11px; font-weight: 600; color: var(--text); }
+.ff-ph  { color: var(--text3); font-weight: 400; }
+.ff-arr { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(--text3); }
+
+.photo-box {
+  background: var(--card); border: 1px solid var(--border2); border-radius: 9px; padding: 9px 11px;
+}
+.photo-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.photo-lbl { font-size: 8px; font-weight: 800; color: var(--text2); }
+.photo-req { font-size: 8px; color: var(--warning); font-weight: 700; }
+.photo-row { display: flex; gap: 5px; }
+.ph-thumb {
+  width: 40px; height: 40px; border-radius: 7px;
+  background: linear-gradient(135deg, #1E3A5F, #0D1B2E);
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.ph-add {
+  width: 40px; height: 40px; border-radius: 7px;
+  background: var(--green-dim); border: 1.5px dashed rgba(34,197,94,0.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--green);
+}
+.ph-count { font-size: 7.5px; color: var(--text3); margin-top: 5px; }
+
+.btn-submit {
+  margin: auto 12px 0;
+  background: var(--green); border-radius: 10px; padding: 12px;
+  text-align: center; font-size: 11px; font-weight: 800; color: #fff;
+  box-shadow: 0 3px 14px rgba(34,197,94,0.28);
+}
+
+/* ══════════════════════════════════════════
+   SCREEN 6 — Form: Săpătură
+══════════════════════════════════════════ */
+/* reuses s5 styles, different fields */
+
+/* ══════════════════════════════════════════
+   SCREEN 7 — Location Picker / Map
+══════════════════════════════════════════ */
+.map-wrap {
+  flex: 1; position: relative; overflow: hidden; background: #0D1520;
+}
+.map-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(34,197,94,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,197,94,0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+/* Simulated streets */
+.map-street-h {
+  position: absolute; left: 0; right: 0; height: 7px;
+  background: rgba(30,58,95,0.8); border-top: 1px solid rgba(59,130,246,0.15); border-bottom: 1px solid rgba(59,130,246,0.15);
+}
+.map-street-v {
+  position: absolute; top: 0; bottom: 0; width: 7px;
+  background: rgba(30,58,95,0.8); border-left: 1px solid rgba(59,130,246,0.15); border-right: 1px solid rgba(59,130,246,0.15);
+}
+/* Simulated blocks */
+.map-block {
+  position: absolute; background: rgba(20,29,46,0.9); border: 1px solid rgba(255,255,255,0.04); border-radius: 3px;
+}
+.map-pin {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -90%);
+  display: flex; flex-direction: column; align-items: center; z-index: 10;
+}
+.map-pin-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--green); border: 2.5px solid #fff;
+  box-shadow: 0 0 0 4px rgba(34,197,94,0.25), 0 4px 12px rgba(34,197,94,0.4);
+}
+.map-pin-shadow {
+  width: 12px; height: 4px; border-radius: 50%;
+  background: rgba(0,0,0,0.35); margin-top: 2px;
+}
+.map-pulse {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(34,197,94,0.07);
+  border: 1.5px solid rgba(34,197,94,0.2);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+  50%       { transform: translate(-50%,-50%) scale(1.3); opacity: 0; }
+}
+
+.map-nearby {
+  position: absolute; background: var(--card2); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 3px 7px; font-size: 8px; font-weight: 600; color: var(--text2);
+}
+
+.map-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, var(--bg) 0%, var(--bg) 60%, transparent 100%);
+  padding: 16px 14px 10px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.map-addr-card {
+  background: var(--card); border: 1px solid rgba(34,197,94,0.3); border-radius: 10px; padding: 9px 11px;
+  display: flex; align-items: center; gap: 8px;
+}
+.map-addr-icon { font-size: 14px; flex-shrink: 0; }
+.map-addr-text { flex: 1; }
+.map-addr-name { font-size: 11px; font-weight: 700; color: var(--text); }
+.map-addr-full { font-size: 8.5px; color: var(--text3); margin-top: 1px; }
+.map-check { width: 20px; height: 20px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; flex-shrink: 0; }
+.map-confirm-btn {
+  background: var(--green); border-radius: 10px; padding: 11px;
+  text-align: center; font-size: 11px; font-weight: 800; color: #fff;
+  box-shadow: 0 3px 14px rgba(34,197,94,0.28);
+}
+.map-top-bar {
+  position: absolute; top: 0; left: 0; right: 0;
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) 50%, transparent 100%);
+  padding: 8px 14px 20px;
+  display: flex; align-items: center; gap: 8px; z-index: 20;
+}
+.map-search-bar {
+  flex: 1; display: flex; align-items: center; gap: 7px;
+  background: var(--card); border: 1px solid var(--border2); border-radius: 9px; padding: 7px 10px;
+}
+.map-search-bar span { font-size: 10px; color: var(--text3); }
+
+/* ══════════════════════════════════════════
+   SCREEN 8 — Programări
+══════════════════════════════════════════ */
+.s8-hdr {
+  padding: 10px 14px 10px; border-bottom: 1px solid var(--border); background: var(--card);
+}
+.s8-top { display: flex; align-items: center; justify-content: space-between; }
+.s8-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; color: var(--text); }
+.s8-date  { font-size: 8.5px; color: var(--text3); margin-top: 2px; }
+.s8-add { width: 26px; height: 26px; border-radius: 7px; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 15px; color: #fff; box-shadow: 0 2px 8px rgba(34,197,94,0.35); }
+.s8-tabs {
+  display: flex; gap: 0; margin-top: 9px;
+  background: rgba(255,255,255,0.03); border-radius: 7px; padding: 2px; border: 1px solid var(--border);
+}
+.s8-tab { flex: 1; text-align: center; padding: 4px 3px; font-size: 8px; font-weight: 700; color: var(--text3); border-radius: 5px; }
+.s8-tab.on { background: var(--green); color: #fff; }
+
+.s8-body { flex: 1; overflow: hidden; padding: 9px 12px 0; display: flex; flex-direction: column; gap: 6px; }
+.pc {
+  background: var(--card); border: 1px solid var(--border2); border-radius: 10px;
+  padding: 9px 10px; display: flex; gap: 8px; align-items: flex-start;
+}
+.pc-time-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; }
+.pc-time {
+  background: var(--card2); border: 1px solid var(--border2); border-radius: 5px;
+  padding: 3px 5px; font-size: 9px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.pc-line { width: 1px; background: var(--border2); flex: 1; min-height: 18px; }
+.pc-info { flex: 1; min-width: 0; }
+.pc-client { font-size: 10px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-addr   { font-size: 8.5px; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-foot   { display: flex; align-items: center; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+.pc-team   { font-size: 8px; color: var(--text3); }
+.sp { padding: 2px 6px; border-radius: 20px; font-size: 7.5px; font-weight: 800; }
+.sp-p { background: rgba(59,130,246,0.12); color: var(--info); border: 1px solid rgba(59,130,246,0.2); }
+.sp-l { background: rgba(245,158,11,0.12); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); }
+.sp-f { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="eyebrow">Hesti Rossmann GmbH · UI Concept 2026</div>
+  <h1>HestiOS <span>Raportare</span></h1>
+  <p>Mobile app redesign · 8 screens · Dark mode · Brand colors</p>
+</div>
+
+<div class="screens-grid">
+
+<!-- ────────────────────────────────────────────
+  SCREEN 1 — Login: Select User
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">01 — Selectare Utilizator</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:41</span><div class="sbar-icons"><i class="ico-wifi"></i><i class="ico-batt"></i></div></div>
+      <div class="screen-content">
+        <div class="s1-hdr">
+          <div class="s1-logo">
+            <div class="s1-mark">H</div>
+            <div>
+              <div class="s1-appname">HESTIOS</div>
+              <div class="s1-appsub">Raportare</div>
+            </div>
+          </div>
+          <div class="lang-sw">
+            <div class="lb on">RO</div>
+            <div class="lb">DE</div>
+          </div>
+        </div>
+        <div class="s1-search">
+          <span class="s1-search-icon">🔍</span>
+          <span>Caută utilizator...</span>
+        </div>
+        <div class="s1-stitle">Utilizatori activi</div>
+        <div class="s1-list">
+          <div class="ur active">
+            <div class="ur-av">MR</div>
+            <div><div class="ur-name">Mihai Rusu</div><div class="ur-role">Polier</div></div>
+            <div class="ur-chev">›</div>
+          </div>
+          <div class="ur">
+            <div class="ur-av">AP</div>
+            <div><div class="ur-name">Andrei Pop</div><div class="ur-role">Șef Șantier</div></div>
+            <div class="ur-chev">›</div>
+          </div>
+          <div class="ur">
+            <div class="ur-av">IC</div>
+            <div><div class="ur-name">Ion Constantin</div><div class="ur-role">Polier</div></div>
+            <div class="ur-chev">›</div>
+          </div>
+          <div class="ur">
+            <div class="ur-av">VN</div>
+            <div><div class="ur-name">Vasile Negru</div><div class="ur-role">Aufmaß</div></div>
+            <div class="ur-chev">›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────
+  SCREEN 2 — PIN Entry (FIXED)
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">02 — Introduci PIN</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:41</span><div class="sbar-icons"><i class="ico-wifi"></i><i class="ico-batt"></i></div></div>
+      <div class="screen-content" style="padding-bottom:0">
+        <div class="s2-screen">
+          <div class="s2-back-row">
+            <div class="s2-back-btn">← Înapoi</div>
+          </div>
+          <div class="s2-top">
+            <div class="s2-av-ring">
+              <div class="s2-av-initials">MR</div>
+            </div>
+            <div class="s2-uname">Mihai Rusu</div>
+            <div class="s2-urole">Polier</div>
+            <div class="s2-hint-text">Introdu PIN-ul tău de 4 cifre</div>
+            <div class="s2-dots-row">
+              <div class="s2-d f"></div>
+              <div class="s2-d f"></div>
+              <div class="s2-d"></div>
+              <div class="s2-d"></div>
+            </div>
+          </div>
+          <div class="s2-kp-wrap">
+            <div class="s2-kp">
+              <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+              <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+              <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+              <div class="key emp"></div><div class="key">0</div><div class="key del">⌫</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────
+  SCREEN 3 — Home Dashboard
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">03 — Dashboard</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:41</span><div class="sbar-icons"><i class="ico-wifi"></i><i class="ico-batt"></i></div></div>
+      <div class="screen-content">
+        <div class="s3-hdr">
+          <div class="s3-user">
+            <div class="s3-av">MR</div>
+            <div>
+              <div class="s3-gname">Bună, Mihai 👋</div>
+              <div class="s3-st"><div class="s3-dot"></div><span>Online</span></div>
+            </div>
+          </div>
+          <div class="logout-btn">Ieșire</div>
+        </div>
+        <div class="s3-body">
+          <div class="site-card">
+            <div class="flabel">Șantier activ</div>
+            <div class="site-sel">
+              <div class="kst">310</div>
+              <div class="site-nm">Geodesia Ulm</div>
+              <div class="chv">▼</div>
+            </div>
+            <div class="flabel" style="margin-top:8px">Număr NVT</div>
+            <div class="nvt-row"><span>NVT-2026-0148</span></div>
+          </div>
+          <div class="acts">
+            <div class="act prim"><div class="act-ico">📋</div><div class="act-lbl">Raport Nou</div></div>
+            <div class="act drk"><div class="act-ico">⏱</div><div class="act-lbl">Pontaj Echipă</div></div>
+            <div class="act drk"><div class="act-ico">📅</div><div class="act-lbl">Programări</div></div>
+            <div class="act acc"><div class="act-ico">🔄</div><div class="act-lbl">Sincronizare</div><div class="act-badge">3</div></div>
+          </div>
+          <div>
+            <div class="sec-label">Rapoarte locale</div>
+            <div class="ec pe">
+              <div class="ec-row">
+                <div class="ec-type">Branșamente</div>
+                <div class="badge ba"><div class="bd bd-a"></div>Pending</div>
+              </div>
+              <div class="ec-meta">Geodesia Ulm · Azi 08:14</div>
+            </div>
+            <div class="ec sy">
+              <div class="ec-row">
+                <div class="ec-type">Tera Test</div>
+                <div class="badge bg"><div class="bd bd-g"></div>Sync ✓</div>
+              </div>
+              <div class="ec-meta">Geodesia Ulm · Ieri 16:42</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────
+  SCREEN 4 — Work Type Selector (ALL 9)
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">04 — Tip Lucrare (toate)</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:42</span><div class="sbar-icons"><i class="ico-batt"></i></div></div>
+      <div class="screen-content">
+        <div class="s4-hdr">
+          <div class="bk">←</div>
+          <div>
+            <div class="s4-title">Tip Lucrare</div>
+            <div class="s4-sub">Geodesia Ulm · NVT-2026-0148</div>
+          </div>
+        </div>
+        <div class="wgrid">
+          <div class="wc on">
+            <div class="wc-ico">🔌</div>
+            <div class="wc-lbl">Branșa-mente</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">〰</div>
+            <div class="wc-lbl">Tras Țeavă</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">⛏</div>
+            <div class="wc-lbl">Groapă</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">↔</div>
+            <div class="wc-lbl">Traver-sare</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">📦</div>
+            <div class="wc-lbl">Montaj NVT/PDP</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">🚜</div>
+            <div class="wc-lbl">Săpătură</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">✅</div>
+            <div class="wc-lbl">Tera Test</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">🔧</div>
+            <div class="wc-lbl">Reparație</div>
+          </div>
+          <div class="wc">
+            <div class="wc-ico">📄</div>
+            <div class="wc-lbl">Raport Zilnic</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────
+  SCREEN 5 — Form: Branșamente
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">05 — Form: Branșamente</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:43</span><div class="sbar-icons"><i class="ico-batt"></i></div></div>
+      <div class="screen-content">
+        <div class="s5-hdr">
+          <div class="s5-nav">
+            <div class="bk">←</div>
+            <div>
+              <div class="s5-ttl">Branșamente</div>
+              <div class="s5-sub">🔌 Hausanschluss · Geodesia Ulm</div>
+            </div>
+          </div>
+          <div class="prg-dots">
+            <div class="pd done"></div><div class="pd active"></div><div class="pd todo"></div><div class="pd todo"></div>
+          </div>
+        </div>
+        <div class="s5-body">
+          <div class="ff focused">
+            <div class="ff-lbl">Locație</div>
+            <div class="ff-val">Hauptstraße 14, Ulm</div>
+          </div>
+          <div class="ff">
+            <div class="ff-lbl">Tip Conectare</div>
+            <div class="ff-val">Kit Complet</div>
+            <div class="ff-arr">▼</div>
+          </div>
+          <div class="ff">
+            <div class="ff-lbl">Suprafață</div>
+            <div class="ff-val">Asfalt</div>
+            <div class="ff-arr">▼</div>
+          </div>
+          <div class="ff">
+            <div class="ff-lbl">Metri Efectuați</div>
+            <div class="ff-val">12.5</div>
+          </div>
+          <div class="photo-box">
+            <div class="photo-hdr">
+              <div class="photo-lbl">Fotografii</div>
+              <div class="photo-req">⚠ min. 5</div>
+            </div>
+            <div class="photo-row">
+              <div class="ph-thumb">🏗</div>
+              <div class="ph-thumb">📸</div>
+              <div class="ph-add">+</div>
+            </div>
+            <div class="ph-count">2 din 5 adăugate</div>
+          </div>
+        </div>
+        <div style="padding:6px 12px 0"><div class="btn-submit">Continuă →</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────
+  SCREEN 6 — Form: Săpătură (NEW)
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">06 — Form: Săpătură</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:47</span><div class="sbar-icons"><i class="ico-batt"></i></div></div>
+      <div class="screen-content">
+        <div class="s5-hdr">
+          <div class="s5-nav">
+            <div class="bk">←</div>
+            <div>
+              <div class="s5-ttl">Săpătură</div>
+              <div class="s5-sub">🚜 Excavation · Geodesia Ulm</div>
+            </div>
+          </div>
+          <div class="prg-dots">
+            <div class="pd done"></div><div class="pd done"></div><div class="pd active"></div><div class="pd todo"></div>
+          </div>
+        </div>
+        <div class="s5-body">
+          <div class="ff focused">
+            <div class="ff-lbl">Locație Start</div>
+            <div class="ff-val">Bahnhofstr. 7, Ulm</div>
+          </div>
+          <div class="ff">
+            <div class="ff-lbl">Locație End</div>
+            <div class="ff-val ff-ph">Selectează pe hartă...</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div class="ff">
+              <div class="ff-lbl">Lungime (m)</div>
+              <div class="ff-val">45.0</div>
+            </div>
+            <div class="ff">
+              <div class="ff-lbl">Adâncime (m)</div>
+              <div class="ff-val">0.80</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div class="ff">
+              <div class="ff-lbl">Lățime (m)</div>
+              <div class="ff-val">0.40</div>
+            </div>
+            <div class="ff">
+              <div class="ff-lbl">Tip Sol</div>
+              <div class="ff-val">Asfalt</div>
+              <div class="ff-arr">▼</div>
+            </div>
+          </div>
+          <div class="photo-box">
+            <div class="photo-hdr">
+              <div class="photo-lbl">Fotografii</div>
+              <div class="photo-req">⚠ min. 3</div>
+            </div>
+            <div class="photo-row">
+              <div class="ph-thumb">🏗</div>
+              <div class="ph-thumb">📸</div>
+              <div class="ph-thumb">🪨</div>
+              <div class="ph-add">+</div>
+            </div>
+            <div class="ph-count">3 din 3 ✓</div>
+          </div>
+        </div>
+        <div style="padding:6px 12px 0"><div class="btn-submit">Continuă →</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────
+  SCREEN 7 — Location Picker / Map Pin (NEW)
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">07 — Selector Locație</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:44</span><div class="sbar-icons"><i class="ico-batt"></i></div></div>
+      <div class="screen-content" style="padding-bottom:0">
+        <div class="map-wrap">
+          <div class="map-grid"></div>
+
+          <!-- Streets H -->
+          <div class="map-street-h" style="top:28%"></div>
+          <div class="map-street-h" style="top:52%"></div>
+          <div class="map-street-h" style="top:72%"></div>
+          <!-- Streets V -->
+          <div class="map-street-v" style="left:25%"></div>
+          <div class="map-street-v" style="left:55%"></div>
+          <div class="map-street-v" style="left:80%"></div>
+          <!-- Blocks -->
+          <div class="map-block" style="top:8%;left:5%;width:17%;height:17%"></div>
+          <div class="map-block" style="top:8%;left:30%;width:22%;height:17%"></div>
+          <div class="map-block" style="top:8%;left:60%;width:16%;height:17%"></div>
+          <div class="map-block" style="top:33%;left:5%;width:17%;height:15%"></div>
+          <div class="map-block" style="top:33%;left:30%;width:22%;height:15%"></div>
+          <div class="map-block" style="top:33%;left:62%;width:14%;height:15%"></div>
+          <div class="map-block" style="top:57%;left:5%;width:17%;height:13%"></div>
+          <div class="map-block" style="top:57%;left:30%;width:22%;height:13%"></div>
+
+          <!-- Street labels -->
+          <div class="map-nearby" style="top:24%;left:8%;transform:rotate(-0deg)">Hauptstraße</div>
+          <div class="map-nearby" style="top:48%;left:8%">Bahnhofstr.</div>
+          <div class="map-nearby" style="top:30%;left:62%;transform:rotate(90deg);transform-origin:left center">Neue Str.</div>
+
+          <!-- Pulse + Pin -->
+          <div class="map-pulse" style="top:50%;left:55%"></div>
+          <div class="map-pin" style="top:50%;left:55%">
+            <div class="map-pin-dot"></div>
+            <div class="map-pin-shadow"></div>
+          </div>
+
+          <!-- Other markers -->
+          <div style="position:absolute;top:34%;left:28%;width:10px;height:10px;border-radius:50%;background:rgba(59,130,246,0.7);border:1.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,0.5)"></div>
+          <div style="position:absolute;top:26%;left:56%;width:10px;height:10px;border-radius:50%;background:rgba(245,158,11,0.7);border:1.5px solid #fff;box-shadow:0 0 6px rgba(245,158,11,0.5)"></div>
+
+          <!-- Top search bar -->
+          <div class="map-top-bar">
+            <div class="bk">←</div>
+            <div class="map-search-bar">
+              <span>🔍</span>
+              <span>Caută adresă...</span>
+            </div>
+          </div>
+
+          <!-- Bottom card -->
+          <div class="map-bottom">
+            <div class="map-addr-card">
+              <div class="map-addr-icon">📍</div>
+              <div class="map-addr-text">
+                <div class="map-addr-name">Hauptstraße 14</div>
+                <div class="map-addr-full">89073 Ulm, Baden-Württemberg</div>
+              </div>
+              <div class="map-check">✓</div>
+            </div>
+            <div class="map-confirm-btn">Confirmă Locația</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────
+  SCREEN 8 — Programări
+──────────────────────────────────────────── -->
+<div class="screen-wrap">
+  <div class="screen-label">08 — Programări</div>
+  <div class="phone">
+    <div class="phone-inner">
+      <div class="sbar"><span class="sbar-time">09:41</span><div class="sbar-icons"><i class="ico-wifi"></i><i class="ico-batt"></i></div></div>
+      <div class="screen-content">
+        <div class="s8-hdr">
+          <div class="s8-top">
+            <div>
+              <div class="s8-title">Programări</div>
+              <div class="s8-date">Joi, 23 Aprilie 2026</div>
+            </div>
+            <div class="s8-add">+</div>
+          </div>
+          <div class="s8-tabs">
+            <div class="s8-tab on">Toate</div>
+            <div class="s8-tab">Geodesia Ulm</div>
+            <div class="s8-tab">Fiber KFG</div>
+          </div>
+        </div>
+        <div class="s8-body">
+          <div class="pc">
+            <div class="pc-time-col">
+              <div class="pc-time">08:00</div>
+              <div class="pc-line"></div>
+            </div>
+            <div class="pc-info">
+              <div class="pc-client">Familie Bauer</div>
+              <div class="pc-addr">Hauptstraße 14, Ulm</div>
+              <div class="pc-foot">
+                <div class="badge bb">HA</div>
+                <div class="sp sp-l">În lucru</div>
+                <div class="pc-team">· M. Rusu</div>
+              </div>
+            </div>
+          </div>
+          <div class="pc">
+            <div class="pc-time-col">
+              <div class="pc-time">10:30</div>
+              <div class="pc-line"></div>
+            </div>
+            <div class="pc-info">
+              <div class="pc-client">Müller GmbH</div>
+              <div class="pc-addr">Bahnhofstr. 7, Ulm</div>
+              <div class="pc-foot">
+                <div class="badge ba">Reparație</div>
+                <div class="sp sp-p">Programat</div>
+                <div class="pc-team">· A. Pop</div>
+              </div>
+            </div>
+          </div>
+          <div class="pc">
+            <div class="pc-time-col">
+              <div class="pc-time">14:00</div>
+            </div>
+            <div class="pc-info">
+              <div class="pc-client">Stadtwerke Ulm</div>
+              <div class="pc-addr">Neue Str. 22, Ulm</div>
+              <div class="pc-foot">
+                <div class="badge bg">HA</div>
+                <div class="sp sp-f">Finalizat</div>
+                <div class="pc-team">· I. Constantin</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /screens-grid -->
+
+<div style="text-align:center;margin-top:56px;color:var(--text3);font-size:10px;letter-spacing:0.5px">
+  HestiOS Raportare · UI Concept · Hesti Rossmann GmbH · 2026
+</div>
+
+</body>
+</html>

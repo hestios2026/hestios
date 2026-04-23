@@ -93,6 +93,7 @@ export interface DataHA {
   tip_conectare: 'kit_complet' | 'conectat_strada' | '';
   suprafata: 'asfalt' | 'pavaj' | 'beton' | 'fara_strat' | 'mixt' | '';
   suprafata_mixt_detalii: string;
+  lungime: string;
   photos: PhotoEntry[];
 }
 
@@ -155,6 +156,7 @@ export interface DataRaportZilnic {
   nr_hp_plus: string;
   locatie_start: string;
   locatie_stop: string;
+  waypoints: string[];
   photos: PhotoEntry[];
 }
 

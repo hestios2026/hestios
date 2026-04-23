@@ -10,25 +10,28 @@ import { T } from '../theme';
 const STATUS_LABEL: Record<string, string> = {
   scheduled:   'Programat',
   in_progress: 'În lucru',
-  completed:   'Finalizat',
+  done:        'Finalizat',
   cancelled:   'Anulat',
 };
 
 const STATUS_COLOR: Record<string, string> = {
   scheduled:   T.info,
   in_progress: T.warning,
-  completed:   T.green,
+  done:        T.green,
   cancelled:   '#9CA3AF',
 };
 
 function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+  const timePart = iso.includes('T') ? iso.split('T')[1] : iso;
+  const [h, m] = timePart.split(':');
+  return `${(h ?? '00').padStart(2, '0')}:${(m ?? '00').padStart(2, '0')}`;
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('ro-RO', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  const datePart = iso.split('T')[0] ?? iso;
+  const [year, month, day] = datePart.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.toLocaleDateString('ro-RO', { weekday: 'long', day: '2-digit', month: 'long' });
 }
 
 function toDateStr(d: Date): string {
@@ -99,99 +102,113 @@ export default function ProgramariScreen({ siteId, onBack }: Props) {
     );
   };
 
-  const renderItem = ({ item }: { item: Programare }) => {
-    const color = STATUS_COLOR[item.status] ?? '#9CA3AF';
-    const canStart = item.status === 'scheduled';
+  const pending = items.filter(p => p.status !== 'done').length;
+  const done    = items.filter(p => p.status === 'done').length;
+
+  const renderItem = ({ item, index }: { item: Programare; index: number }) => {
+    const color    = STATUS_COLOR[item.status] ?? '#9CA3AF';
+    const canStart  = item.status === 'scheduled' || item.status === 'new';
     const canFinish = item.status === 'in_progress';
+    const isLast    = index === items.length - 1;
 
     return (
-      <View style={styles.card}>
-        {/* Time + status row */}
-        <View style={styles.cardHeader}>
-          <Text style={styles.time}>{formatTime(item.scheduled_date)}</Text>
-          <View style={[styles.statusPill, { backgroundColor: color + '20' }]}>
-            <Text style={[styles.statusText, { color }]}>{STATUS_LABEL[item.status] ?? item.status}</Text>
+      <View style={S.card}>
+        {/* Left: time column */}
+        <View style={S.timeCol}>
+          <View style={S.timePill}>
+            <Text style={S.timeText}>{formatTime(item.scheduled_date)}</Text>
           </View>
+          {!isLast && <View style={S.timeLine} />}
         </View>
 
-        {/* Client info */}
-        <Text style={styles.clientName}>{item.client_name}</Text>
-        <Text style={styles.address}>{item.address}{item.city ? `, ${item.city}` : ''}</Text>
+        {/* Right: info */}
+        <View style={S.cardBody}>
+          <Text style={S.clientName}>{item.client_name}</Text>
+          <Text style={S.addr}>{item.address}{item.city ? `, ${item.city}` : ''}</Text>
 
-        {item.client_phone && (
-          <Text style={styles.phone}>{item.client_phone}</Text>
-        )}
-        {item.connection_type && (
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{item.connection_type}</Text>
+          <View style={S.cardMeta}>
+            {item.connection_type && (
+              <View style={S.typeBadge}>
+                <Text style={S.typeText}>{item.connection_type}</Text>
+              </View>
+            )}
+            <View style={[S.statusPill, { backgroundColor: `${color}18`, borderColor: `${color}35` }]}>
+              <View style={[S.statusDot, { backgroundColor: color }]} />
+              <Text style={[S.statusText, { color }]}>{STATUS_LABEL[item.status] ?? item.status}</Text>
+            </View>
           </View>
-        )}
-        {item.notes && (
-          <Text style={styles.notes}>{item.notes}</Text>
-        )}
 
-        {/* Action buttons */}
-        {(canStart || canFinish) && (
-          <View style={styles.actions}>
-            {canStart && (
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: T.warning + '20', borderColor: T.warning }]}
-                onPress={() => confirmStatus(item, 'in_progress', 'În lucru')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.actionText, { color: T.warning }]}>Începe</Text>
-              </TouchableOpacity>
-            )}
-            {canFinish && (
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: T.green + '20', borderColor: T.green }]}
-                onPress={() => confirmStatus(item, 'completed', 'Finalizat')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.actionText, { color: T.green }]}>Finalizat</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+          {item.client_phone && (
+            <Text style={S.phone}>{item.client_phone}</Text>
+          )}
+          {item.notes && (
+            <Text style={S.notes}>{item.notes}</Text>
+          )}
+
+          {(canStart || canFinish) && (
+            <View style={S.actions}>
+              {canStart && (
+                <TouchableOpacity
+                  style={[S.actionBtn, { borderColor: T.warning }]}
+                  onPress={() => confirmStatus(item, 'in_progress', 'În lucru')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[S.actionTxt, { color: T.warning }]}>▶ Începe</Text>
+                </TouchableOpacity>
+              )}
+              {canFinish && (
+                <TouchableOpacity
+                  style={[S.actionBtn, { borderColor: T.green }]}
+                  onPress={() => confirmStatus(item, 'done', 'Finalizat')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[S.actionTxt, { color: T.green }]}>✓ Finalizat</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
       </View>
     );
   };
 
-  const pending = items.filter(p => p.status !== 'completed').length;
-  const done = items.filter(p => p.status === 'completed').length;
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={S.root}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>Înapoi</Text>
+      <View style={S.hdr}>
+        <TouchableOpacity style={S.backBtn} onPress={onBack} activeOpacity={0.7}>
+          <Text style={S.backTxt}>←</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.headerTitle}>Programări</Text>
-          {!loading && (
-            <Text style={styles.headerSub}>
-              {pending} în așteptare · {done} finalizate
-            </Text>
-          )}
+        <View style={{ flex: 1 }}>
+          <Text style={S.hdrTitle}>Programări</Text>
+          <Text style={S.hdrSub}>{formatDate(tab + 'T12:00:00')}</Text>
         </View>
+        {!loading && (
+          <View style={S.countRow}>
+            <View style={S.countBadge}>
+              <Text style={S.countTxt}>{pending} în așteptare</Text>
+            </View>
+            {done > 0 && (
+              <View style={[S.countBadge, S.countBadgeDone]}>
+                <Text style={[S.countTxt, { color: T.green }]}>{done} ✓</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
+      <View style={S.tabBar}>
         {TABS.map(t => (
           <TouchableOpacity
             key={t.key}
-            style={[styles.tab, tab === t.key && styles.tabActive]}
+            style={[S.tab, tab === t.key && S.tabActive]}
             onPress={() => setTab(t.key)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>
-              {t.label}
-            </Text>
-            <Text style={[styles.tabDate, tab === t.key && styles.tabDateActive]}>
-              {formatDate(t.key + 'T12:00:00')}
+            <Text style={[S.tabTxt, tab === t.key && S.tabTxtActive]}>{t.label}</Text>
+            <Text style={[S.tabDate, tab === t.key && S.tabDateActive]}>
+              {formatDate(t.key + 'T12:00:00').split(',')[0]}
             </Text>
           </TouchableOpacity>
         ))}
@@ -200,17 +217,16 @@ export default function ProgramariScreen({ siteId, onBack }: Props) {
       {loading ? (
         <ActivityIndicator color={T.green} size="large" style={{ marginTop: 60 }} />
       ) : items.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>📅</Text>
-          <Text style={styles.emptyText}>Nicio programare pentru această zi</Text>
+        <View style={S.empty}>
+          <Text style={S.emptyIco}>📅</Text>
+          <Text style={S.emptyTxt}>Nicio programare pentru această zi</Text>
         </View>
       ) : (
         <FlatList
           data={items}
           keyExtractor={i => String(i.id)}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          contentContainerStyle={{ padding: 14, paddingBottom: 40 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -224,69 +240,52 @@ export default function ProgramariScreen({ siteId, onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: T.bg },
+const S = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.dark },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: T.dark, paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: T.borderDk,
-  },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingRight: 4 },
-  backArrow: { color: T.green, fontSize: 16 },
-  backText: { color: T.green, fontSize: 14, fontWeight: '600' },
-  headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '700' },
-  headerSub: { color: '#6B7280', fontSize: 11, marginTop: 1 },
+  hdr:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: T.darkCard, borderBottomWidth: 1, borderBottomColor: T.borderDk },
+  backBtn:  { width: 34, height: 34, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: T.borderDk, alignItems: 'center', justifyContent: 'center' },
+  backTxt:  { color: T.text2, fontSize: 16 },
+  hdrTitle: { color: T.textLight, fontSize: 16, fontWeight: '800' },
+  hdrSub:   { color: T.text3, fontSize: 11, marginTop: 1 },
+  countRow: { flexDirection: 'row', gap: 5, flexShrink: 0 },
+  countBadge:     { backgroundColor: 'rgba(245,158,11,0.1)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.2)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
+  countBadgeDone: { backgroundColor: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.2)' },
+  countTxt: { fontSize: 9, fontWeight: '700', color: T.warning },
 
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: T.surface,
-    borderBottomWidth: 1, borderBottomColor: T.border,
-  },
-  tab: {
-    flex: 1, alignItems: 'center', paddingVertical: 12,
-    borderBottomWidth: 2, borderBottomColor: 'transparent',
-  },
-  tabActive: { borderBottomColor: T.green },
-  tabText: { fontSize: 14, fontWeight: '600', color: T.text2 },
-  tabTextActive: { color: T.green },
-  tabDate: { fontSize: 11, color: T.text3, marginTop: 2 },
-  tabDateActive: { color: T.green },
+  tabBar:       { flexDirection: 'row', backgroundColor: T.darkCard, borderBottomWidth: 1, borderBottomColor: T.borderDk },
+  tab:          { flex: 1, alignItems: 'center', paddingVertical: 11, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabActive:    { borderBottomColor: T.green },
+  tabTxt:       { fontSize: 14, fontWeight: '600', color: T.text3 },
+  tabTxtActive: { color: T.green },
+  tabDate:      { fontSize: 10, color: T.text3, marginTop: 2 },
+  tabDateActive:{ color: 'rgba(34,197,94,0.7)' },
 
-  card: {
-    backgroundColor: T.surface,
-    borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: T.border,
-  },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  time: { fontSize: 20, fontWeight: '800', color: T.text, letterSpacing: -0.5 },
-  statusPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  // Card
+  card:     { flexDirection: 'row', gap: 12, marginBottom: 0 },
+  timeCol:  { alignItems: 'center', width: 52, flexShrink: 0 },
+  timePill: { backgroundColor: T.darkCard, borderWidth: 1, borderColor: T.borderDk, borderRadius: 7, paddingHorizontal: 4, paddingVertical: 5, alignItems: 'center' },
+  timeText: { fontSize: 12, fontWeight: '800', color: T.textLight, fontVariant: ['tabular-nums'] },
+  timeLine: { width: 1, flex: 1, backgroundColor: T.borderDk, marginTop: 4, marginBottom: -4 },
 
-  clientName: { fontSize: 15, fontWeight: '700', color: T.text, marginBottom: 3 },
-  address: { fontSize: 13, color: T.text2, marginBottom: 4 },
-  phone: { fontSize: 12, color: T.text3, marginBottom: 4 },
+  cardBody:   { flex: 1, backgroundColor: T.darkCard, borderRadius: 12, borderWidth: 1, borderColor: T.borderDk, padding: 12, marginBottom: 10 },
+  clientName: { fontSize: 14, fontWeight: '700', color: T.textLight, marginBottom: 3 },
+  addr:       { fontSize: 12, color: T.text2, marginBottom: 7 },
+  phone:      { fontSize: 11, color: T.text3, marginTop: 4 },
+  notes:      { fontSize: 11, color: T.text3, fontStyle: 'italic', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: 7, marginTop: 6, borderWidth: 1, borderColor: T.borderDk },
 
-  typeBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: T.greenBg, borderRadius: 6,
-    paddingHorizontal: 8, paddingVertical: 3, marginBottom: 6,
-  },
-  typeText: { fontSize: 11, fontWeight: '700', color: T.green },
+  cardMeta: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' },
+  typeBadge:  { backgroundColor: 'rgba(34,197,94,0.1)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  typeText:   { fontSize: 10, fontWeight: '800', color: T.green },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  statusDot:  { width: 5, height: 5, borderRadius: 3 },
+  statusText: { fontSize: 10, fontWeight: '700' },
 
-  notes: {
-    fontSize: 12, color: T.text3, fontStyle: 'italic',
-    backgroundColor: '#F9FAFB', borderRadius: 6, padding: 8, marginTop: 4,
-  },
+  actions:   { flexDirection: 'row', gap: 8, marginTop: 10 },
+  actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 8, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.04)' },
+  actionTxt: { fontSize: 12, fontWeight: '700' },
 
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 9,
-    borderRadius: 8, borderWidth: 1,
-  },
-  actionText: { fontSize: 13, fontWeight: '700' },
-
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { fontSize: 14, color: T.text3 },
+  empty:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 60 },
+  emptyIco: { fontSize: 44, marginBottom: 12 },
+  emptyTxt: { fontSize: 14, color: T.text3 },
 });

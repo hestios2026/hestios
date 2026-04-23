@@ -66,7 +66,7 @@ export default function ReportFormScreen({
 
   // G — HA
   const [haData, setHaData] = useState<DataHA>({
-    locatie: '', tip_conectare: '', suprafata: '', suprafata_mixt_detalii: '', photos: [],
+    locatie: '', tip_conectare: '', suprafata: '', suprafata_mixt_detalii: '', lungime: '', photos: [],
   });
 
   // H — Reparatie
@@ -99,7 +99,7 @@ export default function ReportFormScreen({
   // M — Raport Zilnic
   const [raportData, setRaportData] = useState<DataRaportZilnic>({
     lungime_totala: '', nr_bransamente_ha: '', nr_hp_plus: '',
-    locatie_start: '', locatie_stop: '', photos: [],
+    locatie_start: '', locatie_stop: '', waypoints: [], photos: [],
   });
 
   // ─── Validation ────────────────────────────────────────────────────────────
@@ -385,6 +385,10 @@ export default function ReportFormScreen({
                 placeholder="ex: 5m asf. / 2m pavaj / 7m total"
               />
             )}
+            <TextField label="Metri efectuați" value={haData.lungime}
+              onChangeText={v => setHaData(p => ({ ...p, lungime: v }))}
+              keyboardType="decimal-pad" placeholder="ex: 12.5"
+            />
             <PhotoPicker photos={haData.photos}
               onChange={ph => setHaData(p => ({ ...p, photos: ph }))}
               minPhotos={5}
@@ -610,8 +614,10 @@ export default function ReportFormScreen({
             />
             <LocationField label={tr.fLocationStartStop} mode="route" required
               startValue={raportData.locatie_start} stopValue={raportData.locatie_stop}
+              waypointValues={raportData.waypoints}
               onChangeStart={v => setRaportData(p => ({ ...p, locatie_start: v }))}
               onChangeStop={v => setRaportData(p => ({ ...p, locatie_stop: v }))}
+              onChangeWaypoints={v => setRaportData(p => ({ ...p, waypoints: v }))}
             />
             <PhotoPicker photos={raportData.photos}
               onChange={ph => setRaportData(p => ({ ...p, photos: ph }))}
@@ -628,11 +634,11 @@ export default function ReportFormScreen({
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backText}>{tr.backArrow}</Text>
+          <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{tr.workTypeLabels[workType]}</Text>
-          <Text style={styles.headerSub}>{siteName}{nvtNumber ? ` — ${nvtNumber}` : ''}</Text>
+          <Text style={styles.headerSub}>{siteName}{nvtNumber ? ` · ${nvtNumber}` : ''}</Text>
         </View>
       </View>
 
@@ -656,30 +662,29 @@ export default function ReportFormScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: T.bg },
+  container: { flex: 1, backgroundColor: T.dark },
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: T.dark, paddingHorizontal: 16, paddingVertical: 13,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: T.darkCard, paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: T.borderDk,
   },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 },
-  backText: { color: T.green, fontSize: 14, fontWeight: '600' },
-  headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '700' },
-  headerSub: { color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 1 },
+  backBtn:  { width: 34, height: 34, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: T.borderDk, alignItems: 'center', justifyContent: 'center' },
+  backArrow:{ color: T.text2, fontSize: 16 },
+  headerTitle: { color: T.textLight, fontSize: 15, fontWeight: '800' },
+  headerSub:   { color: T.text3, fontSize: 11, marginTop: 1 },
   scroll: { padding: 16, paddingBottom: 40 },
   mandatoryBanner: {
-    backgroundColor: T.greenBg, borderRadius: 8,
-    paddingVertical: 10, paddingHorizontal: 14,
+    backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 10,
+    paddingVertical: 11, paddingHorizontal: 14,
     borderLeftWidth: 3, borderLeftColor: T.green,
-    marginBottom: 16,
+    marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)',
   },
-  mandatoryText: { color: T.green, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  mandatoryText: { color: T.green, fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
   saveBtn: {
-    backgroundColor: T.green, borderRadius: 10,
-    paddingVertical: 14, alignItems: 'center', marginTop: 8,
-    shadowColor: T.green, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: T.green, borderRadius: 12,
+    paddingVertical: 15, alignItems: 'center', marginTop: 8,
+    elevation: 6,
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });

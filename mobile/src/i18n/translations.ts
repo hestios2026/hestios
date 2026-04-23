@@ -14,6 +14,7 @@ export const translations = {
     wrongPinMsg: 'Încearcă din nou.',
     errorTitle: 'Eroare',
     usersLoadError: 'Nu s-a putut încărca lista de utilizatori.',
+    retry: 'Reîncearcă',
 
     // ── HomeScreen ──────────────────────────────────────────────────────────
     projectSite: 'PROIECT / ȘANTIER',
@@ -221,6 +222,7 @@ export const translations = {
     wrongPinMsg: 'Bitte erneut versuchen.',
     errorTitle: 'Fehler',
     usersLoadError: 'Benutzerliste konnte nicht geladen werden.',
+    retry: 'Erneut versuchen',
 
     // ── HomeScreen ──────────────────────────────────────────────────────────
     projectSite: 'PROJEKT / BAUSTELLE',
