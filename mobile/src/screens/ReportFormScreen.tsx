@@ -4,7 +4,7 @@ import {
   SafeAreaView, Alert, ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TextField, Dropdown, LocationField } from '../components/FormField';
+import { TextField, Dropdown, LocationField, hasPin } from '../components/FormField';
 import PhotoPicker from '../components/PhotoPicker';
 import { enqueue } from '../store/offlineQueue';
 import { newUUID } from '../utils/timestamp';
@@ -114,8 +114,8 @@ export default function ReportFormScreen({
     switch (workType) {
       case 'poze_inainte':
         if (!pozeData.tip) return tr.vSelectTip;
-        if (!pozeData.start) return tr.vEnterStart;
-        if (!pozeData.stop) return tr.vEnterStop;
+        if (!hasPin(pozeData.start)) return tr.vPinRequired;
+        if (!hasPin(pozeData.stop)) return tr.vPinStopRequired;
         if (pozeData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'teratest':
@@ -123,8 +123,8 @@ export default function ReportFormScreen({
         if (teraData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'semne_circulatie':
-        if (!semneData.start) return tr.vEnterStart;
-        if (!semneData.stop) return tr.vEnterStop;
+        if (!hasPin(semneData.start)) return tr.vPinRequired;
+        if (!hasPin(semneData.stop)) return tr.vPinStopRequired;
         if (semneData.photos.length < 6) return tr.vMinPhotos(6);
         break;
       case 'liefer_scheine':
@@ -132,34 +132,34 @@ export default function ReportFormScreen({
         if (lieferData.photos.length === 0) return tr.vAddPhoto;
         break;
       case 'montaj_nvt_pdp':
-        if (!montajData.locatie) return tr.vEnterLocation;
+        if (!hasPin(montajData.locatie)) return tr.vPinRequired;
         if (montajData.photos.length < 4) return tr.vMinPhotos(4);
         break;
       case 'hp_plus':
-        if (!hpData.locatie) return tr.vEnterLocationStreet;
+        if (!hasPin(hpData.locatie)) return tr.vPinRequired;
         if (hpData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'ha':
-        if (!haData.locatie) return tr.vEnterLocationStreet;
+        if (!hasPin(haData.locatie)) return tr.vPinRequired;
         if (!haData.tip_conectare) return tr.vSelectConnectionType;
         if (!haData.suprafata) return tr.vSelectSurface;
         if (haData.suprafata === 'mixt' && !haData.suprafata_mixt_detalii) return tr.vEnterDescription;
         if (haData.photos.length < 5) return tr.vMinPhotos(5);
         break;
       case 'reparatie':
-        if (!repData.locatie) return tr.vEnterLocation;
+        if (!hasPin(repData.locatie)) return tr.vPinRequired;
         if (!repData.descriere) return tr.vEnterDescription;
         if (repData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'tras_teava':
-        if (!trasData.start) return tr.vEnterStart;
-        if (!trasData.stop) return tr.vEnterStop;
+        if (!hasPin(trasData.start)) return tr.vPinRequired;
+        if (!hasPin(trasData.stop)) return tr.vPinStopRequired;
         if (!trasData.nr_cabluri) return tr.vEnterCables;
         if (!trasData.lungime) return tr.vEnterLength;
         if (trasData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'groapa':
-        if (!groapaData.locatie) return tr.vEnterLocation;
+        if (!hasPin(groapaData.locatie)) return tr.vPinRequired;
         if (!groapaData.terasament) return tr.vSelectTerrain;
         if (groapaData.terasament === 'asfalt' && !groapaData.grosime_asfalt)
           return tr.vEnterAsphalt;
@@ -169,8 +169,8 @@ export default function ReportFormScreen({
         if (groapaData.photos.length < 3) return tr.vMinPhotos(3);
         break;
       case 'traversare':
-        if (!traversareData.start) return tr.vEnterStart;
-        if (!traversareData.stop) return tr.vEnterStop;
+        if (!hasPin(traversareData.start)) return tr.vPinRequired;
+        if (!hasPin(traversareData.stop)) return tr.vPinStopRequired;
         if (!traversareData.lungime) return tr.vEnterLength;
         if (!traversareData.latime) return tr.vEnterWidth;
         if (!traversareData.adancime) return tr.vEnterDepth;
@@ -178,8 +178,8 @@ export default function ReportFormScreen({
         if (traversareData.photos.length < 4) return tr.vMinPhotos(4);
         break;
       case 'sapatura':
-        if (!sapaturaData.start) return tr.vEnterStart;
-        if (!sapaturaData.stop) return tr.vEnterStop;
+        if (!hasPin(sapaturaData.start)) return tr.vPinRequired;
+        if (!hasPin(sapaturaData.stop)) return tr.vPinStopRequired;
         if (!sapaturaData.tip) return tr.vSelectSapaturaTip;
         if (!sapaturaData.terasament) return tr.vSelectTerrain;
         if (sapaturaData.terasament === 'asfalt' && !sapaturaData.grosime_asfalt)
@@ -194,8 +194,8 @@ export default function ReportFormScreen({
         if (!raportData.lungime_totala) return tr.vEnterTotalLength;
         if (!raportData.nr_bransamente_ha) return tr.vEnterHaCount;
         if (!raportData.nr_hp_plus) return tr.vEnterHpCount;
-        if (!raportData.locatie_start) return tr.vEnterLocStart;
-        if (!raportData.locatie_stop) return tr.vEnterLocStop;
+        if (!hasPin(raportData.locatie_start)) return tr.vPinRequired;
+        if (!hasPin(raportData.locatie_stop)) return tr.vPinStopRequired;
         if (raportData.photos.length < 5) return tr.vMinPhotos(5);
         break;
       case 'comanda_materiale':

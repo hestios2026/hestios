@@ -95,6 +95,10 @@ export function Dropdown({ label, value, options, onChange, required, placeholde
  * Stored format: "Street Name Nr. | lat,lng"
  * If GPS was not used, just the address text is stored.
  */
+export function hasPin(v: string): boolean {
+  return !!parsePoint(v);
+}
+
 export function parsePoint(v: string): LocationPoint | undefined {
   if (!v.trim()) return undefined;
   const pipeIdx = v.lastIndexOf('|');
@@ -150,6 +154,9 @@ export function LocationField({
 
   const startCoords = displayCoords(startValue);
   const stopCoords  = stopValue ? displayCoords(stopValue) : '';
+  const startPinOk  = !!startCoords;
+  const stopPinOk   = mode === 'route' ? !!stopCoords : true;
+  const allPinsOk   = startPinOk && stopPinOk;
 
   return (
     <View style={styles.field}>
@@ -157,28 +164,36 @@ export function LocationField({
         {label}{required && <Text style={styles.required}> *</Text>}
       </Text>
 
-      {/* Start address input */}
-      <TextInput
-        style={styles.input}
-        value={displayAddress(startValue)}
-        onChangeText={text => onChangeStart(text)}
-        placeholder={mode === 'route' ? tr.startPlaceholder : tr.singlePlaceholder}
-        placeholderTextColor="#94A3B8"
-      />
-      {startCoords ? <Text style={styles.gpsCoords}>📍 {startCoords}</Text> : null}
+      {/* Start pin status */}
+      <View style={[styles.pinRow, startPinOk ? styles.pinRowOk : styles.pinRowEmpty]}>
+        <Text style={[styles.pinDot, { color: startPinOk ? T.green : '#94A3B8' }]}>
+          {startPinOk ? '📍' : '○'}
+        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.pinAddr, !startPinOk && styles.pinAddrEmpty]} numberOfLines={1}>
+            {startPinOk
+              ? (displayAddress(startValue) || startCoords)
+              : (mode === 'route' ? tr.startPlaceholder : tr.singlePlaceholder)}
+          </Text>
+          {startCoords ? <Text style={styles.gpsCoords}>{startCoords}</Text> : null}
+        </View>
+      </View>
 
-      {/* Stop address input */}
+      {/* Stop pin status */}
       {mode === 'route' && (
-        <>
-          <TextInput
-            style={[styles.input, { marginTop: 6 }]}
-            value={displayAddress(stopValue ?? '')}
-            onChangeText={text => onChangeStop?.(text)}
-            placeholder={tr.stopPlaceholder}
-            placeholderTextColor="#94A3B8"
-          />
-          {stopCoords ? <Text style={styles.gpsCoords}>📍 {stopCoords}</Text> : null}
-        </>
+        <View style={[styles.pinRow, { marginTop: 6 }, stopPinOk ? styles.pinRowOk : styles.pinRowEmpty]}>
+          <Text style={[styles.pinDot, { color: stopPinOk ? T.green : '#94A3B8' }]}>
+            {stopPinOk ? '📍' : '○'}
+          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.pinAddr, !stopPinOk && styles.pinAddrEmpty]} numberOfLines={1}>
+              {stopPinOk
+                ? (displayAddress(stopValue ?? '') || stopCoords)
+                : tr.stopPlaceholder}
+            </Text>
+            {stopCoords ? <Text style={styles.gpsCoords}>{stopCoords}</Text> : null}
+          </View>
+        </View>
       )}
 
       {/* Waypoints summary */}
@@ -194,9 +209,15 @@ export function LocationField({
       )}
 
       {/* Map button */}
-      <TouchableOpacity style={styles.mapBtn} onPress={() => setShowPicker(true)} activeOpacity={0.8}>
-        <Text style={styles.mapBtnTxt}>
-          {mode === 'route' ? tr.mapBtnRoute : tr.mapBtnSingle}
+      <TouchableOpacity
+        style={[styles.mapBtn, !allPinsOk && required && styles.mapBtnRequired]}
+        onPress={() => setShowPicker(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.mapBtnTxt, !allPinsOk && required && styles.mapBtnTxtRequired]}>
+          {allPinsOk
+            ? (mode === 'route' ? '✓ ' + tr.mapBtnRoute : '✓ ' + tr.mapBtnSingle)
+            : (mode === 'route' ? tr.mapBtnRoute : tr.mapBtnSingle)}
         </Text>
       </TouchableOpacity>
 
@@ -235,7 +256,17 @@ const styles = StyleSheet.create({
   },
   inputMulti: { minHeight: 80, textAlignVertical: 'top' },
   hint: { fontSize: 11, color: T.text3, marginTop: 4 },
-  gpsCoords: { fontSize: 10, color: T.text3, marginTop: 3, fontFamily: 'monospace', marginLeft: 2 },
+  gpsCoords: { fontSize: 10, color: T.text3, marginTop: 2, fontFamily: 'monospace' },
+
+  pinRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9,
+  },
+  pinRowOk:    { borderColor: 'rgba(34,197,94,0.35)', backgroundColor: 'rgba(34,197,94,0.05)' },
+  pinRowEmpty: { borderColor: T.border, backgroundColor: T.surface },
+  pinDot:  { fontSize: 16 },
+  pinAddr: { fontSize: 13, color: T.text, fontWeight: '500' },
+  pinAddrEmpty: { color: T.text3, fontWeight: '400' },
 
   waypointsBar: { marginTop: 6, gap: 4 },
   waypointChip: {
@@ -252,7 +283,9 @@ const styles = StyleSheet.create({
     backgroundColor: T.bg, borderWidth: 1, borderColor: T.border,
     borderRadius: 8, paddingVertical: 10,
   },
+  mapBtnRequired: { borderColor: T.danger, backgroundColor: 'rgba(239,68,68,0.05)' },
   mapBtnTxt: { fontSize: 13, color: T.green, fontWeight: '600' },
+  mapBtnTxtRequired: { color: T.danger },
 
   dropdown: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

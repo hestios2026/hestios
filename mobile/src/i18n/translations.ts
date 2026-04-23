@@ -157,6 +157,8 @@ export const translations = {
     vMinPhotos: (n: number) => `Minim ${n} poze necesare.`,
     vEnterMateriale: 'Descrierea materialelor este obligatorie.',
     vSelectUrgenta: 'Selectează urgența.',
+    vPinRequired: 'Plasează pinul de start pe hartă.',
+    vPinStopRequired: 'Plasează pinul de stop pe hartă.',
 
     // Photo picker labels
     photoPickerLabels: {
@@ -373,6 +375,8 @@ export const translations = {
     vMinPhotos: (n: number) => `Mindestens ${n} Fotos erforderlich.`,
     vEnterMateriale: 'Materialbeschreibung ist erforderlich.',
     vSelectUrgenta: 'Dringlichkeit auswählen.',
+    vPinRequired: 'Startpin auf der Karte setzen.',
+    vPinStopRequired: 'Stoppin auf der Karte setzen.',
 
     // Photo picker labels
     photoPickerLabels: {
