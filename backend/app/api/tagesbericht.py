@@ -7,11 +7,14 @@ GET  /tagesbericht/{id}/     — get single entry with photos
 """
 from __future__ import annotations
 
+import io
 import uuid
+import logging
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -19,6 +22,9 @@ from app.api.auth import get_current_user
 from app.core.database import get_db
 from app.models.tagesbericht import TagesberichtEntry, TagesberichtPhoto
 from app.models.user import User
+from app.models.site import Site
+
+log = logging.getLogger(__name__)
 
 try:
     from app.core.storage import upload_file, get_presigned_url
@@ -178,6 +184,327 @@ def list_entries(
             "photos": [{"id": p.id, "category": p.category, "url": _fresh_url(p.s3_key), "filename": p.filename} for p in photos],
         })
     return result
+
+
+# ─── Export helpers ───────────────────────────────────────────────────────────
+
+WORK_TYPE_LABELS = {
+    'poze_inainte': 'Poze Înainte', 'teratest': 'Teratest',
+    'semne_circulatie': 'Semne Circulație', 'liefer_scheine': 'Liefer Scheine',
+    'montaj_nvt_pdp': 'Montaj NVT/PDP', 'hp_plus': 'HP+', 'ha': 'HA',
+    'reparatie': 'Reparație', 'tras_teava': 'Tras Țeavă', 'groapa': 'Groapă',
+    'traversare': 'Traversare', 'sapatura': 'Săpătură',
+    'raport_zilnic': 'Raport Zilnic', 'comanda_materiale': 'Comandă Materiale',
+}
+
+DATA_FIELD_LABELS = {
+    'locatie': 'Locație', 'locatie_start': 'Start', 'locatie_stop': 'Stop',
+    'start': 'Start', 'stop': 'Stop',
+    'tip_conectare': 'Tip Conectare', 'suprafata': 'Suprafață',
+    'suprafata_mixt_detalii': 'Detalii Mixt', 'lungime': 'Lungime (m)',
+    'terasament': 'Terasament', 'grosime_asfalt': 'Grosime Asfalt (cm)',
+    'latime': 'Lățime (m)', 'adancime': 'Adâncime (m)', 'tip': 'Tip Săpătură',
+    'nr_cabluri': 'Nr. Cabluri', 'teava_protectie': 'Țeavă Protecție',
+    'lungime_totala': 'Lungime Totală (m)', 'nr_bransamente_ha': 'Nr. Branșamente HA',
+    'nr_hp_plus': 'Nr. HP+', 'moment': 'Moment', 'descriere': 'Descriere',
+    'materiale': 'Materiale', 'urgenta': 'Urgență', 'notes': 'Observații',
+}
+
+SKIP_FIELDS = {'photos', 'waypoints'}
+
+
+def _parse_coord(v: str):
+    """Parse 'Address | lat,lng' or 'lat,lng' → (lat, lng) or None"""
+    if not v or not isinstance(v, str): return None
+    s = v.split('|')[-1].strip()
+    parts = [p.strip() for p in s.split(',')]
+    if len(parts) == 2:
+        try:
+            lat, lng = float(parts[0]), float(parts[1])
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                return (lat, lng)
+        except ValueError:
+            pass
+    return None
+
+
+def _render_map(data: dict, width=640, height=400) -> Optional[bytes]:
+    """Render a static map PNG for an entry's coordinates."""
+    try:
+        from staticmap import StaticMap, CircleMarker, Line
+        start  = _parse_coord(str(data.get('start') or data.get('locatie_start') or ''))
+        stop   = _parse_coord(str(data.get('stop')  or data.get('locatie_stop')  or ''))
+        single = _parse_coord(str(data.get('locatie') or ''))
+        wps_raw = data.get('waypoints') or []
+        waypoints = [_parse_coord(str(w)) for w in wps_raw if _parse_coord(str(w))]
+
+        if not start and not stop and not single:
+            return None
+
+        m = StaticMap(width, height,
+                      url_template='https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                      headers={'User-Agent': 'HestiOS-Export/1.0'})
+
+        if single:
+            m.add_marker(CircleMarker((single[1], single[0]), '#22c55e', 16))
+        if start:
+            m.add_marker(CircleMarker((start[1], start[0]), '#22c55e', 16))
+        for wp in waypoints:
+            m.add_marker(CircleMarker((wp[1], wp[0]), '#f97316', 12))
+        if stop:
+            m.add_marker(CircleMarker((stop[1], stop[0]), '#ef4444', 16))
+
+        route = [p for p in [start, *waypoints, stop] if p]
+        if len(route) >= 2:
+            m.add_line(Line([(p[1], p[0]) for p in route], '#f97316', 3))
+
+        zoom = 17
+        img = m.render(zoom=zoom)
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        return buf.getvalue()
+    except Exception as e:
+        log.warning("Map render failed: %s", e)
+        return None
+
+
+def _entry_to_row(e: TagesberichtEntry, site_name: str, photo_count: int) -> dict:
+    d = e.data or {}
+    row = {
+        'ID': e.id,
+        'Data': e.created_at.strftime('%d.%m.%Y %H:%M') if e.created_at else '',
+        'Tip Lucrare': WORK_TYPE_LABELS.get(e.work_type, e.work_type),
+        'Șantier': site_name,
+        'NVT': e.nvt_number or '',
+    }
+    for k, v in d.items():
+        if k in SKIP_FIELDS: continue
+        if isinstance(v, list): v = ', '.join(str(x) for x in v)
+        row[DATA_FIELD_LABELS.get(k, k)] = str(v) if v else ''
+    row['Nr. Fotografii'] = photo_count
+    return row
+
+
+# ─── Excel export ──────────────────────────────────────────────────────────────
+
+def _build_excel(entries_data: list) -> bytes:
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.drawing.image import Image as XlsxImage
+    from openpyxl.utils import get_column_letter
+
+    GREEN = 'FF22C55E'
+    DARK  = 'FF0C0F16'
+    LIGHT = 'FFF0FDF4'
+    GRAY  = 'FFF8FAFC'
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Rapoarte Mobile'
+
+    # Collect all keys
+    all_keys: list[str] = []
+    for item in entries_data:
+        for k in item['row'].keys():
+            if k not in all_keys:
+                all_keys.append(k)
+
+    # Header
+    for col_idx, key in enumerate(all_keys, 1):
+        cell = ws.cell(row=1, column=col_idx, value=key)
+        cell.fill = PatternFill('solid', fgColor=DARK)
+        cell.font = Font(bold=True, color='FFFFFFFF', size=10)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        ws.row_dimensions[1].height = 30
+
+    # Data rows
+    for row_idx, item in enumerate(entries_data, 2):
+        fill = PatternFill('solid', fgColor=LIGHT if row_idx % 2 == 0 else GRAY)
+        for col_idx, key in enumerate(all_keys, 1):
+            val = item['row'].get(key, '')
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.fill = fill
+            cell.alignment = Alignment(vertical='top', wrap_text=True)
+            cell.font = Font(size=10)
+
+    # Map images — add a separate sheet per entry that has a map
+    map_ws = wb.create_sheet('Hărți')
+    map_row = 1
+    for item in entries_data:
+        if item.get('map_png'):
+            map_ws.cell(row=map_row, column=1,
+                        value=f"#{item['row']['ID']} — {item['row']['Tip Lucrare']} — {item['row']['Data']}")
+            map_ws.cell(row=map_row, column=1).font = Font(bold=True, size=11)
+            map_row += 1
+            img_buf = io.BytesIO(item['map_png'])
+            img = XlsxImage(img_buf)
+            img.width, img.height = 640, 400
+            map_ws.add_image(img, f'A{map_row}')
+            # Adjust row height to fit image (~400px / ~0.75 pt per px ≈ 300 pt)
+            map_ws.row_dimensions[map_row].height = 300
+            map_row += 22  # skip rows for image height
+
+    # Auto-width main sheet columns
+    for col_idx, key in enumerate(all_keys, 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = max(len(str(key)), *(len(str(item['row'].get(key, ''))) for item in entries_data))
+        ws.column_dimensions[col_letter].width = min(max(max_len + 2, 10), 40)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
+# ─── PDF export ───────────────────────────────────────────────────────────────
+
+def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, HRFlowable, PageBreak
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER
+
+    W, H = A4
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=15*mm, bottomMargin=15*mm)
+
+    GREEN = colors.HexColor('#22C55E')
+    DARK  = colors.HexColor('#0C0F16')
+    CARD  = colors.HexColor('#F8FAFC')
+
+    styles = getSampleStyleSheet()
+    title_style  = ParagraphStyle('Title', fontSize=18, textColor=DARK, fontName='Helvetica-Bold', spaceAfter=4)
+    sub_style    = ParagraphStyle('Sub',   fontSize=10, textColor=colors.grey, spaceAfter=12)
+    h2_style     = ParagraphStyle('H2',    fontSize=13, textColor=GREEN, fontName='Helvetica-Bold', spaceBefore=6, spaceAfter=4)
+    label_style  = ParagraphStyle('Lbl',   fontSize=8,  textColor=colors.grey, fontName='Helvetica-Bold')
+    value_style  = ParagraphStyle('Val',   fontSize=10, textColor=DARK)
+
+    story = []
+    # Cover / title
+    story.append(Paragraph('HestiOS — Rapoarte Mobile', title_style))
+    subtitle = f"Export {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    if site_name_filter:
+        subtitle += f" · {site_name_filter}"
+    story.append(Paragraph(subtitle, sub_style))
+    story.append(HRFlowable(width='100%', thickness=2, color=GREEN, spaceAfter=16))
+
+    for item in entries_data:
+        row = item['row']
+        story.append(Paragraph(f"{row['Tip Lucrare']} — {row['Data']}", h2_style))
+
+        # Info table
+        info_fields = [('Șantier', row.get('Șantier', '')),
+                       ('NVT',     row.get('NVT', '')),
+                       ('ID',      str(row.get('ID', '')))]
+        info_data = [[Paragraph(k, label_style), Paragraph(str(v), value_style)] for k, v in info_fields if v]
+
+        # Data fields
+        skip = {'ID', 'Data', 'Tip Lucrare', 'Șantier', 'NVT', 'Nr. Fotografii'}
+        for k, v in row.items():
+            if k in skip or not v: continue
+            info_data.append([Paragraph(k, label_style), Paragraph(str(v), value_style)])
+
+        if info_data:
+            t = Table(info_data, colWidths=[45*mm, W - 30*mm - 45*mm])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), CARD),
+                ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.white, CARD]),
+                ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+                ('INNERGRID', (0,0), (-1,-1), 0.3, colors.HexColor('#E2E8F0')),
+                ('TOPPADDING', (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ]))
+            story.append(t)
+
+        # Map image
+        if item.get('map_png'):
+            story.append(Spacer(1, 8*mm))
+            story.append(Paragraph('Traseu pe Hartă', h2_style))
+            map_img = RLImage(io.BytesIO(item['map_png']),
+                              width=W - 30*mm,
+                              height=(W - 30*mm) * 400 / 640)
+            story.append(map_img)
+
+        story.append(Paragraph(f"Fotografii: {row.get('Nr. Fotografii', 0)}", label_style))
+        story.append(Spacer(1, 6*mm))
+        story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#E2E8F0'), spaceAfter=8))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
+
+
+# ─── Export endpoint ───────────────────────────────────────────────────────────
+
+@router.get("/export/")
+def export_entries(
+    format: str = Query('excel', regex='^(excel|pdf)$'),
+    site_id: Optional[int] = Query(None),
+    work_type: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    sort_by: str = Query('created_at'),
+    sort_order: str = Query('desc'),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    q = db.query(TagesberichtEntry)
+    if site_id:
+        q = q.filter(TagesberichtEntry.site_id == site_id)
+    if work_type:
+        q = q.filter(TagesberichtEntry.work_type == work_type)
+    if date_from:
+        q = q.filter(TagesberichtEntry.created_at >= date_from)
+    if date_to:
+        q = q.filter(TagesberichtEntry.created_at <= date_to)
+
+    col_map = {'created_at': TagesberichtEntry.created_at,
+               'work_type':  TagesberichtEntry.work_type,
+               'site_id':    TagesberichtEntry.site_id}
+    sort_col = col_map.get(sort_by, TagesberichtEntry.created_at)
+    if sort_order == 'asc':
+        q = q.order_by(sort_col.asc())
+    else:
+        q = q.order_by(sort_col.desc())
+
+    entries = q.limit(500).all()
+
+    # Build site map
+    site_map: dict[int, str] = {}
+    for s in db.query(Site).all():
+        site_map[s.id] = s.name
+
+    # Resolve site name filter label for PDF
+    site_name_filter = site_map.get(site_id, '') if site_id else ''
+
+    entries_data = []
+    for e in entries:
+        photos = db.query(TagesberichtPhoto).filter_by(entry_id=e.id).all()
+        row = _entry_to_row(e, site_map.get(e.site_id, str(e.site_id)), len(photos))
+        map_png = _render_map(e.data or {})
+        entries_data.append({'row': row, 'map_png': map_png})
+
+    ts = datetime.now().strftime('%Y%m%d_%H%M')
+
+    if format == 'excel':
+        content = _build_excel(entries_data)
+        filename = f'rapoarte_mobile_{ts}.xlsx'
+        media_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    else:
+        content = _build_pdf(entries_data, site_name_filter)
+        filename = f'rapoarte_mobile_{ts}.pdf'
+        media_type = 'application/pdf'
+
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type=media_type,
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{entry_id}/")

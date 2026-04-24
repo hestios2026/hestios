@@ -172,8 +172,12 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
   const [mobileFilterSite, setMobileFilterSite] = useState<number | ''>('');
   const [mobileFilterDateFrom, setMobileFilterDateFrom] = useState('');
   const [mobileFilterDateTo, setMobileFilterDateTo] = useState('');
+  const [mobileFilterType, setMobileFilterType] = useState('');
+  const [mobileSortBy, setMobileSortBy] = useState<'created_at' | 'work_type' | 'site_id'>('created_at');
+  const [mobileSortOrder, setMobileSortOrder] = useState<'asc' | 'desc'>('desc');
   const [expandedEntry, setExpandedEntry] = useState<number | null>(null);
   const [usersMap, setUsersMap] = useState<Record<number, string>>({});
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
 
   // Form state
   const [fSiteId, setFSiteId]       = useState<number | ''>('');
@@ -215,17 +219,65 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
 
   function loadMobileEntries() {
     setMobileLoading(true);
-    const params: Record<string, unknown> = { limit: 100 };
+    const params: Record<string, unknown> = { limit: 200 };
     if (mobileFilterSite)     params.site_id = mobileFilterSite;
     if (mobileFilterDateFrom) params.date_from = mobileFilterDateFrom;
     if (mobileFilterDateTo)   params.date_to = mobileFilterDateTo;
+    if (mobileFilterType)     params.work_type = mobileFilterType;
     fetchTagesberichtEntries(params)
       .then(setMobileEntries)
       .catch(() => toast.error(t('common.error')))
       .finally(() => setMobileLoading(false));
   }
 
-  useEffect(() => { if (mainTab === 'mobile') loadMobileEntries(); }, [mainTab, mobileFilterSite, mobileFilterDateFrom, mobileFilterDateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (mainTab === 'mobile') loadMobileEntries();
+  }, [mainTab, mobileFilterSite, mobileFilterDateFrom, mobileFilterDateTo, mobileFilterType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleExport(format: 'excel' | 'pdf') {
+    setExporting(format);
+    try {
+      const token = localStorage.getItem('hestios_token');
+      const params = new URLSearchParams({ format, sort_by: mobileSortBy, sort_order: mobileSortOrder });
+      if (mobileFilterSite)     params.set('site_id', String(mobileFilterSite));
+      if (mobileFilterDateFrom) params.set('date_from', mobileFilterDateFrom);
+      if (mobileFilterDateTo)   params.set('date_to', mobileFilterDateTo);
+      if (mobileFilterType)     params.set('work_type', mobileFilterType);
+
+      const res = await fetch(`/api/tagesbericht/export/?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapoarte_mobile_${new Date().toISOString().slice(0,10)}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Export eșuat');
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  function sortedMobileEntries() {
+    return [...mobileEntries].sort((a, b) => {
+      let va: any, vb: any;
+      if (mobileSortBy === 'created_at') { va = a.created_at; vb = b.created_at; }
+      else if (mobileSortBy === 'work_type') { va = a.work_type; vb = b.work_type; }
+      else { va = a.site_id; vb = b.site_id; }
+      if (va < vb) return mobileSortOrder === 'asc' ? -1 : 1;
+      if (va > vb) return mobileSortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  function toggleSort(col: 'created_at' | 'work_type' | 'site_id') {
+    if (mobileSortBy === col) setMobileSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+    else { setMobileSortBy(col); setMobileSortOrder('desc'); }
+  }
 
   function openNew() {
     setSelected(null);
@@ -426,17 +478,32 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
       {/* Mobile tab */}
       {mainTab === 'mobile' && (
         <>
-          <div className="filter-row" style={{ gap: 12, marginBottom: 16 }}>
+          <div className="filter-row" style={{ gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             <select style={{ ...inp, minWidth: 180 }} value={mobileFilterSite} onChange={e => setMobileFilterSite(e.target.value ? Number(e.target.value) : '')}>
               <option value="">{t('tagesbericht.filterSite')}</option>
               {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <input type="date" style={{ ...inp, minWidth: 130 }} value={mobileFilterDateFrom} onChange={e => setMobileFilterDateFrom(e.target.value)} placeholder="De la" />
-            <input type="date" style={{ ...inp, minWidth: 130 }} value={mobileFilterDateTo} onChange={e => setMobileFilterDateTo(e.target.value)} placeholder="Până la" />
-            {(mobileFilterDateFrom || mobileFilterDateTo) && (
-              <button style={btn('#64748b')} onClick={() => { setMobileFilterDateFrom(''); setMobileFilterDateTo(''); }}>×</button>
+            <select style={{ ...inp, minWidth: 160 }} value={mobileFilterType} onChange={e => setMobileFilterType(e.target.value)}>
+              <option value="">Toate tipurile</option>
+              {['bransamente','tras_teava','groapa','traversare','montaj_nvt','sapatura','tera_test','reparatie','raport_zilnic','comanda_materiale'].map(wt => (
+                <option key={wt} value={wt}>{wt.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+            <input type="date" style={{ ...inp, minWidth: 130 }} value={mobileFilterDateFrom} onChange={e => setMobileFilterDateFrom(e.target.value)} />
+            <input type="date" style={{ ...inp, minWidth: 130 }} value={mobileFilterDateTo} onChange={e => setMobileFilterDateTo(e.target.value)} />
+            {(mobileFilterDateFrom || mobileFilterDateTo || mobileFilterType) && (
+              <button style={btn('#64748b')} onClick={() => { setMobileFilterDateFrom(''); setMobileFilterDateTo(''); setMobileFilterType(''); }}>×</button>
             )}
-            <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 'auto' }}>{t('tagesbericht.mobileEntriesHint')}</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              <button style={{ ...btn('#16a34a'), fontSize: 12, opacity: exporting === 'excel' ? 0.7 : 1 }}
+                      onClick={() => handleExport('excel')} disabled={!!exporting}>
+                {exporting === 'excel' ? '...' : '↓ Excel'}
+              </button>
+              <button style={{ ...btn('#dc2626'), fontSize: 12, opacity: exporting === 'pdf' ? 0.7 : 1 }}
+                      onClick={() => handleExport('pdf')} disabled={!!exporting}>
+                {exporting === 'pdf' ? '...' : '↓ PDF'}
+              </button>
+            </div>
           </div>
 
           {mobileLoading ? (
@@ -446,9 +513,16 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
-                    <th style={th}>{t('tagesbericht.colDate')}</th>
-                    <th style={th}>{t('tagesbericht.colSite')}</th>
-                    <th style={th}>{t('tagesbericht.colWorkType')}</th>
+                    {(['created_at', 'site_id', 'work_type'] as const).map((col, i) => {
+                      const labels = [t('tagesbericht.colDate'), t('tagesbericht.colSite'), t('tagesbericht.colWorkType')];
+                      const active = mobileSortBy === col;
+                      return (
+                        <th key={col} style={{ ...th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                            onClick={() => toggleSort(col)}>
+                          {labels[i]} {active ? (mobileSortOrder === 'asc' ? '↑' : '↓') : <span style={{ color: '#d1d5db' }}>↕</span>}
+                        </th>
+                      );
+                    })}
                     <th style={th}>NVT</th>
                     <th style={th}>{t('tagesbericht.colUser')}</th>
                     <th style={th}>{t('tagesbericht.colData')}</th>
@@ -456,10 +530,10 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {mobileEntries.length === 0 && (
+                  {sortedMobileEntries().length === 0 && (
                     <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>{t('tagesbericht.noMobileEntries')}</td></tr>
                   )}
-                  {mobileEntries.map(e => {
+                  {sortedMobileEntries().map(e => {
                     const isExpanded = expandedEntry === e.id;
                     const dataKeys = Object.keys(e.data || {}).filter(k => e.data[k] !== '' && e.data[k] !== null);
                     return (
