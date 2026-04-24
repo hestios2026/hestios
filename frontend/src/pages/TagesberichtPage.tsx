@@ -178,6 +178,7 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
   const [expandedEntry, setExpandedEntry] = useState<number | null>(null);
   const [usersMap, setUsersMap] = useState<Record<number, string>>({});
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
+  const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set());
 
   // Form state
   const [fSiteId, setFSiteId]       = useState<number | ''>('');
@@ -225,7 +226,7 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
     if (mobileFilterDateTo)   params.date_to = mobileFilterDateTo;
     if (mobileFilterType)     params.work_type = mobileFilterType;
     fetchTagesberichtEntries(params)
-      .then(setMobileEntries)
+      .then(data => { setMobileEntries(data); setSelectedEntries(new Set()); })
       .catch(() => toast.error(t('common.error')))
       .finally(() => setMobileLoading(false));
   }
@@ -239,10 +240,14 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
     try {
       const token = localStorage.getItem('hestios_token');
       const params = new URLSearchParams({ format, sort_by: mobileSortBy, sort_order: mobileSortOrder });
-      if (mobileFilterSite)     params.set('site_id', String(mobileFilterSite));
-      if (mobileFilterDateFrom) params.set('date_from', mobileFilterDateFrom);
-      if (mobileFilterDateTo)   params.set('date_to', mobileFilterDateTo);
-      if (mobileFilterType)     params.set('work_type', mobileFilterType);
+      if (selectedEntries.size > 0) {
+        params.set('ids', [...selectedEntries].join(','));
+      } else {
+        if (mobileFilterSite)     params.set('site_id', String(mobileFilterSite));
+        if (mobileFilterDateFrom) params.set('date_from', mobileFilterDateFrom);
+        if (mobileFilterDateTo)   params.set('date_to', mobileFilterDateTo);
+        if (mobileFilterType)     params.set('work_type', mobileFilterType);
+      }
 
       const res = await fetch(`/api/tagesbericht/export/?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -494,14 +499,19 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
             {(mobileFilterDateFrom || mobileFilterDateTo || mobileFilterType) && (
               <button style={btn('#64748b')} onClick={() => { setMobileFilterDateFrom(''); setMobileFilterDateTo(''); setMobileFilterType(''); }}>×</button>
             )}
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+              {selectedEntries.size > 0 && (
+                <span style={{ fontSize: 12, color: '#22C55E', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  {selectedEntries.size} selectat{selectedEntries.size !== 1 ? 'e' : ''}
+                </span>
+              )}
               <button style={{ ...btn('#16a34a'), fontSize: 12, opacity: exporting === 'excel' ? 0.7 : 1 }}
                       onClick={() => handleExport('excel')} disabled={!!exporting}>
-                {exporting === 'excel' ? '...' : '↓ Excel'}
+                {exporting === 'excel' ? '...' : `↓ Excel${selectedEntries.size > 0 ? ` (${selectedEntries.size})` : ''}`}
               </button>
               <button style={{ ...btn('#dc2626'), fontSize: 12, opacity: exporting === 'pdf' ? 0.7 : 1 }}
                       onClick={() => handleExport('pdf')} disabled={!!exporting}>
-                {exporting === 'pdf' ? '...' : '↓ PDF'}
+                {exporting === 'pdf' ? '...' : `↓ PDF${selectedEntries.size > 0 ? ` (${selectedEntries.size})` : ''}`}
               </button>
             </div>
           </div>
@@ -513,6 +523,16 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
+                    <th style={{ ...th, width: 36 }}>
+                      <input type="checkbox"
+                        style={{ cursor: 'pointer' }}
+                        checked={sortedMobileEntries().length > 0 && sortedMobileEntries().every(e => selectedEntries.has(e.id))}
+                        onChange={ev => {
+                          const all = sortedMobileEntries().map(e => e.id);
+                          setSelectedEntries(ev.target.checked ? new Set(all) : new Set());
+                        }}
+                      />
+                    </th>
                     {(['created_at', 'site_id', 'work_type'] as const).map((col, i) => {
                       const labels = [t('tagesbericht.colDate'), t('tagesbericht.colSite'), t('tagesbericht.colWorkType')];
                       const active = mobileSortBy === col;
@@ -531,15 +551,25 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
                 </thead>
                 <tbody>
                   {sortedMobileEntries().length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>{t('tagesbericht.noMobileEntries')}</td></tr>
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>{t('tagesbericht.noMobileEntries')}</td></tr>
                   )}
                   {sortedMobileEntries().map(e => {
                     const isExpanded = expandedEntry === e.id;
                     const dataKeys = Object.keys(e.data || {}).filter(k => e.data[k] !== '' && e.data[k] !== null);
                     return (
                       <React.Fragment key={e.id}>
-                        <tr style={{ borderBottom: '1px solid #f1f5f9', cursor: dataKeys.length > 0 ? 'pointer' : 'default', background: isExpanded ? '#f8fafc' : undefined }}
+                        <tr style={{ borderBottom: '1px solid #f1f5f9', cursor: dataKeys.length > 0 ? 'pointer' : 'default', background: selectedEntries.has(e.id) ? '#f0fdf4' : isExpanded ? '#f8fafc' : undefined }}
                             onClick={() => setExpandedEntry(isExpanded ? null : e.id)}>
+                          <td style={{ ...td, width: 36 }} onClick={ev => ev.stopPropagation()}>
+                            <input type="checkbox" style={{ cursor: 'pointer' }}
+                              checked={selectedEntries.has(e.id)}
+                              onChange={ev => {
+                                const next = new Set(selectedEntries);
+                                ev.target.checked ? next.add(e.id) : next.delete(e.id);
+                                setSelectedEntries(next);
+                              }}
+                            />
+                          </td>
                           <td style={td}><strong>{e.created_at ? e.created_at.slice(0, 10) : '—'}</strong></td>
                           <td style={td}>{siteName(e.site_id)}</td>
                           <td style={td}>
@@ -563,7 +593,7 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
                         </tr>
                         {isExpanded && dataKeys.length > 0 && (
                           <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                            <td colSpan={7} style={{ padding: '12px 16px' }}>
+                            <td colSpan={8} style={{ padding: '12px 16px' }}>
                               {/* Data fields */}
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                                 {dataKeys.map(k => (

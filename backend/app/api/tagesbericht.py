@@ -327,22 +327,50 @@ def _build_excel(entries_data: list) -> bytes:
             cell.alignment = Alignment(vertical='top', wrap_text=True)
             cell.font = Font(size=10)
 
-    # Map images — add a separate sheet per entry that has a map
-    map_ws = wb.create_sheet('Hărți')
+    # Maps & photos — separate sheet
+    map_ws = wb.create_sheet('Hărți & Poze')
     map_row = 1
     for item in entries_data:
-        if item.get('map_png'):
-            map_ws.cell(row=map_row, column=1,
-                        value=f"#{item['row']['ID']} — {item['row']['Tip Lucrare']} — {item['row']['Data']}")
-            map_ws.cell(row=map_row, column=1).font = Font(bold=True, size=11)
-            map_row += 1
+        has_map = bool(item.get('map_png'))
+        photos = item.get('photos', [])
+        if not has_map and not photos:
+            continue
+
+        # Entry header
+        map_ws.cell(row=map_row, column=1,
+                    value=f"#{item['row']['ID']} — {item['row']['Tip Lucrare']} — {item['row']['Data']}")
+        map_ws.cell(row=map_row, column=1).font = Font(bold=True, size=11)
+        map_ws.cell(row=map_row, column=1).fill = PatternFill('solid', fgColor=DARK)
+        map_ws.cell(row=map_row, column=1).font = Font(bold=True, size=11, color='FFFFFFFF')
+        map_row += 1
+
+        if has_map:
             img_buf = io.BytesIO(item['map_png'])
             img = XlsxImage(img_buf)
             img.width, img.height = 640, 400
             map_ws.add_image(img, f'A{map_row}')
-            # Adjust row height to fit image (~400px / ~0.75 pt per px ≈ 300 pt)
             map_ws.row_dimensions[map_row].height = 300
-            map_row += 22  # skip rows for image height
+            map_row += 22
+
+        # Embed photos (max 20 per entry to stay reasonable)
+        for photo in photos[:20]:
+            if not photo.get('bytes'):
+                continue
+            try:
+                map_ws.cell(row=map_row, column=1,
+                            value=f"Foto: {photo['category']}")
+                map_ws.cell(row=map_row, column=1).font = Font(italic=True, size=9, color='FF64748B')
+                map_row += 1
+                p_buf = io.BytesIO(photo['bytes'])
+                p_img = XlsxImage(p_buf)
+                p_img.width, p_img.height = 480, 360
+                map_ws.add_image(p_img, f'A{map_row}')
+                map_ws.row_dimensions[map_row].height = 270
+                map_row += 19
+            except Exception:
+                pass
+
+        map_row += 2  # spacing between entries
 
     # Auto-width main sheet columns
     for col_idx, key in enumerate(all_keys, 1):
@@ -430,7 +458,26 @@ def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
                               height=(W - 30*mm) * 400 / 640)
             story.append(map_img)
 
-        story.append(Paragraph(f"Fotografii: {row.get('Nr. Fotografii', 0)}", label_style))
+        # Photos
+        photos = item.get('photos', [])
+        valid_photos = [p for p in photos if p.get('bytes')]
+        if valid_photos:
+            story.append(Spacer(1, 4*mm))
+            story.append(Paragraph(f"Fotografii ({len(valid_photos)})", h2_style))
+            for p in valid_photos[:20]:
+                try:
+                    p_img = RLImage(io.BytesIO(p['bytes']),
+                                   width=W - 30*mm,
+                                   height=(W - 30*mm) * 3 / 4)
+                    story.append(p_img)
+                    if p.get('category'):
+                        story.append(Paragraph(p['category'], label_style))
+                    story.append(Spacer(1, 3*mm))
+                except Exception:
+                    pass
+        else:
+            story.append(Paragraph(f"Fotografii: {row.get('Nr. Fotografii', 0)}", label_style))
+
         story.append(Spacer(1, 6*mm))
         story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#E2E8F0'), spaceAfter=8))
 
@@ -441,9 +488,22 @@ def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
 
 # ─── Export endpoint ───────────────────────────────────────────────────────────
 
+def _fetch_photo_bytes(url: str) -> Optional[bytes]:
+    """Download photo bytes from a URL. Returns None on failure."""
+    try:
+        import requests as req
+        r = req.get(url, timeout=15)
+        if r.status_code == 200:
+            return r.content
+    except Exception as e:
+        log.warning("Photo fetch failed %s: %s", url, e)
+    return None
+
+
 @router.get("/export/")
 def export_entries(
     format: str = Query('excel', regex='^(excel|pdf)$'),
+    ids: Optional[str] = Query(None),          # comma-separated entry IDs
     site_id: Optional[int] = Query(None),
     work_type: Optional[str] = Query(None),
     date_from: Optional[date] = Query(None),
@@ -454,14 +514,19 @@ def export_entries(
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(TagesberichtEntry)
-    if site_id:
-        q = q.filter(TagesberichtEntry.site_id == site_id)
-    if work_type:
-        q = q.filter(TagesberichtEntry.work_type == work_type)
-    if date_from:
-        q = q.filter(TagesberichtEntry.created_at >= date_from)
-    if date_to:
-        q = q.filter(TagesberichtEntry.created_at <= date_to)
+
+    if ids:
+        id_list = [int(x.strip()) for x in ids.split(',') if x.strip().isdigit()]
+        q = q.filter(TagesberichtEntry.id.in_(id_list))
+    else:
+        if site_id:
+            q = q.filter(TagesberichtEntry.site_id == site_id)
+        if work_type:
+            q = q.filter(TagesberichtEntry.work_type == work_type)
+        if date_from:
+            q = q.filter(TagesberichtEntry.created_at >= date_from)
+        if date_to:
+            q = q.filter(TagesberichtEntry.created_at <= date_to)
 
     col_map = {'created_at': TagesberichtEntry.created_at,
                'work_type':  TagesberichtEntry.work_type,
@@ -485,9 +550,15 @@ def export_entries(
     entries_data = []
     for e in entries:
         photos = db.query(TagesberichtPhoto).filter_by(entry_id=e.id).all()
+        # Build fresh URLs and fetch bytes for embedding
+        photo_items = []
+        for p in photos:
+            fresh_url = _fresh_url(p.s3_key)
+            photo_bytes = _fetch_photo_bytes(fresh_url)
+            photo_items.append({'category': p.category or '', 'bytes': photo_bytes})
         row = _entry_to_row(e, site_map.get(e.site_id, str(e.site_id)), len(photos))
         map_png = _render_map(e.data or {})
-        entries_data.append({'row': row, 'map_png': map_png})
+        entries_data.append({'row': row, 'map_png': map_png, 'photos': photo_items})
 
     ts = datetime.now().strftime('%Y%m%d_%H%M')
 
