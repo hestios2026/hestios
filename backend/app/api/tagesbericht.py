@@ -231,6 +231,9 @@ def _parse_coord(v: str):
 def _render_map(data: dict, width=640, height=400) -> Optional[bytes]:
     """Render a static map PNG for an entry's coordinates."""
     try:
+        import PIL.Image
+        if not hasattr(PIL.Image, 'ANTIALIAS'):
+            PIL.Image.ANTIALIAS = PIL.Image.LANCZOS  # removed in Pillow 10
         from staticmap import StaticMap, CircleMarker, Line
         start  = _parse_coord(str(data.get('start') or data.get('locatie_start') or ''))
         stop   = _parse_coord(str(data.get('stop')  or data.get('locatie_stop')  or ''))
