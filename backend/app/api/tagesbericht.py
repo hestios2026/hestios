@@ -208,6 +208,7 @@ DATA_FIELD_LABELS = {
     'lungime_totala': 'Lungime Totală (m)', 'nr_bransamente_ha': 'Nr. Branșamente HA',
     'nr_hp_plus': 'Nr. HP+', 'moment': 'Moment', 'descriere': 'Descriere',
     'materiale': 'Materiale', 'urgenta': 'Urgență', 'notes': 'Observații',
+    'comentarii': 'Comentarii',
 }
 
 SKIP_FIELDS = {'photos', 'waypoints'}
