@@ -94,7 +94,7 @@ export default function ReportFormScreen({
   // L — Sapatura
   const [sapaturaData, setSapaturaData] = useState<DataSapatura>({
     start: '', stop: '', waypoints: [], terasament: '', grosime_asfalt: '', lungime: '',
-    latime: '', adancime: '', tip: '', nr_cabluri: '', photos: [],
+    latime: '', adancime: '', tip: '', nr_cabluri: '', comentarii: '', photos: [],
   });
 
   // M — Raport Zilnic
@@ -594,6 +594,10 @@ export default function ReportFormScreen({
             <TextField label={tr.fCablesMounted} value={sapaturaData.nr_cabluri} required
               onChangeText={v => setSapaturaData(p => ({ ...p, nr_cabluri: v }))}
               keyboardType="numeric"
+            />
+            <TextField label={tr.fComentarii} value={sapaturaData.comentarii}
+              onChangeText={v => setSapaturaData(p => ({ ...p, comentarii: v }))}
+              numberOfLines={3}
             />
             <PhotoPicker photos={sapaturaData.photos}
               onChange={ph => setSapaturaData(p => ({ ...p, photos: ph }))}

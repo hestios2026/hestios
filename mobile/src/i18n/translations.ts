@@ -108,6 +108,7 @@ export const translations = {
     fMateriale: 'Ce materiale sunt necesare?',
     fUrgenta: 'Urgență',
     fNotesOptional: 'Observații (opțional)',
+    fComentarii: 'Comentarii (opțional)',
 
     // Map / location
     mapTitleSingle: 'Selectează locație',
@@ -326,6 +327,7 @@ export const translations = {
     fMateriale: 'Welche Materialien werden benötigt?',
     fUrgenta: 'Dringlichkeit',
     fNotesOptional: 'Bemerkungen (optional)',
+    fComentarii: 'Kommentare (optional)',
 
     // Map / location
     mapTitleSingle: 'Standort auswählen',

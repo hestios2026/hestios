@@ -148,6 +148,7 @@ export interface DataSapatura {
   adancime: string;
   tip: 'strada' | 'trotuar' | 'privat' | '';
   nr_cabluri: string;
+  comentarii: string;
   photos: PhotoEntry[];
 }
 
