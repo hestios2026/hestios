@@ -1,0 +1,50 @@
+{
+  "name": "hestios-desktop",
+  "version": "1.0.0",
+  "description": "HestiOS DMS Desktop Client",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "postinstall": "",
+    "package:mac": "npm run build && electron-builder --mac dmg"
+  },
+  "build": {
+    "appId": "de.hesti-rossmann.dms-desktop",
+    "productName": "HestiOS DMS",
+    "copyright": "Hesti Rossmann GmbH",
+    "directories": { "output": "dist-app" },
+    "files": ["out/**/*"],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "resources/icon.icns",
+      "darkModeSupport": true
+    },
+    "extraResources": [
+      { "from": "resources/", "to": "resources/" }
+    ]
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "chokidar": "^3.6.0",
+    "form-data": "^4.0.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.0",
+    "@electron-toolkit/utils": "^3.0.0",
+    "@types/node": "^20.14.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.2",
+    "vite": "^5.3.1"
+  }
+}
