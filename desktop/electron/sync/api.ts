@@ -42,7 +42,7 @@ export async function apiLogin(serverUrl: string, email: string, password: strin
   const params = new URLSearchParams()
   params.set('username', email)
   params.set('password', password)
-  const res = await axios.post(`${base}/api/auth/token`, params.toString(), {
+  const res = await axios.post(`${base}/api/auth/login/`, params.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     timeout: 15_000,
   })
@@ -58,6 +58,11 @@ export async function apiFetchDocuments(auth: ApiAuth, folderId: number | null):
   const params: Record<string, any> = { limit: 500 }
   if (folderId !== null) params.folder_id = folderId
   const res = await makeClient(auth).get('/api/documents/', { params })
+  return res.data.items ?? res.data
+}
+
+export async function apiFetchAllDocuments(auth: ApiAuth): Promise<ServerDocument[]> {
+  const res = await makeClient(auth).get('/api/documents/', { params: { limit: 10000 } })
   return res.data.items ?? res.data
 }
 

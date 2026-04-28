@@ -54,7 +54,7 @@ export default function LoginPage({ onLogin }: { onLogin: (user: any) => void })
         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, background: C.green, borderRadius: 16, marginBottom: 16 }}>
           <span style={{ color: '#0C0F16', fontWeight: 800, fontSize: 24, letterSpacing: -1 }}>H</span>
         </div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: -0.5 }}>HestiOS DMS</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: -0.5 }}>HestiDMS</div>
         <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Document Management Desktop</div>
       </div>
 

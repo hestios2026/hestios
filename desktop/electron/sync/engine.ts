@@ -7,8 +7,8 @@ import {
   getDocumentByLocalPath, setDocumentStatus, setDocumentMtime, deleteDocumentRecord, clearAll,
 } from './db'
 import {
-  ApiAuth, apiFetchFolders, apiFetchDocuments, apiDownloadDocument,
-  apiUploadDocument, ServerFolder,
+  ApiAuth, apiFetchFolders, apiFetchAllDocuments, apiDownloadDocument,
+  apiUploadDocument, apiCreateFolder, ServerFolder,
 } from './api'
 
 export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline'
@@ -60,6 +60,19 @@ function getSyncFolder(): string | null {
   return configGet('sync_folder')
 }
 
+// ── Concurrency helper ────────────────────────────────────────────────────────
+
+async function runConcurrent(tasks: (() => Promise<void>)[], concurrency: number): Promise<void> {
+  const queue = [...tasks]
+  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const task = queue.shift()
+      if (task) await task()
+    }
+  })
+  await Promise.all(workers)
+}
+
 // ── Full sync ─────────────────────────────────────────────────────────────────
 
 export async function runFullSync(): Promise<void> {
@@ -83,72 +96,128 @@ export async function runFullSync(): Promise<void> {
       upsertFolder(sf.id, sf.name, sf.parent_id, localPath)
     }
 
-    // 3. Fetch all documents (per folder + root)
-    const allFolderIds: (number | null)[] = [null, ...flatFolders.map(f => f.id)]
-    let totalDownloaded = 0
+    // 3. Fetch ALL documents in one call (no N+1)
+    const serverDocs = await apiFetchAllDocuments(auth)
+    const serverDocIds = new Set(serverDocs.map(d => d.id))
 
-    for (const folderId of allFolderIds) {
-      const docs = await apiFetchDocuments(auth, folderId)
-      for (const doc of docs) {
-        const localDir = folderId
-          ? (getAllFolders().find(f => f.id === folderId)?.local_path ?? syncFolder)
-          : syncFolder
-        const localPath = path.join(localDir, sanitizeName(doc.name))
+    // 4. Delete local files removed from server
+    // Read DB once — avoid per-doc file I/O
+    const localDocsMap = new Map(getAllDocuments().map(d => [d.id, d]))
+    const currentFolders = new Map(getAllFolders().map(f => [f.id, f]))
 
-        const existing = getAllDocuments().find(d => d.id === doc.id)
-        const needsDownload = !existing
-          || !fs.existsSync(localPath)
-          || doc.version > (existing.version ?? 0)
-          || doc.file_size !== existing.file_size
-
-        if (needsDownload) {
-          // Check for local conflict: file exists & was modified locally
-          if (existing && fs.existsSync(localPath)) {
-            const stat = fs.statSync(localPath)
-            if (stat.mtimeMs !== existing.local_mtime && existing.sync_status !== 'synced') {
-              // Conflict: rename local copy
-              const ext = path.extname(localPath)
-              const base = path.basename(localPath, ext)
-              const conflictPath = path.join(path.dirname(localPath), `${base}_conflict_${Date.now()}${ext}`)
-              fs.renameSync(localPath, conflictPath)
-              state.errors.push(`Conflict: ${doc.name} — copia locală salvată ca ${path.basename(conflictPath)}`)
-            }
-          }
-
-          setDocumentStatus(doc.id, 'downloading')
-          emit('sync:file', { type: 'download', name: doc.name })
-          try {
-            await apiDownloadDocument(auth, doc.id, localPath)
-            const stat = fs.statSync(localPath)
-            upsertDocument({
-              id: doc.id, name: doc.name, folder_id: folderId,
-              local_path: localPath, file_size: doc.file_size,
-              version: doc.version, content_type: doc.content_type,
-              server_created_at: doc.created_at, local_mtime: stat.mtimeMs,
-              sync_status: 'synced',
-            })
-            totalDownloaded++
-          } catch (err: any) {
-            setDocumentStatus(doc.id, 'error')
-            state.errors.push(`Download failed: ${doc.name}`)
-          }
-        } else {
-          // Ensure it's in DB
-          upsertDocument({
-            id: doc.id, name: doc.name, folder_id: folderId,
-            local_path: localPath, file_size: doc.file_size,
-            version: doc.version, content_type: doc.content_type,
-            server_created_at: doc.created_at,
-            sync_status: existing?.sync_status ?? 'synced',
-          })
-        }
+    for (const [id, ld] of localDocsMap) {
+      if (!serverDocIds.has(id)) {
+        try { if (fs.existsSync(ld.local_path)) fs.unlinkSync(ld.local_path) } catch {}
+        deleteDocumentRecord(id)
+        localDocsMap.delete(id)
       }
     }
 
+    // 5. Build download tasks
+    const downloadTasks: (() => Promise<void>)[] = []
+
+    for (const doc of serverDocs) {
+      const folderRecord = doc.folder_id ? currentFolders.get(doc.folder_id) : null
+      const localDir = folderRecord?.local_path ?? syncFolder
+      const localPath = path.join(localDir, sanitizeName(doc.name))
+
+      const existing = localDocsMap.get(doc.id)
+      const needsDownload = !existing
+        || !fs.existsSync(localPath)
+        || doc.version > (existing.version ?? 0)
+        || doc.file_size !== existing.file_size
+
+      if (needsDownload) {
+        const docSnapshot = { ...doc }
+        const localPathSnapshot = localPath
+        downloadTasks.push(async () => {
+          // Conflict check: local file modified since last sync
+          if (existing && fs.existsSync(localPathSnapshot)) {
+            try {
+              const stat = fs.statSync(localPathSnapshot)
+              if (stat.mtimeMs !== existing.local_mtime && existing.sync_status !== 'synced') {
+                const ext = path.extname(localPathSnapshot)
+                const base = path.basename(localPathSnapshot, ext)
+                const conflictPath = path.join(
+                  path.dirname(localPathSnapshot),
+                  `${base}_conflict_${Date.now()}${ext}`,
+                )
+                fs.renameSync(localPathSnapshot, conflictPath)
+                state.errors.push(`Conflict: ${docSnapshot.name}`)
+              }
+            } catch {}
+          }
+
+          setDocumentStatus(docSnapshot.id, 'downloading')
+          emit('sync:file', { type: 'download', name: docSnapshot.name })
+          try {
+            await apiDownloadDocument(auth, docSnapshot.id, localPathSnapshot)
+            const stat = fs.statSync(localPathSnapshot)
+            upsertDocument({
+              id: docSnapshot.id, name: docSnapshot.name, folder_id: docSnapshot.folder_id,
+              local_path: localPathSnapshot, file_size: docSnapshot.file_size,
+              version: docSnapshot.version, content_type: docSnapshot.content_type,
+              server_created_at: docSnapshot.created_at, local_mtime: stat.mtimeMs,
+              sync_status: 'synced',
+            })
+          } catch (err: any) {
+            setDocumentStatus(docSnapshot.id, 'error')
+            state.errors.push(`Download failed: ${docSnapshot.name}`)
+          }
+        })
+      } else {
+        // Keep DB in sync with server metadata
+        upsertDocument({
+          id: doc.id, name: doc.name, folder_id: doc.folder_id,
+          local_path: localPath, file_size: doc.file_size,
+          version: doc.version, content_type: doc.content_type,
+          server_created_at: doc.created_at,
+          sync_status: existing?.sync_status ?? 'synced',
+        })
+      }
+    }
+
+    // 6. Parallel downloads — 5 concurrent
+    setState({ pending: downloadTasks.length })
+    await runConcurrent(downloadTasks, 5)
+
+    // 7. Reconciliation: local files not tracked → upload to server
+    await reconcileLocalFiles(auth, syncFolder)
+
     setState({ status: 'idle', lastSync: new Date().toISOString(), pending: 0 })
-    emit('sync:done', { downloaded: totalDownloaded })
+    emit('sync:done', { downloaded: downloadTasks.length })
   } catch (err: any) {
-    setState({ status: 'error', errors: [...state.errors, err.message ?? 'Sync error'] })
+    if (err?.response?.status === 401) {
+      emit('auth:expired')
+      setState({ status: 'error', errors: ['Sesiune expirată — reconectare necesară'] })
+    } else {
+      setState({ status: 'error', errors: [...state.errors, err.message ?? 'Sync error'] })
+    }
+  }
+}
+
+// ── Reconciliation: upload untracked local files ──────────────────────────────
+
+async function reconcileLocalFiles(auth: ApiAuth, syncFolder: string): Promise<void> {
+  const knownPaths = new Set(getAllDocuments().map(d => d.local_path))
+
+  const scanDir = (dir: string): string[] => {
+    const files: string[] = []
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name.startsWith('.') || entry.name.includes('_conflict_')) continue
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) files.push(...scanDir(full))
+        else files.push(full)
+      }
+    } catch {}
+    return files
+  }
+
+  for (const filePath of scanDir(syncFolder)) {
+    if (!knownPaths.has(filePath)) {
+      await uploadLocalFile(filePath, auth)
+    }
   }
 }
 
@@ -159,15 +228,19 @@ export function startWatcher(): void {
   if (!syncFolder || watcher) return
 
   watcher = chokidar.watch(syncFolder, {
-    ignored: /(^|[/\\])\../, // ignore hidden files
+    ignored: /(^|[/\\])(\.|.*_conflict_)/,
     persistent: true,
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 200 },
   })
 
-  watcher.on('add', (filePath) => scheduleUpload(filePath, 'add'))
-  watcher.on('change', (filePath) => scheduleUpload(filePath, 'change'))
+  watcher.on('add', (filePath) => scheduleUpload(filePath))
+  watcher.on('change', (filePath) => scheduleUpload(filePath))
   watcher.on('unlink', (filePath) => handleLocalDelete(filePath))
+  watcher.on('addDir', (dirPath) => {
+    if (dirPath === getSyncFolder()) return
+    handleLocalMkdir(dirPath)
+  })
 }
 
 export function stopWatcher(): void {
@@ -175,28 +248,27 @@ export function stopWatcher(): void {
   watcher = null
 }
 
-function scheduleUpload(filePath: string, _event: string): void {
+function scheduleUpload(filePath: string): void {
   const existing = uploadDebounce.get(filePath)
   if (existing) clearTimeout(existing)
   uploadDebounce.set(filePath, setTimeout(() => {
     uploadDebounce.delete(filePath)
-    uploadLocalFile(filePath)
+    const auth = getAuth()
+    if (auth) uploadLocalFile(filePath, auth)
   }, 3000))
 }
 
-async function uploadLocalFile(filePath: string): Promise<void> {
-  const auth = getAuth()
+async function uploadLocalFile(filePath: string, auth: ApiAuth): Promise<void> {
   const syncFolder = getSyncFolder()
-  if (!auth || !syncFolder) return
+  if (!syncFolder) return
 
-  // Find which folder this belongs to
+  const existing = getDocumentByLocalPath(filePath)
+  if (existing?.sync_status === 'downloading') return
+
   const folders = getAllFolders()
   const parentDir = path.dirname(filePath)
   const matchedFolder = folders.find(f => f.local_path === parentDir) ?? null
   const folderId = matchedFolder?.id ?? null
-
-  const existing = getDocumentByLocalPath(filePath)
-  if (existing?.sync_status === 'downloading') return
 
   emit('sync:file', { type: 'upload', name: path.basename(filePath) })
   try {
@@ -218,7 +290,28 @@ async function uploadLocalFile(filePath: string): Promise<void> {
 function handleLocalDelete(filePath: string): void {
   const doc = getDocumentByLocalPath(filePath)
   if (doc) deleteDocumentRecord(doc.id)
-  // Note: we don't auto-delete from server on local delete to be safe
+  // Intentional: don't auto-delete from server on local delete
+}
+
+async function handleLocalMkdir(dirPath: string): Promise<void> {
+  const auth = getAuth()
+  if (!auth) return
+
+  const syncFolder = getSyncFolder()!
+  const folders = getAllFolders()
+  if (folders.find(f => f.local_path === dirPath)) return
+
+  const parentDir = path.dirname(dirPath)
+  const parentFolder = parentDir === syncFolder
+    ? null
+    : folders.find(f => f.local_path === parentDir) ?? null
+  const parentId = parentFolder?.id ?? null
+  const name = path.basename(dirPath)
+
+  try {
+    const created = await apiCreateFolder(auth, name, parentId)
+    upsertFolder(created.id, created.name, parentId, dirPath)
+  } catch {}
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────────
@@ -243,6 +336,9 @@ export async function startEngine(): Promise<void> {
 export function stopEngine(): void {
   stopWatcher()
   stopPolling()
+  // Cancel pending upload debounces
+  for (const t of uploadDebounce.values()) clearTimeout(t)
+  uploadDebounce.clear()
 }
 
 export function resetEngine(): void {

@@ -5,6 +5,13 @@ import { configGet, configSet, configDel, getAllFolders, getAllDocuments } from 
 import { apiLogin, apiFetchFolders, apiFetchDocuments, apiCreateFolder, apiDeleteDocument, apiDeleteFolder } from './sync/api'
 import { startEngine, stopEngine, resetEngine, runFullSync, getSyncState, setWindow } from './sync/engine'
 
+// Single instance lock — kill extra instances immediately
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0)
+}
+
+let isQuitting = false
+
 // ── Tray icon (generated inline) ──────────────────────────────────────────────
 // 22x22 white "H" on transparent background for macOS menu bar
 const TRAY_ICON_B64 =
@@ -34,8 +41,10 @@ function createWindow(): void {
   mainWin.once('ready-to-show', () => mainWin?.show())
 
   mainWin.on('close', (e) => {
-    e.preventDefault()
-    mainWin?.hide()
+    if (!isQuitting) {
+      e.preventDefault()
+      mainWin?.hide()
+    }
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -58,7 +67,7 @@ function createTray(): void {
   icon.setTemplateImage(true)
 
   tray = new Tray(icon)
-  tray.setToolTip('HestiOS DMS')
+  tray.setToolTip('HestiDMS')
   updateTrayMenu()
 
   tray.on('click', () => {
@@ -78,7 +87,7 @@ function updateTrayMenu(): void {
   }[syncState.status] ?? '○'
 
   const menu = Menu.buildFromTemplate([
-    { label: 'HestiOS DMS', enabled: false },
+    { label: 'HestiDMS', enabled: false },
     { type: 'separator' },
     { label: statusLabel, enabled: false },
     ...(syncState.lastSync ? [{ label: `Ultima sincronizare: ${new Date(syncState.lastSync).toLocaleTimeString('ro')}`, enabled: false }] : []),
@@ -90,7 +99,7 @@ function updateTrayMenu(): void {
       click: () => runFullSync().then(() => updateTrayMenu()),
     },
     { type: 'separator' },
-    { label: 'Ieșire', click: () => { app.exit(0) } },
+    { label: 'Ieșire', click: () => { app.quit() } },
   ])
   tray.setContextMenu(menu)
 }
@@ -112,12 +121,22 @@ app.whenReady().then(() => {
   })
 })
 
+// Focus existing window if a second instance is launched
+app.on('second-instance', () => {
+  if (mainWin) {
+    if (mainWin.isMinimized()) mainWin.restore()
+    mainWin.show()
+    mainWin.focus()
+  }
+})
+
 app.on('window-all-closed', () => {
   // Keep running in tray on macOS
   if (process.platform !== 'darwin') app.quit()
 })
 
 app.on('before-quit', () => {
+  isQuitting = true
   stopEngine()
 })
 
@@ -228,7 +247,7 @@ ipcMain.handle('dms:deleteFolder', async (_, { folderId }) => {
 
 ipcMain.handle('shell:pickFolder', async () => {
   const result = await dialog.showOpenDialog(mainWin!, {
-    title: 'Alege folderul de sincronizare HestiOS DMS',
+    title: 'Alege folderul de sincronizare HestiDMS',
     properties: ['openDirectory', 'createDirectory'],
     buttonLabel: 'Alege folder',
   })

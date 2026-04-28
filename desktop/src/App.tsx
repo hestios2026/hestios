@@ -43,6 +43,12 @@ export default function App() {
       setAuthed(s.isLoggedIn)
       if (s.isLoggedIn) setUser(s.user)
     })
+
+    // Token expired — force re-login without user action
+    const unsub = window.api.on('auth:expired', () => {
+      window.api.auth.logout().then(() => { setAuthed(false); setUser(null) })
+    })
+    return unsub
   }, [])
 
   if (authed === null) {

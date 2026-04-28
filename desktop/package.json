@@ -1,7 +1,7 @@
 {
-  "name": "hestios-desktop",
+  "name": "hesti-dms",
   "version": "1.0.0",
-  "description": "HestiOS DMS Desktop Client",
+  "description": "HestiDMS Desktop Client",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -11,7 +11,7 @@
   },
   "build": {
     "appId": "de.hesti-rossmann.dms-desktop",
-    "productName": "HestiOS DMS",
+    "productName": "HestiDMS",
     "copyright": "Hesti Rossmann GmbH",
     "directories": { "output": "dist-app" },
     "files": ["out/**/*"],
