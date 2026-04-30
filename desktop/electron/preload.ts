@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('api', {
     getState: () => ipcRenderer.invoke('sync:getState'),
     force: () => ipcRenderer.invoke('sync:force'),
     start: () => ipcRenderer.invoke('sync:start'),
+    syncFolder: (folderId: number | null) => ipcRenderer.invoke('sync:syncFolder', { folderId }),
+    syncDocument: (docId: number) => ipcRenderer.invoke('sync:syncDocument', { docId }),
   },
   dms: {
     listFolders: () => ipcRenderer.invoke('dms:listFolders'),

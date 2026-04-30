@@ -3,7 +3,8 @@ import path from 'path'
 import chokidar, { FSWatcher } from 'chokidar'
 import { BrowserWindow } from 'electron'
 import {
-  configGet, upsertFolder, upsertDocument, getAllDocuments, getAllFolders,
+  configGet, upsertFolder, batchUpsertFolders, upsertDocument, batchUpsertDocuments,
+  getAllDocuments, getAllFolders,
   getDocumentByLocalPath, setDocumentStatus, setDocumentMtime, deleteDocumentRecord, clearAll,
 } from './db'
 import {
@@ -89,110 +90,103 @@ export async function runFullSync(): Promise<void> {
     const serverFolders = await apiFetchFolders(auth)
     const flatFolders = flattenFolders(serverFolders, null)
 
-    // 2. Build local folder structure
+    // 2. Build local folder structure — single DB write
+    const folderRecords: { id: number; name: string; parent_id: number | null; local_path: string }[] = []
     for (const sf of flatFolders) {
       const localPath = buildFolderPath(syncFolder, sf.id, flatFolders)
       if (!fs.existsSync(localPath)) fs.mkdirSync(localPath, { recursive: true })
-      upsertFolder(sf.id, sf.name, sf.parent_id, localPath)
+      folderRecords.push({ id: sf.id, name: sf.name, parent_id: sf.parent_id, local_path: localPath })
     }
+    batchUpsertFolders(folderRecords)
 
-    // 3. Fetch ALL documents in one call (no N+1)
-    const serverDocs = await apiFetchAllDocuments(auth)
-    const serverDocIds = new Set(serverDocs.map(d => d.id))
-
-    // 4. Delete local files removed from server
-    // Read DB once — avoid per-doc file I/O
-    const localDocsMap = new Map(getAllDocuments().map(d => [d.id, d]))
-    const currentFolders = new Map(getAllFolders().map(f => [f.id, f]))
-
-    for (const [id, ld] of localDocsMap) {
-      if (!serverDocIds.has(id)) {
-        try { if (fs.existsSync(ld.local_path)) fs.unlinkSync(ld.local_path) } catch {}
-        deleteDocumentRecord(id)
-        localDocsMap.delete(id)
-      }
-    }
-
-    // 5. Build download tasks
-    const downloadTasks: (() => Promise<void>)[] = []
-
-    for (const doc of serverDocs) {
-      const folderRecord = doc.folder_id ? currentFolders.get(doc.folder_id) : null
-      const localDir = folderRecord?.local_path ?? syncFolder
-      const localPath = path.join(localDir, sanitizeName(doc.name))
-
-      const existing = localDocsMap.get(doc.id)
-      const needsDownload = !existing
-        || !fs.existsSync(localPath)
-        || doc.version > (existing.version ?? 0)
-        || doc.file_size !== existing.file_size
-
-      if (needsDownload) {
-        const docSnapshot = { ...doc }
-        const localPathSnapshot = localPath
-        downloadTasks.push(async () => {
-          // Conflict check: local file modified since last sync
-          if (existing && fs.existsSync(localPathSnapshot)) {
-            try {
-              const stat = fs.statSync(localPathSnapshot)
-              if (stat.mtimeMs !== existing.local_mtime && existing.sync_status !== 'synced') {
-                const ext = path.extname(localPathSnapshot)
-                const base = path.basename(localPathSnapshot, ext)
-                const conflictPath = path.join(
-                  path.dirname(localPathSnapshot),
-                  `${base}_conflict_${Date.now()}${ext}`,
-                )
-                fs.renameSync(localPathSnapshot, conflictPath)
-                state.errors.push(`Conflict: ${docSnapshot.name}`)
-              }
-            } catch {}
-          }
-
-          setDocumentStatus(docSnapshot.id, 'downloading')
-          emit('sync:file', { type: 'download', name: docSnapshot.name })
-          try {
-            await apiDownloadDocument(auth, docSnapshot.id, localPathSnapshot)
-            const stat = fs.statSync(localPathSnapshot)
-            upsertDocument({
-              id: docSnapshot.id, name: docSnapshot.name, folder_id: docSnapshot.folder_id,
-              local_path: localPathSnapshot, file_size: docSnapshot.file_size,
-              version: docSnapshot.version, content_type: docSnapshot.content_type,
-              server_created_at: docSnapshot.created_at, local_mtime: stat.mtimeMs,
-              sync_status: 'synced',
-            })
-          } catch (err: any) {
-            setDocumentStatus(docSnapshot.id, 'error')
-            state.errors.push(`Download failed: ${docSnapshot.name}`)
-          }
-        })
-      } else {
-        // Keep DB in sync with server metadata
-        upsertDocument({
-          id: doc.id, name: doc.name, folder_id: doc.folder_id,
-          local_path: localPath, file_size: doc.file_size,
-          version: doc.version, content_type: doc.content_type,
-          server_created_at: doc.created_at,
-          sync_status: existing?.sync_status ?? 'synced',
-        })
-      }
-    }
-
-    // 6. Parallel downloads — 5 concurrent
-    setState({ pending: downloadTasks.length })
-    await runConcurrent(downloadTasks, 5)
-
-    // 7. Reconciliation: local files not tracked → upload to server
-    await reconcileLocalFiles(auth, syncFolder)
+    // 3. Folders only at startup — documents loaded lazily per folder
 
     setState({ status: 'idle', lastSync: new Date().toISOString(), pending: 0 })
-    emit('sync:done', { downloaded: downloadTasks.length })
+    emit('sync:done', { downloaded: 0 })
   } catch (err: any) {
+    console.error('[HestiDMS] runFullSync error:', err)
     if (err?.response?.status === 401) {
       emit('auth:expired')
       setState({ status: 'error', errors: ['Sesiune expirată — reconectare necesară'] })
     } else {
-      setState({ status: 'error', errors: [...state.errors, err.message ?? 'Sync error'] })
+      const msg = err?.response?.data?.detail ?? err.message ?? 'Sync error'
+      console.error('[HestiDMS] error detail:', msg)
+      setState({ status: 'error', errors: [msg] })
     }
+  }
+}
+
+// ── On-demand sync ────────────────────────────────────────────────────────────
+
+export async function syncFolderById(folderId: number | null): Promise<void> {
+  const auth = getAuth()
+  const syncFolder = getSyncFolder()
+  if (!auth || !syncFolder) return
+
+  setState({ status: 'syncing', errors: [] })
+
+  try {
+    // Fetch fresh doc list from server for this folder
+    const serverDocs = await apiFetchDocuments(auth, folderId)
+    const currentFolders = new Map(getAllFolders().map(f => [f.id, f]))
+    const localDocsMap = new Map(getAllDocuments().map(d => [d.id, d]))
+
+    // Build doc records with local paths
+    const docsWithPaths = serverDocs.map(doc => {
+      const folderRecord = doc.folder_id ? currentFolders.get(doc.folder_id) : null
+      const localDir = folderRecord?.local_path ?? syncFolder
+      const localPath = path.join(localDir, sanitizeName(doc.name))
+      const existing = localDocsMap.get(doc.id)
+      const isSynced = existing?.sync_status === 'synced'
+        && fs.existsSync(localPath)
+        && doc.version <= (existing.version ?? 0)
+      return {
+        id: doc.id, name: doc.name, folder_id: doc.folder_id,
+        local_path: localPath, file_size: doc.file_size,
+        version: doc.version, content_type: doc.content_type,
+        server_created_at: doc.created_at,
+        local_mtime: existing?.local_mtime ?? 0,
+        sync_status: isSynced ? 'synced' : 'available',
+      }
+    })
+    batchUpsertDocuments(docsWithPaths)
+
+    const toDownload = docsWithPaths.filter(d => d.sync_status === 'available')
+    setState({ pending: toDownload.length })
+
+    const tasks = toDownload.map(doc => () => downloadDocumentRecord(auth, doc))
+    await runConcurrent(tasks, 5)
+  } catch (err: any) {
+    console.error('[HestiDMS] syncFolderById error:', err)
+    state.errors.push(err?.response?.data?.detail ?? err.message ?? 'Sync error')
+  }
+
+  setState({ status: 'idle', pending: 0 })
+  emit('sync:done', { downloaded: 0 })
+}
+
+export async function syncDocumentById(docId: number): Promise<void> {
+  const auth = getAuth()
+  if (!auth) return
+  const doc = getAllDocuments().find(d => d.id === docId)
+  if (!doc) return
+  setState({ status: 'syncing', pending: 1 })
+  await downloadDocumentRecord(auth, doc)
+  setState({ status: 'idle', pending: 0 })
+  emit('sync:done', { downloaded: 1 })
+}
+
+async function downloadDocumentRecord(auth: ApiAuth, doc: ReturnType<typeof getAllDocuments>[number]): Promise<void> {
+  setDocumentStatus(doc.id, 'downloading')
+  emit('sync:file', { type: 'download', name: doc.name })
+  try {
+    await apiDownloadDocument(auth, doc.id, doc.local_path)
+    const stat = fs.statSync(doc.local_path)
+    upsertDocument({ ...doc, local_mtime: stat.mtimeMs, sync_status: 'synced' })
+    emit('sync:file', { type: 'downloaded', name: doc.name, id: doc.id })
+  } catch (err: any) {
+    setDocumentStatus(doc.id, 'error')
+    state.errors.push(`Download failed: ${doc.name}`)
   }
 }
 

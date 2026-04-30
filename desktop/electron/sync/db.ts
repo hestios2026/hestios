@@ -86,6 +86,15 @@ export function upsertFolder(id: number, name: string, parentId: number | null, 
   writeState(s)
 }
 
+export function batchUpsertFolders(folders: { id: number; name: string; parent_id: number | null; local_path: string }[]): void {
+  const s = readState()
+  const now = new Date().toISOString()
+  for (const f of folders) {
+    s.folders[f.id] = { ...f, synced_at: now }
+  }
+  writeState(s)
+}
+
 export function getAllFolders(): FolderRecord[] {
   return Object.values(readState().folders)
 }
@@ -107,6 +116,19 @@ export function upsertDocument(doc: {
     ...doc,
     local_mtime: doc.local_mtime ?? existing?.local_mtime ?? 0,
     sync_status: doc.sync_status ?? existing?.sync_status ?? 'synced',
+  }
+  writeState(s)
+}
+
+export function batchUpsertDocuments(docs: Parameters<typeof upsertDocument>[0][]): void {
+  const s = readState()
+  for (const doc of docs) {
+    const existing = s.documents[doc.id]
+    s.documents[doc.id] = {
+      ...doc,
+      local_mtime: doc.local_mtime ?? existing?.local_mtime ?? 0,
+      sync_status: doc.sync_status ?? existing?.sync_status ?? 'synced',
+    }
   }
   writeState(s)
 }

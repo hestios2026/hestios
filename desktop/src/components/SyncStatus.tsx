@@ -29,7 +29,10 @@ export default function SyncStatus({ syncState, onForce }: { syncState: SyncStat
         <span>· {new Date(syncState.lastSync).toLocaleTimeString('ro')}</span>
       )}
       {syncState.errors.length > 0 && (
-        <span style={{ color: '#EF4444' }} title={syncState.errors.join('\n')}>
+        <span
+          style={{ color: '#EF4444', cursor: 'pointer', textDecoration: 'underline dotted' }}
+          onClick={() => alert(syncState.errors.join('\n'))}
+        >
           {syncState.errors.length} eroare{syncState.errors.length !== 1 ? 'i' : ''}
         </span>
       )}

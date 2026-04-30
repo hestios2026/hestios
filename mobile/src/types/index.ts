@@ -90,11 +90,14 @@ export interface DataHpPlus {
 }
 
 export interface DataHA {
-  locatie: string;
+  locatie_start: string;
+  locatie_stop: string;
+  waypoints: string[];
   tip_conectare: 'kit_complet' | 'conectat_strada' | '';
   suprafata: 'asfalt' | 'pavaj' | 'beton' | 'fara_strat' | 'mixt' | '';
   suprafata_mixt_detalii: string;
   lungime: string;
+  comentarii: string;
   photos: PhotoEntry[];
 }
 

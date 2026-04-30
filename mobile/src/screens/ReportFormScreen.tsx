@@ -67,7 +67,7 @@ export default function ReportFormScreen({
 
   // G — HA
   const [haData, setHaData] = useState<DataHA>({
-    locatie: '', tip_conectare: '', suprafata: '', suprafata_mixt_detalii: '', lungime: '', photos: [],
+    locatie_start: '', locatie_stop: '', waypoints: [], tip_conectare: '', suprafata: '', suprafata_mixt_detalii: '', lungime: '', comentarii: '', photos: [],
   });
 
   // H — Reparatie
@@ -140,7 +140,8 @@ export default function ReportFormScreen({
         if (hpData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'ha':
-        if (!hasPin(haData.locatie)) return tr.vPinRequired;
+        if (!hasPin(haData.locatie_start)) return tr.vPinRequired;
+        if (!hasPin(haData.locatie_stop)) return tr.vPinStopRequired;
         if (!haData.tip_conectare) return tr.vSelectConnectionType;
         if (!haData.suprafata) return tr.vSelectSurface;
         if (haData.suprafata === 'mixt' && !haData.suprafata_mixt_detalii) return tr.vEnterDescription;
@@ -369,9 +370,12 @@ export default function ReportFormScreen({
       case 'ha':
         return (
           <>
-            <LocationField label={tr.fLocationStreetNr} mode="single" required
-              startValue={haData.locatie}
-              onChangeStart={v => setHaData(p => ({ ...p, locatie: v }))}
+            <LocationField label={tr.fLocation} mode="route" required
+              startValue={haData.locatie_start} stopValue={haData.locatie_stop}
+              waypointValues={haData.waypoints}
+              onChangeStart={v => setHaData(p => ({ ...p, locatie_start: v }))}
+              onChangeStop={v => setHaData(p => ({ ...p, locatie_stop: v }))}
+              onChangeWaypoints={v => setHaData(p => ({ ...p, waypoints: v }))}
             />
             <Dropdown label={tr.fConnectionType} value={haData.tip_conectare} required
               options={[
@@ -399,6 +403,10 @@ export default function ReportFormScreen({
             <TextField label="Metri efectuați" value={haData.lungime}
               onChangeText={v => setHaData(p => ({ ...p, lungime: v }))}
               keyboardType="decimal-pad" placeholder="ex: 12.5"
+            />
+            <TextField label={tr.fComentarii} value={haData.comentarii}
+              onChangeText={v => setHaData(p => ({ ...p, comentarii: v }))}
+              numberOfLines={3}
             />
             <PhotoPicker photos={haData.photos}
               onChange={ph => setHaData(p => ({ ...p, photos: ph }))}

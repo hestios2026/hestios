@@ -16,6 +16,8 @@ declare global {
         getState: () => Promise<any>
         force: () => Promise<any>
         start: () => Promise<any>
+        syncFolder: (folderId: number | null) => Promise<any>
+        syncDocument: (docId: number) => Promise<any>
       }
       dms: {
         listFolders: () => Promise<any[]>

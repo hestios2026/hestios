@@ -92,7 +92,7 @@ android {
         applicationId 'de.hesti_rossmann.raportare'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 26
+        versionCode 29
         versionName = new groovy.json.JsonSlurper()
             .parse(new File("$projectRoot/package.json"))
             .version

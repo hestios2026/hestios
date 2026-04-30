@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import FolderTree from '../components/FolderTree'
 import FileList from '../components/FileList'
 import SyncStatus from '../components/SyncStatus'
@@ -12,6 +12,7 @@ interface Props { user: any; onLogout: () => void }
 export default function BrowserPage({ user, onLogout }: Props) {
   const [folders, setFolders]         = useState<any[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
+  const selectedFolderRef = useRef<number | null>(null)
   const [documents, setDocuments]     = useState<any[]>([])
   const [loadingFiles, setLoadingFiles] = useState(false)
   const [syncFolder, setSyncFolder]   = useState<string | null>(null)
@@ -29,15 +30,18 @@ export default function BrowserPage({ user, onLogout }: Props) {
     window.api.sync.getState().then(setSyncState)
 
     const unsub = window.api.on('sync:state', setSyncState)
-    const unsubFile = window.api.on('sync:file', () => {
-      // Reload file list on sync activity
-      loadFiles(selectedFolderId)
+    // Reload only when sync completes, not on every file — avoids flickering
+    const unsubDone = window.api.on('sync:done', () => {
+      loadFiles(selectedFolderRef.current)
     })
-    return () => { unsub(); unsubFile() }
+    return () => { unsub(); unsubDone() }
   }, [])
 
-  // Reload files when folder selection changes
-  useEffect(() => { loadFiles(selectedFolderId) }, [selectedFolderId])
+  // Keep ref in sync so event listeners always have the current folder
+  useEffect(() => {
+    selectedFolderRef.current = selectedFolderId
+    loadFiles(selectedFolderId)
+  }, [selectedFolderId])
 
   function loadFolders() {
     window.api.dms.listFolders().then(setFolders).catch(() => {})
@@ -110,6 +114,17 @@ export default function BrowserPage({ user, onLogout }: Props) {
     loadFiles(selectedFolderId)
   }
 
+  async function handleSyncFolder() {
+    if (syncState.status === 'syncing') return
+    await window.api.sync.syncFolder(selectedFolderId)
+    loadFiles(selectedFolderId)
+  }
+
+  async function handleSyncDocument(docId: number) {
+    await window.api.sync.syncDocument(docId)
+    loadFiles(selectedFolderId)
+  }
+
   const selectedFolderName = selectedFolderId
     ? findFolderName(folders, selectedFolderId) ?? 'Folder'
     : 'Toate documentele'
@@ -127,7 +142,7 @@ export default function BrowserPage({ user, onLogout }: Props) {
           <div style={{ width: 22, height: 22, background: C.green, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: '#0C0F16', fontWeight: 800, fontSize: 12 }}>H</span>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>HestiOS DMS</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>HestiDMS</span>
         </div>
         <div style={{ flex: 1 }} />
         <div style={{ WebkitAppRegion: 'no-drag' } as any}>
@@ -189,11 +204,15 @@ export default function BrowserPage({ user, onLogout }: Props) {
           <FileList
             documents={documents}
             loading={loadingFiles}
+            syncing={syncState.status === 'syncing'}
             syncFolder={syncFolder}
+            selectedFolderId={selectedFolderId}
             folderName={selectedFolderName}
             onDelete={handleDeleteDocument}
             onUpload={handleUpload}
             onRefresh={() => { loadFolders(); loadFiles(selectedFolderId) }}
+            onSyncFolder={handleSyncFolder}
+            onSyncDocument={handleSyncDocument}
           />
         </div>
       </div>

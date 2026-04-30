@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-const C = { border: '#1E293B', green: '#22C55E', text: '#E2E8F0', muted: '#64748B', hover: '#1E293B', card: '#141D2E' }
+const C = { border: '#1E293B', green: '#22C55E', text: '#E2E8F0', muted: '#64748B', hover: '#1E293B', card: '#141D2E', error: '#EF4444', orange: '#F59E0B' }
 
 const ICONS: Record<string, string> = {
   'application/pdf': '📄',
@@ -31,6 +31,22 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ro', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+function SyncBadge({ status }: { status: string }) {
+  if (status === 'synced') return (
+    <span title="Sincronizat local" style={{ color: C.green, fontSize: 13 }}>✓</span>
+  )
+  if (status === 'downloading') return (
+    <span title="Se descarcă..." style={{ color: C.orange, fontSize: 12, animation: 'spin 1s linear infinite' }}>↻</span>
+  )
+  if (status === 'error') return (
+    <span title="Eroare download" style={{ color: C.error, fontSize: 13 }}>✕</span>
+  )
+  // available
+  return (
+    <span title="Disponibil pe server — click pentru download" style={{ color: C.muted, fontSize: 13 }}>☁</span>
+  )
+}
+
 interface Doc {
   id: number
   name: string
@@ -38,24 +54,33 @@ interface Doc {
   content_type: string
   created_at: string
   category: string
-  local_path?: string
+  local_path?: string | null
+  sync_status?: string
 }
 
 interface Props {
   documents: Doc[]
   loading: boolean
+  syncing: boolean
   syncFolder: string | null
+  selectedFolderId: number | null
   onDelete: (docId: number) => void
   onUpload: () => void
   onRefresh: () => void
+  onSyncFolder: () => void
+  onSyncDocument: (docId: number) => void
   folderName: string
 }
 
-export default function FileList({ documents, loading, syncFolder, onDelete, onUpload, onRefresh, folderName }: Props) {
+export default function FileList({
+  documents, loading, syncing, syncFolder, selectedFolderId,
+  onDelete, onUpload, onRefresh, onSyncFolder, onSyncDocument, folderName,
+}: Props) {
   const [hoveredId, setHoveredId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
 
   const filtered = documents.filter(d => d.name.toLowerCase().includes(search.toLowerCase()))
+  const availableCount = documents.filter(d => d.sync_status === 'available').length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -71,6 +96,16 @@ export default function FileList({ documents, loading, syncFolder, onDelete, onU
           }}
         />
         <button onClick={onRefresh} style={toolBtn} title="Reîncarcă">↺</button>
+        {availableCount > 0 && (
+          <button
+            onClick={onSyncFolder}
+            disabled={syncing}
+            style={{ ...toolBtn, background: '#0F2D1A', border: `1px solid ${C.green}`, color: C.green, opacity: syncing ? 0.5 : 1 }}
+            title={`Descarcă ${availableCount} fișiere nesincronizate`}
+          >
+            ↓ Sync ({availableCount})
+          </button>
+        )}
         <button onClick={onUpload} style={{ ...toolBtn, background: C.green, color: '#0C0F16', fontWeight: 700 }} title="Încarcă fișier">
           + Adaugă
         </button>
@@ -86,63 +121,82 @@ export default function FileList({ documents, loading, syncFolder, onDelete, onU
             {documents.length === 0 ? 'Niciun document în acest folder' : 'Niciun rezultat'}
           </div>
         )}
-        {!loading && filtered.map(doc => (
-          <div
-            key={doc.id}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '9px 12px', borderRadius: 8, cursor: 'pointer',
-              background: hoveredId === doc.id ? C.hover : 'transparent',
-              transition: 'background 0.1s',
-            }}
-            onMouseEnter={() => setHoveredId(doc.id)}
-            onMouseLeave={() => setHoveredId(null)}
-            onDoubleClick={() => {
-              if (doc.local_path) window.api.shell.openFile(doc.local_path)
-            }}
-          >
-            <span style={{ fontSize: 20, flexShrink: 0 }}>{fileIcon(doc.content_type)}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {doc.name}
+        {!loading && filtered.map(doc => {
+          const status = doc.sync_status ?? 'available'
+          const isAvailable = status === 'available' || status === 'error'
+          return (
+            <div
+              key={doc.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '9px 12px', borderRadius: 8, cursor: 'pointer',
+                background: hoveredId === doc.id ? C.hover : 'transparent',
+                transition: 'background 0.1s',
+                opacity: status === 'available' ? 0.7 : 1,
+              }}
+              onMouseEnter={() => setHoveredId(doc.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              onDoubleClick={() => {
+                if (doc.local_path) window.api.shell.openFile(doc.local_path)
+                else onSyncDocument(doc.id)
+              }}
+            >
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{fileIcon(doc.content_type)}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {doc.name}
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
+                  {fileSize(doc.file_size)} · {formatDate(doc.created_at)}
+                  <span style={{ marginLeft: 8, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 6px', fontSize: 10 }}>
+                    {doc.category}
+                  </span>
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
-                {fileSize(doc.file_size)} · {formatDate(doc.created_at)}
-                <span style={{ marginLeft: 8, background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 6px', fontSize: 10 }}>
-                  {doc.category}
-                </span>
+
+              {/* Sync status indicator */}
+              <div style={{ flexShrink: 0, width: 20, textAlign: 'center' }}>
+                <SyncBadge status={status} />
               </div>
+
+              {hoveredId === doc.id && (
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  {isAvailable && (
+                    <button
+                      style={actionBtn}
+                      title="Descarcă fișier"
+                      onClick={e => { e.stopPropagation(); onSyncDocument(doc.id) }}
+                    >↓</button>
+                  )}
+                  {doc.local_path && status === 'synced' && (
+                    <button
+                      style={actionBtn}
+                      title="Deschide în Finder"
+                      onClick={e => { e.stopPropagation(); window.api.shell.reveal(doc.local_path!) }}
+                    >🔍</button>
+                  )}
+                  {doc.local_path && status === 'synced' && (
+                    <button
+                      style={actionBtn}
+                      title="Deschide fișier"
+                      onClick={e => { e.stopPropagation(); window.api.shell.openFile(doc.local_path!) }}
+                    >↗</button>
+                  )}
+                  <button
+                    style={{ ...actionBtn, color: '#EF4444' }}
+                    title="Șterge"
+                    onClick={e => { e.stopPropagation(); if (confirm(`Șterge "${doc.name}"?`)) onDelete(doc.id) }}
+                  >🗑</button>
+                </div>
+              )}
             </div>
-            {hoveredId === doc.id && (
-              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                {doc.local_path && (
-                  <button
-                    style={actionBtn}
-                    title="Deschide în Finder"
-                    onClick={e => { e.stopPropagation(); window.api.shell.reveal(doc.local_path!) }}
-                  >🔍</button>
-                )}
-                {doc.local_path && (
-                  <button
-                    style={actionBtn}
-                    title="Deschide fișier"
-                    onClick={e => { e.stopPropagation(); window.api.shell.openFile(doc.local_path!) }}
-                  >↗</button>
-                )}
-                <button
-                  style={{ ...actionBtn, color: '#EF4444' }}
-                  title="Șterge"
-                  onClick={e => { e.stopPropagation(); if (confirm(`Șterge "${doc.name}"?`)) onDelete(doc.id) }}
-                >🗑</button>
-              </div>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Footer */}
       <div style={{ padding: '6px 16px', borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.muted, flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
-        <span>{filtered.length} document{filtered.length !== 1 ? 'e' : ''}</span>
+        <span>{filtered.length} document{filtered.length !== 1 ? 'e' : ''}{availableCount > 0 ? ` · ${availableCount} nesincronizate` : ''}</span>
         {syncFolder && (
           <span style={{ cursor: 'pointer' }} onClick={() => window.api.shell.reveal(syncFolder)} title="Deschide folder sync">
             📁 {syncFolder.replace(/^.*[\\/]/, '')}

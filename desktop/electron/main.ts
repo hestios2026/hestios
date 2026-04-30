@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import { configGet, configSet, configDel, getAllFolders, getAllDocuments } from './sync/db'
 import { apiLogin, apiFetchFolders, apiFetchDocuments, apiCreateFolder, apiDeleteDocument, apiDeleteFolder } from './sync/api'
-import { startEngine, stopEngine, resetEngine, runFullSync, getSyncState, setWindow } from './sync/engine'
+import { startEngine, stopEngine, resetEngine, runFullSync, syncFolderById, syncDocumentById, getSyncState, setWindow } from './sync/engine'
 
 // Single instance lock — kill extra instances immediately
 if (!app.requestSingleInstanceLock()) {
@@ -99,7 +99,7 @@ function updateTrayMenu(): void {
       click: () => runFullSync().then(() => updateTrayMenu()),
     },
     { type: 'separator' },
-    { label: 'Ieșire', click: () => { app.quit() } },
+    { label: 'Ieșire', click: () => { isQuitting = true; stopEngine(); app.exit(0) } },
   ])
   tray.setContextMenu(menu)
 }
@@ -221,11 +221,28 @@ ipcMain.handle('dms:listFolders', async () => {
 
 ipcMain.handle('dms:listFiles', async (_, { folderId }) => {
   const auth = { serverUrl: configGet('server_url')!, token: configGet('token')! }
+  const localMap = new Map(getAllDocuments().map(d => [d.id, d]))
   try {
-    return await apiFetchDocuments(auth, folderId ?? null)
+    const serverDocs = await apiFetchDocuments(auth, folderId ?? null)
+    return serverDocs.map(sd => ({
+      ...sd,
+      local_path: localMap.get(sd.id)?.local_path ?? null,
+      sync_status: localMap.get(sd.id)?.sync_status ?? 'available',
+    }))
   } catch {
     return getAllDocuments().filter(d => d.folder_id === (folderId ?? null))
   }
+})
+
+ipcMain.handle('sync:syncFolder', async (_, { folderId }) => {
+  await syncFolderById(folderId ?? null)
+  updateTrayMenu()
+  return { ok: true }
+})
+
+ipcMain.handle('sync:syncDocument', async (_, { docId }) => {
+  await syncDocumentById(docId)
+  return { ok: true }
 })
 
 ipcMain.handle('dms:createFolder', async (_, { name, parentId }) => {

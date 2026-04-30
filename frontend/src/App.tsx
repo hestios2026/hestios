@@ -28,7 +28,12 @@ import type { User } from './types';
 
 export default function App() {
   const { user, signIn, signOut, isAuthenticated } = useAuth();
-  const [page, setPage] = useState('dashboard');
+  const [page, setPage] = useState(() => localStorage.getItem('hestios_page') || 'dashboard');
+
+  const navigate = (p: string) => {
+    localStorage.setItem('hestios_page', p);
+    setPage(p);
+  };
 
   // Public share pages — no auth needed
   const sharePath = window.location.pathname.match(/^\/share\/([a-f0-9]{32})$/);
@@ -47,7 +52,7 @@ export default function App() {
 
   function renderPage() {
     switch (page) {
-      case 'dashboard':    return <DashboardPage user={user!} onNavigate={setPage} />;
+      case 'dashboard':    return <DashboardPage user={user!} onNavigate={navigate} />;
       case 'sites':        return <SitesPage />;
       case 'equipment':    return <EquipmentPage />;
       case 'hr':           return <HRPage user={user!} />;
@@ -72,7 +77,7 @@ export default function App() {
   return (
     <>
       <Toaster position="top-right" />
-      <Layout user={user!} onLogout={signOut} page={page} onNavigate={setPage}>
+      <Layout user={user!} onLogout={() => { localStorage.removeItem('hestios_page'); signOut(); }} page={page} onNavigate={navigate}>
         {renderPage()}
       </Layout>
     </>
