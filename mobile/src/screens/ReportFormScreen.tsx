@@ -67,7 +67,7 @@ export default function ReportFormScreen({
 
   // G — HA
   const [haData, setHaData] = useState<DataHA>({
-    locatie_start: '', locatie_stop: '', waypoints: [], tip_conectare: '', suprafata: '', suprafata_mixt_detalii: '', lungime: '', comentarii: '', photos: [],
+    locatie_start: '', locatie_stop: '', waypoints: [], nr_casa: '', tip_conectare: '', suprafata: '', suprafata_mixt_detalii: '', lungime: '', comentarii: '', photos: [],
   });
 
   // H — Reparatie
@@ -142,6 +142,7 @@ export default function ReportFormScreen({
       case 'ha':
         if (!hasPin(haData.locatie_start)) return tr.vPinRequired;
         if (!hasPin(haData.locatie_stop)) return tr.vPinStopRequired;
+        if (!haData.nr_casa.trim()) return tr.vNrCasaRequired;
         if (!haData.tip_conectare) return tr.vSelectConnectionType;
         if (!haData.suprafata) return tr.vSelectSurface;
         if (haData.suprafata === 'mixt' && !haData.suprafata_mixt_detalii) return tr.vEnterDescription;
@@ -376,6 +377,10 @@ export default function ReportFormScreen({
               onChangeStart={v => setHaData(p => ({ ...p, locatie_start: v }))}
               onChangeStop={v => setHaData(p => ({ ...p, locatie_stop: v }))}
               onChangeWaypoints={v => setHaData(p => ({ ...p, waypoints: v }))}
+            />
+            <TextField label={tr.fNrCasa} value={haData.nr_casa} required
+              onChangeText={v => setHaData(p => ({ ...p, nr_casa: v }))}
+              keyboardType="default" placeholder="ex: 14A"
             />
             <Dropdown label={tr.fConnectionType} value={haData.tip_conectare} required
               options={[

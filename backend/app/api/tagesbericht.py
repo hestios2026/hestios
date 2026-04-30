@@ -200,7 +200,7 @@ WORK_TYPE_LABELS = {
 DATA_FIELD_LABELS = {
     'locatie': 'Locație', 'locatie_start': 'Start', 'locatie_stop': 'Stop',
     'start': 'Start', 'stop': 'Stop',
-    'tip_conectare': 'Tip Conectare', 'suprafata': 'Suprafață',
+    'nr_casa': 'Nr. Casă', 'tip_conectare': 'Tip Conectare', 'suprafata': 'Suprafață',
     'suprafata_mixt_detalii': 'Detalii Mixt', 'lungime': 'Lungime (m)',
     'terasament': 'Terasament', 'grosime_asfalt': 'Grosime Asfalt (cm)',
     'latime': 'Lățime (m)', 'adancime': 'Adâncime (m)', 'tip': 'Tip Săpătură',

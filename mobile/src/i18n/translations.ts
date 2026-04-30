@@ -109,6 +109,7 @@ export const translations = {
     fUrgenta: 'Urgență',
     fNotesOptional: 'Observații (opțional)',
     fComentarii: 'Comentarii (opțional)',
+    fNrCasa: 'Nr. Casă',
 
     // Map / location
     mapTitleSingle: 'Selectează locație',
@@ -160,6 +161,7 @@ export const translations = {
     vSelectUrgenta: 'Selectează urgența.',
     vPinRequired: 'Plasează pinul de start pe hartă.',
     vPinStopRequired: 'Plasează pinul de stop pe hartă.',
+    vNrCasaRequired: 'Completează numărul casei.',
 
     // Photo picker labels
     photoPickerLabels: {
@@ -328,6 +330,7 @@ export const translations = {
     fUrgenta: 'Dringlichkeit',
     fNotesOptional: 'Bemerkungen (optional)',
     fComentarii: 'Kommentare (optional)',
+    fNrCasa: 'Hausnummer',
 
     // Map / location
     mapTitleSingle: 'Standort auswählen',
@@ -379,6 +382,7 @@ export const translations = {
     vSelectUrgenta: 'Dringlichkeit auswählen.',
     vPinRequired: 'Startpin auf der Karte setzen.',
     vPinStopRequired: 'Stoppin auf der Karte setzen.',
+    vNrCasaRequired: 'Hausnummer eingeben.',
 
     // Photo picker labels
     photoPickerLabels: {
