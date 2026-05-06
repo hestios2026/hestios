@@ -20,6 +20,7 @@ class Cost(Base):
 
     id           = Column(Integer, primary_key=True, index=True)
     site_id      = Column(Integer, ForeignKey("sites.id"), nullable=False)
+    equipment_id = Column(Integer, ForeignKey("equipment.id"), nullable=True)
     category     = Column(Enum(CostCategory), nullable=False)
     description  = Column(String, nullable=False)
     amount       = Column(Float, nullable=False)

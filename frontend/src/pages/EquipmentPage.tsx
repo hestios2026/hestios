@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { fetchEquipment, createEquipment, updateEquipment, moveEquipment, fetchMovements, logEquipmentCost } from '../api/equipment';
+import { fetchEquipment, createEquipment, updateEquipment, moveEquipment, fetchMovements, logEquipmentCost, fetchEquipmentCosts, updateEquipmentCost, deleteEquipmentCost } from '../api/equipment';
 import { fetchSites } from '../api/sites';
 import type { Site } from '../types';
 
@@ -29,6 +29,18 @@ interface Movement {
   moved_by: string;
   moved_at: string;
   notes: string | null;
+}
+
+interface EquipmentCost {
+  id: number;
+  site_id: number;
+  site_name: string | null;
+  description: string;
+  amount: number;
+  daily_rate: number | null;
+  days: number | null;
+  notes: string | null;
+  date: string;
 }
 
 const CATEGORIES = ['utilaj', 'vehicul', 'unealta', 'altele'];
@@ -59,6 +71,9 @@ export function EquipmentPage() {
   const [showForm, setShowForm]   = useState(false);
   const [showMove, setShowMove]   = useState(false);
   const [showCost, setShowCost]   = useState(false);
+  const [eqCosts, setEqCosts]     = useState<EquipmentCost[]>([]);
+  const [editingCost, setEditingCost] = useState<EquipmentCost | null>(null);
+  const [editCostForm, setEditCostForm] = useState({ site_id: '', daily_rate: '', days: '', period: '', description: '', notes: '' });
   const [form, setForm]           = useState(EMPTY_FORM);
   const [moveForm, setMoveForm]   = useState({ to_site_id: '', notes: '' });
   const currentMonth = new Date().toLocaleString('ro-RO', { month: 'long', year: 'numeric' });
@@ -74,8 +89,11 @@ export function EquipmentPage() {
     setSelected(e);
     setShowForm(false);
     setShowMove(false);
-    const m = await fetchMovements(e.id);
+    setShowCost(false);
+    setEditingCost(null);
+    const [m, c] = await Promise.all([fetchMovements(e.id), fetchEquipmentCosts(e.id)]);
     setMovements(m);
+    setEqCosts(c);
   }
 
   async function submitForm(ev: React.FormEvent) {
@@ -136,6 +154,49 @@ export function EquipmentPage() {
       toast.success(`Cost de €${result.amount} adăugat la ${result.site_name}`);
       setShowCost(false);
       setCostForm({ site_id: '', daily_rate: '', days: '', period: currentMonth, description: '', notes: '' });
+      const c = await fetchEquipmentCosts(selected.id);
+      setEqCosts(c);
+    } catch { toast.error(t('common.error')); }
+  }
+
+  function startEditCost(c: EquipmentCost) {
+    setEditingCost(c);
+    // Extract period from description "Name – Mai 2026 (N zile × R €/zi)"
+    const periodMatch = c.description?.match(/– (.+?) \(/);
+    setEditCostForm({
+      site_id: String(c.site_id),
+      daily_rate: c.daily_rate != null ? String(c.daily_rate) : '',
+      days: c.days != null ? String(c.days) : '',
+      period: periodMatch ? periodMatch[1].trim() : '',
+      description: '',
+      notes: c.notes ?? '',
+    });
+  }
+
+  async function submitEditCost(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (!selected || !editingCost) return;
+    try {
+      await updateEquipmentCost(selected.id, editingCost.id, {
+        site_id: editCostForm.site_id ? parseInt(editCostForm.site_id) : undefined,
+        daily_rate: editCostForm.daily_rate ? parseFloat(editCostForm.daily_rate) : undefined,
+        days: editCostForm.days ? parseInt(editCostForm.days) : undefined,
+        period: editCostForm.period || undefined,
+        notes: editCostForm.notes || undefined,
+      });
+      toast.success('Cost actualizat');
+      const c = await fetchEquipmentCosts(selected.id);
+      setEqCosts(c);
+      setEditingCost(null);
+    } catch { toast.error(t('common.error')); }
+  }
+
+  async function handleDeleteCost(costId: number) {
+    if (!selected || !window.confirm('Ștergi acest cost?')) return;
+    try {
+      await deleteEquipmentCost(selected.id, costId);
+      setEqCosts(prev => prev.filter(c => c.id !== costId));
+      toast.success('Cost șters');
     } catch { toast.error(t('common.error')); }
   }
 
@@ -452,6 +513,67 @@ export function EquipmentPage() {
                 </div>
               </form>
             )}
+
+            {/* Equipment costs list */}
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 10, marginTop: 28 }}>
+              Costuri utilaj <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>({eqCosts.length})</span>
+            </div>
+            <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', marginBottom: 28 }}>
+              {!eqCosts.length ? (
+                <div style={{ padding: 20, color: '#94a3b8', textAlign: 'center', fontSize: 13 }}>Niciun cost înregistrat</div>
+              ) : eqCosts.map(c => (
+                <div key={c.id}>
+                  {editingCost?.id === c.id ? (
+                    <form onSubmit={submitEditCost} style={{ padding: '12px 16px', background: '#fff7ed', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 3 }}>Preț/zi (€)</label>
+                        <input required type="number" step="0.01" value={editCostForm.daily_rate}
+                          onChange={e => setEditCostForm(p => ({ ...p, daily_rate: e.target.value }))} style={{ ...inp, fontSize: 12 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 3 }}>Nr. zile</label>
+                        <input required type="number" step="1" value={editCostForm.days}
+                          onChange={e => setEditCostForm(p => ({ ...p, days: e.target.value }))} style={{ ...inp, fontSize: 12 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 3 }}>Perioadă</label>
+                        <input value={editCostForm.period}
+                          onChange={e => setEditCostForm(p => ({ ...p, period: e.target.value }))} style={{ ...inp, fontSize: 12 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 3 }}>Șantier</label>
+                        <select value={editCostForm.site_id} onChange={e => setEditCostForm(p => ({ ...p, site_id: e.target.value }))} style={{ ...inp, fontSize: 12 }}>
+                          {sites.map(s => <option key={s.id} value={s.id}>{s.kostenstelle} – {s.name}</option>)}
+                        </select>
+                      </div>
+                      {editCostForm.daily_rate && editCostForm.days && (
+                        <div style={{ gridColumn: '1/-1', fontSize: 12, color: '#c2410c', fontWeight: 700 }}>
+                          Total nou: {(parseFloat(editCostForm.daily_rate) * parseInt(editCostForm.days)).toFixed(2)} €
+                        </div>
+                      )}
+                      <div style={{ gridColumn: '1/-1', display: 'flex', gap: 6 }}>
+                        <button type="submit" style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#F97316', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Salvează</button>
+                        <button type="button" onClick={() => setEditingCost(null)} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: 12, cursor: 'pointer' }}>Anulează</button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div style={{ padding: '10px 16px', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, color: '#1e293b', fontWeight: 600 }}>{c.description}</div>
+                        {c.site_name && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{c.site_name}</div>}
+                      </div>
+                      {c.daily_rate != null && c.days != null && (
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>{c.days}z × €{c.daily_rate}</span>
+                      )}
+                      <span style={{ fontWeight: 800, fontSize: 14, color: '#F97316', fontFamily: 'monospace' }}>€{c.amount.toLocaleString()}</span>
+                      <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>{new Date(c.date).toLocaleDateString(locale)}</span>
+                      <button onClick={() => startEditCost(c)} style={{ padding: '4px 10px', borderRadius: 5, border: '1px solid #e2e8f0', background: '#fff', fontSize: 11, cursor: 'pointer', color: '#374151' }}>✏️</button>
+                      <button onClick={() => handleDeleteCost(c.id)} style={{ padding: '4px 10px', borderRadius: 5, border: '1px solid #fecaca', background: '#fff', fontSize: 11, cursor: 'pointer', color: '#dc2626' }}>✕</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
             {/* Movement history */}
             <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 10 }}>

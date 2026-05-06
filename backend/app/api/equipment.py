@@ -51,9 +51,38 @@ class EquipmentCostCreate(BaseModel):
     site_id: int
     daily_rate: float = Field(gt=0)
     days: int = Field(gt=0)
-    period: Optional[str] = None   # e.g. "Mai 2026"
+    period: Optional[str] = None
     description: Optional[OptText] = None
     notes: Optional[OptText] = None
+
+
+class EquipmentCostUpdate(BaseModel):
+    site_id: Optional[int] = None
+    daily_rate: Optional[float] = Field(default=None, gt=0)
+    days: Optional[int] = Field(default=None, gt=0)
+    period: Optional[str] = None
+    description: Optional[OptText] = None
+    notes: Optional[OptText] = None
+
+
+def _cost_dict(c: Cost, site_name: Optional[str] = None):
+    import re
+    rate, days = None, None
+    m = re.search(r'\((\d+) zile × ([\d.]+)', c.description or '')
+    if m:
+        days = int(m.group(1))
+        rate = float(m.group(2))
+    return {
+        "id": c.id,
+        "site_id": c.site_id,
+        "site_name": site_name,
+        "description": c.description,
+        "amount": c.amount,
+        "daily_rate": rate,
+        "days": days,
+        "notes": c.notes,
+        "date": c.date,
+    }
 
 
 def _eq_dict(e: Equipment):
@@ -142,6 +171,7 @@ def log_equipment_cost(eq_id: int, body: EquipmentCostCreate, db: Session = Depe
     description = body.description or f"{eq.name}{period_label} ({body.days} zile × {body.daily_rate} €/zi)"
     cost = Cost(
         site_id=body.site_id,
+        equipment_id=eq_id,
         recorded_by=current.id,
         category=CostCategory.UTILAJE,
         description=description,
@@ -152,16 +182,74 @@ def log_equipment_cost(eq_id: int, body: EquipmentCostCreate, db: Session = Depe
     db.add(cost)
     db.commit()
     db.refresh(cost)
-    return {
-        "id": cost.id,
-        "site_id": cost.site_id,
-        "site_name": site.name,
-        "description": cost.description,
-        "amount": cost.amount,
-        "daily_rate": body.daily_rate,
-        "days": body.days,
-        "date": cost.date,
-    }
+    return _cost_dict(cost, site.name)
+
+
+@router.get("/{eq_id}/costs/")
+def list_equipment_costs(eq_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    costs = (
+        db.query(Cost)
+        .filter(Cost.equipment_id == eq_id)
+        .order_by(Cost.date.desc())
+        .all()
+    )
+    return [_cost_dict(c) for c in costs]
+
+
+@router.put("/{eq_id}/costs/{cost_id}/")
+def update_equipment_cost(eq_id: int, cost_id: int, body: EquipmentCostUpdate, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    cost = db.query(Cost).filter(Cost.id == cost_id, Cost.equipment_id == eq_id).first()
+    if not cost:
+        raise HTTPException(404, "Cost not found")
+    eq = db.query(Equipment).filter(Equipment.id == eq_id).first()
+
+    daily_rate = body.daily_rate if body.daily_rate is not None else None
+    days = body.days if body.days is not None else None
+
+    # Recalculate amount if rate or days changed
+    if daily_rate is not None or days is not None:
+        # Try to extract existing values from description as fallback
+        import re
+        existing_rate = daily_rate
+        existing_days = days
+        if existing_rate is None or existing_days is None:
+            m = re.search(r'\((\d+) zile × ([\d.]+)', cost.description or '')
+            if m:
+                if existing_days is None:
+                    existing_days = int(m.group(1))
+                if existing_rate is None:
+                    existing_rate = float(m.group(2))
+        if existing_rate and existing_days:
+            cost.amount = round(existing_rate * existing_days, 2)
+            period = body.period or (re.search(r'– (.+?) \(', cost.description or '') or [None, None])[1]
+            period_label = f" – {period}" if period else ""
+            if not body.description:
+                cost.description = f"{eq.name}{period_label} ({existing_days} zile × {existing_rate} €/zi)"
+
+    if body.site_id is not None:
+        cost.site_id = body.site_id
+    if body.description is not None:
+        cost.description = body.description
+    if body.notes is not None:
+        cost.notes = body.notes
+    if body.period is not None and not (daily_rate or days):
+        # update period in description
+        import re
+        cost.description = re.sub(r' – [^(]+', f' – {body.period} ', cost.description or '') if '–' in (cost.description or '') else cost.description
+
+    db.commit()
+    db.refresh(cost)
+    site = db.query(Site).filter(Site.id == cost.site_id).first()
+    return _cost_dict(cost, site.name if site else None)
+
+
+@router.delete("/{eq_id}/costs/{cost_id}/", status_code=204)
+def delete_equipment_cost(eq_id: int, cost_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    cost = db.query(Cost).filter(Cost.id == cost_id, Cost.equipment_id == eq_id).first()
+    if not cost:
+        raise HTTPException(404, "Cost not found")
+    db.delete(cost)
+    db.commit()
 
 
 @router.get("/{eq_id}/movements/")
