@@ -5,6 +5,8 @@ from typing import Optional
 from app.core.database import get_db
 from app.core.validators import Str200, OptStr100, OptStr200, OptText
 from app.models.equipment import Equipment, EquipmentStatus, EquipmentMovement
+from app.models.cost import Cost, CostCategory
+from app.models.site import Site
 from app.models.user import User
 from app.api.auth import get_current_user
 
@@ -40,6 +42,14 @@ class EquipmentUpdate(BaseModel):
 
 class MovementCreate(BaseModel):
     to_site_id: Optional[int] = None
+    notes: Optional[OptText] = None
+
+
+class EquipmentCostCreate(BaseModel):
+    site_id: int
+    amount: float = Field(gt=0)
+    period: Optional[str] = None   # e.g. "Mai 2026"
+    description: Optional[OptText] = None
     notes: Optional[OptText] = None
 
 
@@ -113,6 +123,38 @@ def move_equipment(eq_id: int, body: MovementCreate, db: Session = Depends(get_d
     db.add(movement)
     db.commit()
     return {"status": "moved"}
+
+
+@router.post("/{eq_id}/cost/", status_code=201)
+def log_equipment_cost(eq_id: int, body: EquipmentCostCreate, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    eq = db.query(Equipment).filter(Equipment.id == eq_id).first()
+    if not eq:
+        raise HTTPException(404, "Not found")
+    site = db.query(Site).filter(Site.id == body.site_id).first()
+    if not site:
+        raise HTTPException(404, "Site not found")
+    period_label = f" – {body.period}" if body.period else ""
+    description = body.description or f"{eq.name}{period_label}"
+    cost = Cost(
+        site_id=body.site_id,
+        recorded_by=current.id,
+        category=CostCategory.UTILAJE,
+        description=description,
+        amount=body.amount,
+        currency="EUR",
+        notes=body.notes,
+    )
+    db.add(cost)
+    db.commit()
+    db.refresh(cost)
+    return {
+        "id": cost.id,
+        "site_id": cost.site_id,
+        "site_name": site.name,
+        "description": cost.description,
+        "amount": cost.amount,
+        "date": cost.date,
+    }
 
 
 @router.get("/{eq_id}/movements/")

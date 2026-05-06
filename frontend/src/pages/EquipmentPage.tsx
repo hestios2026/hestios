@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { fetchEquipment, createEquipment, updateEquipment, moveEquipment, fetchMovements } from '../api/equipment';
+import { fetchEquipment, createEquipment, updateEquipment, moveEquipment, fetchMovements, logEquipmentCost } from '../api/equipment';
 import { fetchSites } from '../api/sites';
 import type { Site } from '../types';
 
@@ -57,8 +57,11 @@ export function EquipmentPage() {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [showForm, setShowForm]   = useState(false);
   const [showMove, setShowMove]   = useState(false);
+  const [showCost, setShowCost]   = useState(false);
   const [form, setForm]           = useState(EMPTY_FORM);
   const [moveForm, setMoveForm]   = useState({ to_site_id: '', notes: '' });
+  const currentMonth = new Date().toLocaleString('ro-RO', { month: 'long', year: 'numeric' });
+  const [costForm, setCostForm]   = useState({ site_id: '', amount: '', period: currentMonth, description: '', notes: '' });
   const [filter, setFilter]       = useState('');
 
   useEffect(() => {
@@ -113,6 +116,23 @@ export function EquipmentPage() {
       setMovements(m);
       setShowMove(false);
       setMoveForm({ to_site_id: '', notes: '' });
+    } catch { toast.error(t('common.error')); }
+  }
+
+  async function submitCost(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (!selected) return;
+    try {
+      const result = await logEquipmentCost(selected.id, {
+        site_id: parseInt(costForm.site_id),
+        amount: parseFloat(costForm.amount),
+        period: costForm.period || undefined,
+        description: costForm.description || undefined,
+        notes: costForm.notes || undefined,
+      });
+      toast.success(`Cost de €${result.amount} adăugat la ${result.site_name}`);
+      setShowCost(false);
+      setCostForm({ site_id: '', amount: '', period: currentMonth, description: '', notes: '' });
     } catch { toast.error(t('common.error')); }
   }
 
@@ -293,10 +313,14 @@ export function EquipmentPage() {
                       color: selected.status === s ? STATUS_COLORS[s][1] : '#94a3b8',
                     }}>{STATUS_LABELS[s]}</button>
                   ))}
-                  <button onClick={() => setShowMove(!showMove)} style={{
+                  <button onClick={() => { setShowMove(!showMove); setShowCost(false); }} style={{
                     padding: '6px 14px', borderRadius: 20, border: '1px solid #22C55E',
                     background: '#fff', color: '#22C55E', fontWeight: 700, fontSize: 11, cursor: 'pointer',
                   }}>{t('equipment.moveEquipment')}</button>
+                  <button onClick={() => { setShowCost(!showCost); setShowMove(false); setCostForm(p => ({ ...p, site_id: selected?.current_site_id ? String(selected.current_site_id) : '' })); }} style={{
+                    padding: '6px 14px', borderRadius: 20, border: '1px solid #F97316',
+                    background: '#fff', color: '#F97316', fontWeight: 700, fontSize: 11, cursor: 'pointer',
+                  }}>€ Cost utilaj</button>
                 </div>
               </div>
 
@@ -355,6 +379,51 @@ export function EquipmentPage() {
                 <button type="button" onClick={() => setShowMove(false)} style={{ padding: '8px 14px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
                   ✕
                 </button>
+              </form>
+            )}
+
+            {/* Cost form */}
+            {showCost && (
+              <form onSubmit={submitCost} style={{
+                background: '#fff7ed', borderRadius: 10, padding: 16, marginBottom: 24,
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
+              }}>
+                <div style={{ gridColumn: '1/-1', fontWeight: 700, fontSize: 13, color: '#c2410c' }}>€ Înregistrează cost utilaj</div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Șantier</label>
+                  <select required value={costForm.site_id} onChange={e => setCostForm(p => ({ ...p, site_id: e.target.value }))} style={inp}>
+                    <option value="">— alege șantier —</option>
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.kostenstelle} – {s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Sumă (€)</label>
+                  <input required type="number" step="0.01" min="0.01" value={costForm.amount}
+                    onChange={e => setCostForm(p => ({ ...p, amount: e.target.value }))} style={inp} placeholder="0.00" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Perioadă (lună)</label>
+                  <input value={costForm.period}
+                    onChange={e => setCostForm(p => ({ ...p, period: e.target.value }))} style={inp} placeholder={currentMonth} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Descriere (opțional)</label>
+                  <input value={costForm.description} placeholder={`${selected?.name ?? ''} – ${costForm.period}`}
+                    onChange={e => setCostForm(p => ({ ...p, description: e.target.value }))} style={inp} />
+                </div>
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Note (opțional)</label>
+                  <input value={costForm.notes}
+                    onChange={e => setCostForm(p => ({ ...p, notes: e.target.value }))} style={inp} placeholder={t('common.optional')} />
+                </div>
+                <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
+                  <button type="submit" style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#F97316', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                    Adaugă cost
+                  </button>
+                  <button type="button" onClick={() => setShowCost(false)} style={{ padding: '8px 14px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>
+                    ✕
+                  </button>
+                </div>
               </form>
             )}
 
