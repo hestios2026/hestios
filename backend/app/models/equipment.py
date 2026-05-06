@@ -23,6 +23,7 @@ class Equipment(Base):
     year            = Column(Integer)
     status          = Column(Enum(EquipmentStatus), default=EquipmentStatus.ACTIVE)
     current_site_id = Column(Integer, ForeignKey("sites.id"), nullable=True)
+    daily_rate      = Column(Float, nullable=True)   # cost/zi în EUR
     service_due     = Column(DateTime(timezone=True), nullable=True)
     itp_due         = Column(DateTime(timezone=True), nullable=True)
     notes           = Column(Text)

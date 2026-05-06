@@ -20,6 +20,7 @@ class EquipmentCreate(BaseModel):
     model: Optional[OptStr100] = None
     year: Optional[int] = Field(default=None, ge=1900, le=2100)
     serial_number: Optional[OptStr100] = None
+    daily_rate: Optional[float] = Field(default=None, gt=0)
     current_site_id: Optional[int] = None
     service_due: Optional[str] = None
     itp_due: Optional[str] = None
@@ -34,6 +35,7 @@ class EquipmentUpdate(BaseModel):
     year: Optional[int] = Field(default=None, ge=1900, le=2100)
     serial_number: Optional[OptStr100] = None
     status: Optional[EquipmentStatus] = None
+    daily_rate: Optional[float] = Field(default=None, gt=0)
     current_site_id: Optional[int] = None
     service_due: Optional[str] = None
     itp_due: Optional[str] = None
@@ -47,7 +49,8 @@ class MovementCreate(BaseModel):
 
 class EquipmentCostCreate(BaseModel):
     site_id: int
-    amount: float = Field(gt=0)
+    daily_rate: float = Field(gt=0)
+    days: int = Field(gt=0)
     period: Optional[str] = None   # e.g. "Mai 2026"
     description: Optional[OptText] = None
     notes: Optional[OptText] = None
@@ -65,6 +68,7 @@ def _eq_dict(e: Equipment):
         "status": e.status,
         "current_site_id": e.current_site_id,
         "current_site_name": e.current_site.name if e.current_site else None,
+        "daily_rate": e.daily_rate,
         "service_due": e.service_due,
         "itp_due": e.itp_due,
         "notes": e.notes,
@@ -133,14 +137,15 @@ def log_equipment_cost(eq_id: int, body: EquipmentCostCreate, db: Session = Depe
     site = db.query(Site).filter(Site.id == body.site_id).first()
     if not site:
         raise HTTPException(404, "Site not found")
+    total = round(body.daily_rate * body.days, 2)
     period_label = f" – {body.period}" if body.period else ""
-    description = body.description or f"{eq.name}{period_label}"
+    description = body.description or f"{eq.name}{period_label} ({body.days} zile × {body.daily_rate} €/zi)"
     cost = Cost(
         site_id=body.site_id,
         recorded_by=current.id,
         category=CostCategory.UTILAJE,
         description=description,
-        amount=body.amount,
+        amount=total,
         currency="EUR",
         notes=body.notes,
     )
@@ -153,6 +158,8 @@ def log_equipment_cost(eq_id: int, body: EquipmentCostCreate, db: Session = Depe
         "site_name": site.name,
         "description": cost.description,
         "amount": cost.amount,
+        "daily_rate": body.daily_rate,
+        "days": body.days,
         "date": cost.date,
     }
 

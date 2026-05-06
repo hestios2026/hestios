@@ -16,6 +16,7 @@ interface Equipment {
   status: 'active' | 'maintenance' | 'retired';
   current_site_id: number | null;
   current_site_name: string | null;
+  daily_rate: number | null;
   service_due: string | null;
   itp_due: string | null;
   notes: string | null;
@@ -40,7 +41,7 @@ const STATUS_COLORS: Record<string, [string, string]> = {
 
 const EMPTY_FORM = {
   name: '', category: 'utilaj', brand: '', model: '', year: '',
-  serial_number: '', current_site_id: '', service_due: '', itp_due: '', notes: '',
+  serial_number: '', daily_rate: '', current_site_id: '', service_due: '', itp_due: '', notes: '',
 };
 
 const inp: React.CSSProperties = {
@@ -61,7 +62,7 @@ export function EquipmentPage() {
   const [form, setForm]           = useState(EMPTY_FORM);
   const [moveForm, setMoveForm]   = useState({ to_site_id: '', notes: '' });
   const currentMonth = new Date().toLocaleString('ro-RO', { month: 'long', year: 'numeric' });
-  const [costForm, setCostForm]   = useState({ site_id: '', amount: '', period: currentMonth, description: '', notes: '' });
+  const [costForm, setCostForm]   = useState({ site_id: '', daily_rate: '', days: '', period: currentMonth, description: '', notes: '' });
   const [filter, setFilter]       = useState('');
 
   useEffect(() => {
@@ -85,6 +86,7 @@ export function EquipmentPage() {
       if (form.model)          payload.model          = form.model;
       if (form.year)           payload.year           = parseInt(form.year);
       if (form.serial_number)  payload.serial_number  = form.serial_number;
+      if (form.daily_rate)     payload.daily_rate     = parseFloat(form.daily_rate);
       if (form.current_site_id) payload.current_site_id = parseInt(form.current_site_id);
       if (form.service_due)    payload.service_due    = form.service_due;
       if (form.itp_due)        payload.itp_due        = form.itp_due;
@@ -125,14 +127,15 @@ export function EquipmentPage() {
     try {
       const result = await logEquipmentCost(selected.id, {
         site_id: parseInt(costForm.site_id),
-        amount: parseFloat(costForm.amount),
+        daily_rate: parseFloat(costForm.daily_rate),
+        days: parseInt(costForm.days),
         period: costForm.period || undefined,
         description: costForm.description || undefined,
         notes: costForm.notes || undefined,
       });
       toast.success(`Cost de €${result.amount} adăugat la ${result.site_name}`);
       setShowCost(false);
-      setCostForm({ site_id: '', amount: '', period: currentMonth, description: '', notes: '' });
+      setCostForm({ site_id: '', daily_rate: '', days: '', period: currentMonth, description: '', notes: '' });
     } catch { toast.error(t('common.error')); }
   }
 
@@ -262,6 +265,11 @@ export function EquipmentPage() {
                   onChange={e => setForm(p => ({ ...p, serial_number: e.target.value }))} style={inp} />
               </div>
               <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Preț/zi (€)</label>
+                <input type="number" step="0.01" min="0" value={form.daily_rate} placeholder="ex: 250.00"
+                  onChange={e => setForm(p => ({ ...p, daily_rate: e.target.value }))} style={inp} />
+              </div>
+              <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('equipment.serviceDue')}</label>
                 <input type="date" value={form.service_due}
                   onChange={e => setForm(p => ({ ...p, service_due: e.target.value }))} style={inp} />
@@ -317,7 +325,7 @@ export function EquipmentPage() {
                     padding: '6px 14px', borderRadius: 20, border: '1px solid #22C55E',
                     background: '#fff', color: '#22C55E', fontWeight: 700, fontSize: 11, cursor: 'pointer',
                   }}>{t('equipment.moveEquipment')}</button>
-                  <button onClick={() => { setShowCost(!showCost); setShowMove(false); setCostForm(p => ({ ...p, site_id: selected?.current_site_id ? String(selected.current_site_id) : '' })); }} style={{
+                  <button onClick={() => { setShowCost(!showCost); setShowMove(false); setCostForm(p => ({ ...p, site_id: selected?.current_site_id ? String(selected.current_site_id) : '', daily_rate: selected?.daily_rate ? String(selected.daily_rate) : p.daily_rate })); }} style={{
                     padding: '6px 14px', borderRadius: 20, border: '1px solid #F97316',
                     background: '#fff', color: '#F97316', fontWeight: 700, fontSize: 11, cursor: 'pointer',
                   }}>€ Cost utilaj</button>
@@ -332,6 +340,14 @@ export function EquipmentPage() {
                     {selected.current_site_name || t('common.noSite')}
                   </div>
                 </div>
+                {selected.daily_rate != null && (
+                  <div style={{ background: '#fff7ed', borderRadius: 8, padding: '10px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
+                    <div style={{ fontSize: 11, color: '#c2410c', fontWeight: 600 }}>Preț/zi</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#c2410c', marginTop: 2 }}>
+                      €{selected.daily_rate.toLocaleString()}
+                    </div>
+                  </div>
+                )}
                 {selected.service_due && (
                   <div style={{ background: '#fff', borderRadius: 8, padding: '10px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
                     <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t('equipment.serviceDue')}</div>
@@ -397,10 +413,20 @@ export function EquipmentPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Sumă (€)</label>
-                  <input required type="number" step="0.01" min="0.01" value={costForm.amount}
-                    onChange={e => setCostForm(p => ({ ...p, amount: e.target.value }))} style={inp} placeholder="0.00" />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Preț/zi (€)</label>
+                  <input required type="number" step="0.01" min="0.01" value={costForm.daily_rate}
+                    onChange={e => setCostForm(p => ({ ...p, daily_rate: e.target.value }))} style={inp} placeholder="0.00" />
                 </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Nr. zile închiriate</label>
+                  <input required type="number" step="1" min="1" value={costForm.days}
+                    onChange={e => setCostForm(p => ({ ...p, days: e.target.value }))} style={inp} placeholder="0" />
+                </div>
+                {costForm.daily_rate && costForm.days && (
+                  <div style={{ gridColumn: '1/-1', padding: '8px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, fontSize: 13, color: '#c2410c', fontWeight: 700 }}>
+                    Total: {(parseFloat(costForm.daily_rate) * parseInt(costForm.days)).toFixed(2)} € ({costForm.days} zile × {costForm.daily_rate} €/zi)
+                  </div>
+                )}
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#c2410c', display: 'block', marginBottom: 4 }}>Perioadă (lună)</label>
                   <input value={costForm.period}
