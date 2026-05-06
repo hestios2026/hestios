@@ -8,6 +8,7 @@ from app.core.validators import Str20, Str200, OptStr100, OptStr200, OptStr300, 
 from app.models.site import Site, SiteStatus, user_sites
 from sqlalchemy import select
 from app.models.cost import Cost, CostCategory, MaterialLog
+from app.models.supplier import Supplier, SupplierPrice
 from app.models.user import User, UserRole
 from app.api.auth import get_current_user
 
@@ -55,6 +56,9 @@ class MaterialCreate(BaseModel):
     material: OptStr200
     quantity: float = Field(gt=0)
     unit: OptStr100 = "buc"
+    unit_price: Optional[float] = Field(default=None, gt=0)
+    supplier: Optional[OptStr200] = None
+    invoice_ref: Optional[OptStr100] = None
     notes: Optional[OptText] = None
 
 
@@ -121,6 +125,61 @@ def update_site(site_id: int, body: SiteUpdate, db: Session = Depends(get_db), c
     return {"status": "updated"}
 
 
+# ── Suggestions (autocomplete) ─────────────────────────────────────────────────
+@router.get("/materials/suggestions/")
+def material_suggestions(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    from sqlalchemy import distinct, func
+
+    # Suppliers: active ones from catalog + any free-text used in history
+    db_suppliers = [r[0] for r in db.query(Supplier.name).filter(Supplier.is_active == True).order_by(Supplier.name).all()]  # noqa: E712
+    hist_suppliers = [r[0] for r in db.query(distinct(MaterialLog.supplier)).filter(MaterialLog.supplier.isnot(None)).all()]
+    cost_suppliers = [r[0] for r in db.query(distinct(Cost.supplier)).filter(Cost.supplier.isnot(None)).all()]
+    seen: set = set(db_suppliers)
+    all_suppliers = list(db_suppliers)
+    for s in hist_suppliers + cost_suppliers:
+        if s not in seen:
+            all_suppliers.append(s)
+            seen.add(s)
+
+    # Materials: latest unit_price per material name (for price prefill)
+    latest_subq = (
+        db.query(MaterialLog.material, func.max(MaterialLog.date).label("max_date"))
+        .group_by(MaterialLog.material)
+        .subquery()
+    )
+    mat_rows = (
+        db.query(MaterialLog.material, MaterialLog.unit, MaterialLog.unit_price)
+        .join(latest_subq, (MaterialLog.material == latest_subq.c.material) & (MaterialLog.date == latest_subq.c.max_date))
+        .all()
+    )
+    materials = [{"name": r.material, "unit": r.unit, "unit_price": r.unit_price} for r in mat_rows]
+
+    # Supplier price catalog (for prefill when supplier + product are both selected)
+    price_rows = (
+        db.query(Supplier.name, SupplierPrice.product_name, SupplierPrice.unit, SupplierPrice.price)
+        .join(SupplierPrice, SupplierPrice.supplier_id == Supplier.id)
+        .filter(Supplier.is_active == True)  # noqa: E712
+        .all()
+    )
+    supplier_prices = [{"supplier": r[0], "product": r[1], "unit": r[2], "price": r[3]} for r in price_rows]
+
+    # Invoice refs from both tables
+    mat_refs = [r[0] for r in db.query(distinct(MaterialLog.invoice_ref)).filter(MaterialLog.invoice_ref.isnot(None)).all()]
+    cost_refs = [r[0] for r in db.query(distinct(Cost.invoice_ref)).filter(Cost.invoice_ref.isnot(None)).all()]
+    seen_refs: set = set(mat_refs)
+    invoice_refs = list(mat_refs)
+    for r in cost_refs:
+        if r not in seen_refs:
+            invoice_refs.append(r)
+
+    return {
+        "suppliers": all_suppliers,
+        "materials": materials,
+        "supplier_prices": supplier_prices,
+        "invoice_refs": invoice_refs,
+    }
+
+
 # ── Costs ──────────────────────────────────────────────────────────────────────
 @router.get("/{site_id}/costs/")
 def get_costs(site_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
@@ -144,19 +203,49 @@ def add_cost(site_id: int, body: CostCreate, db: Session = Depends(get_db), curr
 
 # ── Materials ──────────────────────────────────────────────────────────────────
 @router.get("/{site_id}/materials/")
-def get_materials(site_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    logs = db.query(MaterialLog).filter(MaterialLog.site_id == site_id).order_by(MaterialLog.date.desc()).all()
-    return [{"id": l.id, "material": l.material, "quantity": l.quantity, "unit": l.unit,
-             "date": l.date, "notes": l.notes} for l in logs]
+def get_materials(
+    site_id: int,
+    supplier: Optional[str] = None,
+    min_qty: Optional[float] = None,
+    max_qty: Optional[float] = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(MaterialLog).filter(MaterialLog.site_id == site_id)
+    if supplier:
+        q = q.filter(MaterialLog.supplier.ilike(f"%{supplier}%"))
+    if min_qty is not None:
+        q = q.filter(MaterialLog.quantity >= min_qty)
+    if max_qty is not None:
+        q = q.filter(MaterialLog.quantity <= max_qty)
+    logs = q.order_by(MaterialLog.date.desc()).all()
+    return [_material_dict(l) for l in logs]
 
 
 @router.post("/{site_id}/materials/", status_code=201)
 def log_material(site_id: int, body: MaterialCreate, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
-    log = MaterialLog(site_id=site_id, recorded_by=current.id, **body.model_dump())
+    data = body.model_dump()
+    cost_id = None
+    if data.get("unit_price") is not None:
+        total = data["quantity"] * data["unit_price"]
+        cost = Cost(
+            site_id=site_id,
+            recorded_by=current.id,
+            category=CostCategory.MATERIALE,
+            description=data["material"],
+            amount=total,
+            currency="EUR",
+            supplier=data.get("supplier"),
+            invoice_ref=data.get("invoice_ref"),
+        )
+        db.add(cost)
+        db.flush()
+        cost_id = cost.id
+    log = MaterialLog(site_id=site_id, recorded_by=current.id, cost_id=cost_id, **data)
     db.add(log)
     db.commit()
     db.refresh(log)
-    return {"id": log.id, "material": log.material, "quantity": log.quantity, "unit": log.unit}
+    return _material_dict(log)
 
 
 def _site_dict(s: Site, total_costs: float = 0.0):
@@ -166,6 +255,16 @@ def _site_dict(s: Site, total_costs: float = 0.0):
         "is_baustelle": s.is_baustelle,
         "budget": s.budget, "total_costs": total_costs, "manager_id": s.manager_id,
         "start_date": s.start_date, "end_date": s.end_date, "notes": s.notes,
+    }
+
+
+def _material_dict(l: MaterialLog):
+    return {
+        "id": l.id, "material": l.material, "quantity": l.quantity, "unit": l.unit,
+        "unit_price": l.unit_price,
+        "total_amount": round(l.quantity * l.unit_price, 2) if l.unit_price else None,
+        "supplier": l.supplier, "invoice_ref": l.invoice_ref,
+        "cost_id": l.cost_id, "date": l.date, "notes": l.notes,
     }
 
 

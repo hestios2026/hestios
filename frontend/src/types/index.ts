@@ -171,6 +171,11 @@ export interface MaterialLog {
   material: string;
   quantity: number;
   unit: string;
+  unit_price?: number;
+  total_amount?: number;
+  supplier?: string;
+  invoice_ref?: string;
+  cost_id?: number;
   date: string;
   notes?: string;
 }

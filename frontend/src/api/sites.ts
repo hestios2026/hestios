@@ -9,5 +9,7 @@ export const updateSite = (id: number, body: object) => api.put(`/sites/${id}/`,
 
 export const fetchCosts   = (id: number) => api.get(`/sites/${id}/costs/`).then(r => r.data);
 export const addCost      = (id: number, body: object) => api.post(`/sites/${id}/costs/`, body).then(r => r.data);
-export const fetchMaterials = (id: number) => api.get(`/sites/${id}/materials/`).then(r => r.data);
+export const fetchMaterials = (id: number, filters?: { supplier?: string; min_qty?: number; max_qty?: number }) =>
+  api.get(`/sites/${id}/materials/`, { params: filters ?? {} }).then(r => r.data);
 export const addMaterial  = (id: number, body: object) => api.post(`/sites/${id}/materials/`, body).then(r => r.data);
+export const fetchMaterialSuggestions = () => api.get('/sites/materials/suggestions/').then(r => r.data);

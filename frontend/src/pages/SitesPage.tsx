@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { fetchSites, fetchCosts, addCost, fetchMaterials, addMaterial, createSite, updateSite } from '../api/sites';
+import { fetchSites, fetchCosts, addCost, fetchMaterials, addMaterial, fetchMaterialSuggestions, createSite, updateSite } from '../api/sites';
+import { ComboBox } from '../components/ComboBox';
 import { fetchProgramari } from '../api/programari';
 import { fetchTagesberichtEntries } from '../api/tagesbericht';
 import type { Site, Cost, MaterialLog } from '../types';
@@ -133,10 +134,18 @@ export function SitesPage() {
   const [siteForm, setSiteForm]     = useState(EMPTY_SITE_FORM);
   const [kstForm, setKstForm]       = useState(EMPTY_KST_FORM);
   const [costForm, setCostForm]     = useState({ category: 'materiale', description: '', amount: '', supplier: '', invoice_ref: '', notes: '' });
-  const [matForm, setMatForm]       = useState({ material: '', quantity: '', unit: 'buc', notes: '' });
+  const [matForm, setMatForm]       = useState({ material: '', quantity: '', unit: 'buc', unit_price: '', supplier: '', invoice_ref: '', notes: '' });
+  const [matFilter, setMatFilter]   = useState({ supplier: '', min_qty: '', max_qty: '' });
+  const [suggestions, setSuggestions] = useState<{
+    suppliers: string[];
+    materials: { name: string; unit: string; unit_price: number | null }[];
+    supplier_prices: { supplier: string; product: string; unit: string; price: number }[];
+    invoice_refs: string[];
+  }>({ suppliers: [], materials: [], supplier_prices: [], invoice_refs: [] });
 
   useEffect(() => { fetchSites(true).then(setSites).catch(() => {}); }, []);
   useEffect(() => { fetchSites(false).then(setAllKst).catch(() => {}); }, []);
+  useEffect(() => { fetchMaterialSuggestions().then(setSuggestions).catch(() => {}); }, []);
 
   async function submitKst(e: React.FormEvent) {
     e.preventDefault();
@@ -200,8 +209,9 @@ export function SitesPage() {
     try {
       await addCost(selected.id, { ...costForm, amount: parseFloat(costForm.amount) });
       toast.success(t('common.success'));
-      const c = await fetchCosts(selected.id);
+      const [c, sugg] = await Promise.all([fetchCosts(selected.id), fetchMaterialSuggestions()]);
       setCosts(c);
+      setSuggestions(sugg);
       setShowCostForm(false);
       setCostForm({ category: 'materiale', description: '', amount: '', supplier: '', invoice_ref: '', notes: '' });
     } catch { toast.error(t('common.error')); }
@@ -211,13 +221,63 @@ export function SitesPage() {
     e.preventDefault();
     if (!selected) return;
     try {
-      await addMaterial(selected.id, { ...matForm, quantity: parseFloat(matForm.quantity) });
+      const payload: Record<string, unknown> = {
+        material: matForm.material,
+        quantity: parseFloat(matForm.quantity),
+        unit: matForm.unit,
+        notes: matForm.notes || undefined,
+        supplier: matForm.supplier || undefined,
+        invoice_ref: matForm.invoice_ref || undefined,
+        unit_price: matForm.unit_price ? parseFloat(matForm.unit_price) : undefined,
+      };
+      await addMaterial(selected.id, payload);
       toast.success(t('common.success'));
+      const [m, sugg] = await Promise.all([fetchMaterials(selected.id), fetchMaterialSuggestions()]);
+      setMaterials(m);
+      setSuggestions(sugg);
+      setShowMatForm(false);
+      setMatForm({ material: '', quantity: '', unit: 'buc', unit_price: '', supplier: '', invoice_ref: '', notes: '' });
+    } catch { toast.error(t('common.error')); }
+  }
+
+  function onMatNameSelect(name: string) {
+    const match = suggestions.materials.find(m => m.name === name);
+    setMatForm(p => ({
+      ...p,
+      material: name,
+      unit: match?.unit ?? p.unit,
+      unit_price: match?.unit_price != null ? String(match.unit_price) : p.unit_price,
+    }));
+  }
+
+  function onMatSupplierSelect(supplier: string) {
+    setMatForm(p => ({ ...p, supplier }));
+    // If material is already set, check if supplier has a price for it
+    if (matForm.material) {
+      const match = suggestions.supplier_prices.find(
+        sp => sp.supplier === supplier && sp.product.toLowerCase() === matForm.material.toLowerCase()
+      );
+      if (match) setMatForm(p => ({ ...p, supplier, unit_price: String(match.price), unit: match.unit }));
+    }
+  }
+
+  async function applyMatFilter() {
+    if (!selected) return;
+    const filters = {
+      supplier: matFilter.supplier || undefined,
+      min_qty: matFilter.min_qty ? parseFloat(matFilter.min_qty) : undefined,
+      max_qty: matFilter.max_qty ? parseFloat(matFilter.max_qty) : undefined,
+    };
+    const m = await fetchMaterials(selected.id, filters);
+    setMaterials(m);
+  }
+
+  async function resetMatFilter() {
+    setMatFilter({ supplier: '', min_qty: '', max_qty: '' });
+    if (selected) {
       const m = await fetchMaterials(selected.id);
       setMaterials(m);
-      setShowMatForm(false);
-      setMatForm({ material: '', quantity: '', unit: 'buc', notes: '' });
-    } catch { toast.error(t('common.error')); }
+    }
   }
 
   async function submitEditSite(e: React.FormEvent) {
@@ -565,12 +625,18 @@ export function SitesPage() {
                     <input placeholder={t('sites.budget') + ' (€)'} type="number" step="0.01" required value={costForm.amount}
                       onChange={e => setCostForm(p => ({ ...p, amount: e.target.value }))}
                       style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
-                    <input placeholder={t('sites.fieldSupplier')} value={costForm.supplier}
-                      onChange={e => setCostForm(p => ({ ...p, supplier: e.target.value }))}
-                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
-                    <input placeholder={t('sites.fieldInvoiceRef')} value={costForm.invoice_ref}
-                      onChange={e => setCostForm(p => ({ ...p, invoice_ref: e.target.value }))}
-                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
+                    <ComboBox
+                      value={costForm.supplier}
+                      onChange={v => setCostForm(p => ({ ...p, supplier: v }))}
+                      suggestions={suggestions.suppliers}
+                      placeholder={t('sites.fieldSupplier')}
+                    />
+                    <ComboBox
+                      value={costForm.invoice_ref}
+                      onChange={v => setCostForm(p => ({ ...p, invoice_ref: v }))}
+                      suggestions={suggestions.invoice_refs}
+                      placeholder={t('sites.fieldInvoiceRef')}
+                    />
                     <input placeholder={t('common.notes')} value={costForm.notes}
                       onChange={e => setCostForm(p => ({ ...p, notes: e.target.value }))}
                       style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
@@ -612,9 +678,19 @@ export function SitesPage() {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
                   }}>
                     <div style={{ gridColumn: '1/-1', fontWeight: 700, fontSize: 14 }}>{t('sites.addMaterial')}</div>
-                    <input placeholder={t('sites.fieldMaterial')} required value={matForm.material}
-                      onChange={e => setMatForm(p => ({ ...p, material: e.target.value }))}
-                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
+                    <ComboBox
+                      required
+                      value={matForm.material}
+                      onChange={onMatNameSelect}
+                      suggestions={[
+                        ...suggestions.materials.map(m => m.name),
+                        ...suggestions.supplier_prices
+                          .filter(sp => !matForm.supplier || sp.supplier === matForm.supplier)
+                          .map(sp => sp.product)
+                          .filter(p => !suggestions.materials.find(m => m.name === p)),
+                      ]}
+                      placeholder={t('sites.fieldMaterial')}
+                    />
                     <div style={{ display: 'flex', gap: 6 }}>
                       <input placeholder={t('common.quantity')} type="number" step="0.01" required value={matForm.quantity}
                         onChange={e => setMatForm(p => ({ ...p, quantity: e.target.value }))}
@@ -623,9 +699,29 @@ export function SitesPage() {
                         onChange={e => setMatForm(p => ({ ...p, unit: e.target.value }))}
                         style={{ width: 70, padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
                     </div>
+                    <input placeholder="Preț unitar (EUR)" type="number" step="0.01" value={matForm.unit_price}
+                      onChange={e => setMatForm(p => ({ ...p, unit_price: e.target.value }))}
+                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
+                    <ComboBox
+                      value={matForm.supplier}
+                      onChange={onMatSupplierSelect}
+                      suggestions={suggestions.suppliers}
+                      placeholder="Furnizor"
+                    />
+                    <ComboBox
+                      value={matForm.invoice_ref}
+                      onChange={v => setMatForm(p => ({ ...p, invoice_ref: v }))}
+                      suggestions={suggestions.invoice_refs}
+                      placeholder="Referință factură"
+                    />
                     <input placeholder={t('common.notes')} value={matForm.notes}
                       onChange={e => setMatForm(p => ({ ...p, notes: e.target.value }))}
-                      style={{ gridColumn: '1/-1', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
+                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }} />
+                    {matForm.unit_price && matForm.quantity && (
+                      <div style={{ gridColumn: '1/-1', padding: '8px 12px', background: '#f0fdf4', borderRadius: 6, fontSize: 13, color: '#15803d', fontWeight: 600 }}>
+                        Total: {(parseFloat(matForm.quantity) * parseFloat(matForm.unit_price)).toFixed(2)} EUR — va fi adăugat automat la costuri
+                      </div>
+                    )}
                     <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
                       <button type="submit" style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: '#059669', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{t('common.save')}</button>
                       <button type="button" onClick={() => setShowMatForm(false)} style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>{t('common.cancel')}</button>
@@ -633,13 +729,46 @@ export function SitesPage() {
                   </form>
                 )}
 
+                {/* Filter bar */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <ComboBox
+                    value={matFilter.supplier}
+                    onChange={v => setMatFilter(p => ({ ...p, supplier: v }))}
+                    suggestions={suggestions.suppliers}
+                    placeholder="Filtrare furnizor"
+                    style={{ width: 160 }}
+                    inputStyle={{ padding: '7px 10px', border: '1px solid #e2e8f0' }}
+                  />
+                  <input placeholder="Min cantitate" type="number" step="0.01" value={matFilter.min_qty}
+                    onChange={e => setMatFilter(p => ({ ...p, min_qty: e.target.value }))}
+                    style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, width: 110 }} />
+                  <input placeholder="Max cantitate" type="number" step="0.01" value={matFilter.max_qty}
+                    onChange={e => setMatFilter(p => ({ ...p, max_qty: e.target.value }))}
+                    style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, width: 110 }} />
+                  <button onClick={applyMatFilter} style={{ padding: '7px 14px', borderRadius: 6, border: 'none', background: '#1e3a8a', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Filtrează</button>
+                  {(matFilter.supplier || matFilter.min_qty || matFilter.max_qty) && (
+                    <button onClick={resetMatFilter} style={{ padding: '7px 14px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#64748b' }}>{t('common.reset')}</button>
+                  )}
+                </div>
+
                 <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
                   {!materials.length ? (
                     <div style={{ padding: 24, color: '#94a3b8', textAlign: 'center' }}>{t('common.noEntries')}</div>
                   ) : materials.map(m => (
-                    <div key={m.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{m.material}</span>
+                    <div key={m.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{m.material}</div>
+                        {m.supplier && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{m.supplier}{m.invoice_ref ? ` · ${m.invoice_ref}` : ''}</div>}
+                      </div>
                       <span style={{ fontWeight: 800, fontSize: 14, fontFamily: 'monospace', color: '#22C55E' }}>{m.quantity} {m.unit}</span>
+                      {m.unit_price != null && (
+                        <span style={{ fontSize: 12, color: '#1e293b', background: '#f0fdf4', borderRadius: 5, padding: '2px 8px', fontWeight: 600 }}>
+                          {m.unit_price} €/u · <strong>{m.total_amount?.toFixed(2)} €</strong>
+                        </span>
+                      )}
+                      {m.cost_id && (
+                        <span style={{ fontSize: 10, background: '#dbeafe', color: '#1d4ed8', borderRadius: 4, padding: '2px 6px', fontWeight: 700 }}>cost #{m.cost_id}</span>
+                      )}
                       <span style={{ fontSize: 11, color: '#94a3b8' }}>{new Date(m.date).toLocaleDateString(locale)}</span>
                     </div>
                   ))}
