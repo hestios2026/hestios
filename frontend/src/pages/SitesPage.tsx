@@ -130,7 +130,10 @@ export function SitesPage() {
   const [showSiteForm, setShowSiteForm] = useState(false);
   const [showKstForm, setShowKstForm]   = useState(false);
   const [showEditSite, setShowEditSite] = useState(false);
-  const [editSiteForm, setEditSiteForm] = useState({ status: 'active', start_date: '', end_date: '' });
+  const [editSiteForm, setEditSiteForm] = useState({
+    kostenstelle: '', name: '', client: '', address: '', budget: '',
+    status: 'active', start_date: '', end_date: '', notes: '',
+  });
   const [siteForm, setSiteForm]     = useState(EMPTY_SITE_FORM);
   const [kstForm, setKstForm]       = useState(EMPTY_KST_FORM);
   const [costForm, setCostForm]     = useState({ category: 'materiale', description: '', amount: '', supplier: '', invoice_ref: '', notes: '' });
@@ -284,17 +287,24 @@ export function SitesPage() {
     e.preventDefault();
     if (!selected) return;
     try {
-      const payload: Record<string, unknown> = { status: editSiteForm.status };
+      const payload: Record<string, unknown> = {
+        name:         editSiteForm.name,
+        client:       editSiteForm.client,
+        status:       editSiteForm.status,
+        kostenstelle: editSiteForm.kostenstelle,
+      };
+      if (editSiteForm.address)    payload.address    = editSiteForm.address;
+      if (editSiteForm.budget)     payload.budget     = parseFloat(editSiteForm.budget);
       if (editSiteForm.start_date) payload.start_date = editSiteForm.start_date;
       if (editSiteForm.end_date)   payload.end_date   = editSiteForm.end_date;
+      payload.notes = editSiteForm.notes || null;
       await updateSite(selected.id, payload);
       toast.success(t('common.success'));
-      const updatedSelected = { ...selected, status: editSiteForm.status as any,
-        start_date: editSiteForm.start_date || selected.start_date,
-        end_date: editSiteForm.end_date || selected.end_date,
-      };
+      const refreshed = await fetchSites(selected.is_baustelle ?? true);
+      if (selected.is_baustelle) setSites(refreshed);
+      else setAllKst(refreshed);
+      const updatedSelected = { ...selected, ...payload } as any;
       setSelected(updatedSelected);
-      setSites(prev => prev.map(s => s.id === selected.id ? updatedSelected : s));
       setShowEditSite(false);
     } catch { toast.error(t('common.error')); }
   }
@@ -515,9 +525,15 @@ export function SitesPage() {
                 <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                   <button onClick={() => {
                     setEditSiteForm({
-                      status: selected.status,
-                      start_date: selected.start_date ? selected.start_date.slice(0, 10) : '',
-                      end_date: selected.end_date ? selected.end_date.slice(0, 10) : '',
+                      kostenstelle: selected.kostenstelle ?? '',
+                      name:         selected.name ?? '',
+                      client:       selected.client ?? '',
+                      address:      selected.address ?? '',
+                      budget:       selected.budget != null ? String(selected.budget) : '',
+                      status:       selected.status,
+                      start_date:   selected.start_date ? selected.start_date.slice(0, 10) : '',
+                      end_date:     selected.end_date ? selected.end_date.slice(0, 10) : '',
+                      notes:        selected.notes ?? '',
                     });
                     setShowEditSite(p => !p);
                   }} style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600, color: '#374151' }}>
@@ -538,36 +554,79 @@ export function SitesPage() {
               </div>
             </div>
 
-            {/* Edit status / dates inline form */}
+            {/* Edit form */}
             {showEditSite && (
               <form onSubmit={submitEditSite} style={{
-                background: '#f8fafc', borderRadius: 10, padding: '16px 20px', marginBottom: 20,
-                border: '1px solid #e2e8f0', display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap',
+                background: '#f8fafc', borderRadius: 10, padding: '20px', marginBottom: 20,
+                border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
               }}>
+                <div style={{ gridColumn: '1/-1', fontWeight: 700, fontSize: 13, color: '#374151' }}>
+                  ✎ Editează {selected?.is_baustelle ? 'șantier' : 'kostenstelle'}
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>KST *</label>
+                  <input required value={editSiteForm.kostenstelle}
+                    onChange={e => setEditSiteForm(p => ({ ...p, kostenstelle: e.target.value }))}
+                    style={inp} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('common.name')} *</label>
+                  <input required value={editSiteForm.name}
+                    onChange={e => setEditSiteForm(p => ({ ...p, name: e.target.value }))}
+                    style={inp} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('sites.fieldClient')}</label>
+                  <input value={editSiteForm.client}
+                    onChange={e => setEditSiteForm(p => ({ ...p, client: e.target.value }))}
+                    style={inp} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('sites.fieldAddress')}</label>
+                  <input value={editSiteForm.address}
+                    onChange={e => setEditSiteForm(p => ({ ...p, address: e.target.value }))}
+                    style={inp} />
+                </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('common.status')}</label>
-                  <select value={editSiteForm.status} onChange={e => setEditSiteForm(p => ({ ...p, status: e.target.value }))}
-                    style={{ ...inp, width: 160 }}>
+                  <select value={editSiteForm.status} onChange={e => setEditSiteForm(p => ({ ...p, status: e.target.value }))} style={inp}>
                     <option value="active">{t('sites.status.active')}</option>
                     <option value="paused">{t('sites.status.paused')}</option>
                     <option value="finished">{t('sites.status.finished')}</option>
                   </select>
                 </div>
                 <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Buget (€)</label>
+                  <input type="number" step="0.01" min="0" value={editSiteForm.budget}
+                    onChange={e => setEditSiteForm(p => ({ ...p, budget: e.target.value }))}
+                    style={inp} />
+                </div>
+                <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('sites.fieldStartDate')}</label>
                   <input type="date" value={editSiteForm.start_date}
                     onChange={e => setEditSiteForm(p => ({ ...p, start_date: e.target.value }))}
-                    style={{ ...inp, width: 160 }} />
+                    style={inp} />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('sites.fieldEndDate')}</label>
                   <input type="date" value={editSiteForm.end_date}
                     onChange={e => setEditSiteForm(p => ({ ...p, end_date: e.target.value }))}
-                    style={{ ...inp, width: 160 }} />
+                    style={inp} />
                 </div>
-                <button type="submit" style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                  {t('common.save')}
-                </button>
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('common.notes')}</label>
+                  <textarea rows={2} value={editSiteForm.notes}
+                    onChange={e => setEditSiteForm(p => ({ ...p, notes: e.target.value }))}
+                    style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
+                </div>
+                <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8 }}>
+                  <button type="submit" style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    {t('common.save')}
+                  </button>
+                  <button type="button" onClick={() => setShowEditSite(false)} style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                    {t('common.cancel')}
+                  </button>
+                </div>
               </form>
             )}
 

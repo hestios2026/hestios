@@ -28,6 +28,7 @@ class SiteCreate(BaseModel):
 
 
 class SiteUpdate(BaseModel):
+    kostenstelle: Optional[Str20] = None
     name: Optional[Str200] = None
     client: Optional[Str200] = None
     address: Optional[OptStr300] = None
