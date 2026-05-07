@@ -69,6 +69,7 @@ export function EquipmentPage() {
   const [selected, setSelected]   = useState<Equipment | null>(null);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [showForm, setShowForm]   = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [showMove, setShowMove]   = useState(false);
   const [showCost, setShowCost]   = useState(false);
   const [eqCosts, setEqCosts]     = useState<EquipmentCost[]>([]);
@@ -100,23 +101,50 @@ export function EquipmentPage() {
     ev.preventDefault();
     try {
       const payload: Record<string, unknown> = { name: form.name, category: form.category };
-      if (form.brand)          payload.brand          = form.brand;
-      if (form.model)          payload.model          = form.model;
-      if (form.year)           payload.year           = parseInt(form.year);
-      if (form.serial_number)  payload.serial_number  = form.serial_number;
-      if (form.daily_rate)     payload.daily_rate     = parseFloat(form.daily_rate);
+      if (form.brand)           payload.brand           = form.brand;
+      if (form.model)           payload.model           = form.model;
+      if (form.year)            payload.year            = parseInt(form.year);
+      if (form.serial_number)   payload.serial_number   = form.serial_number;
+      if (form.daily_rate)      payload.daily_rate      = parseFloat(form.daily_rate);
       if (form.current_site_id) payload.current_site_id = parseInt(form.current_site_id);
-      if (form.service_due)    payload.service_due    = form.service_due;
-      if (form.itp_due)        payload.itp_due        = form.itp_due;
-      if (form.notes)          payload.notes          = form.notes;
+      if (form.service_due)     payload.service_due     = form.service_due;
+      if (form.itp_due)         payload.itp_due         = form.itp_due;
+      payload.notes = form.notes || null;
 
-      await createEquipment(payload);
+      if (isEditing && selected) {
+        const updated_eq = await updateEquipment(selected.id, payload);
+        setSelected(updated_eq);
+      } else {
+        await createEquipment(payload);
+      }
       toast.success(t('equipment.saved'));
       const updated = await fetchEquipment();
       setItems(updated);
       setShowForm(false);
+      setIsEditing(false);
       setForm(EMPTY_FORM);
     } catch { toast.error(t('common.error')); }
+  }
+
+  function startEditEquipment() {
+    if (!selected) return;
+    setForm({
+      name:            selected.name,
+      category:        selected.category ?? 'utilaj',
+      brand:           selected.brand ?? '',
+      model:           selected.model ?? '',
+      year:            selected.year ? String(selected.year) : '',
+      serial_number:   selected.serial_number ?? '',
+      daily_rate:      selected.daily_rate != null ? String(selected.daily_rate) : '',
+      current_site_id: selected.current_site_id ? String(selected.current_site_id) : '',
+      service_due:     selected.service_due ? selected.service_due.slice(0, 10) : '',
+      itp_due:         selected.itp_due ? selected.itp_due.slice(0, 10) : '',
+      notes:           selected.notes ?? '',
+    });
+    setIsEditing(true);
+    setShowForm(true);
+    setShowMove(false);
+    setShowCost(false);
   }
 
   async function submitMove(ev: React.FormEvent) {
@@ -282,7 +310,9 @@ export function EquipmentPage() {
         {/* Add form */}
         {showForm && (
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>{t('equipment.newEquipment')}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>
+              {isEditing ? `Editează: ${selected?.name}` : t('equipment.newEquipment')}
+            </div>
             <form onSubmit={submitForm} style={{
               background: '#fff', borderRadius: 12, padding: 24, maxWidth: 640,
               boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
@@ -350,7 +380,7 @@ export function EquipmentPage() {
                 <button type="submit" style={{ padding: '9px 24px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                   {t('common.save')}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                <button type="button" onClick={() => { setShowForm(false); setIsEditing(false); setForm(EMPTY_FORM); }} style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
                   {t('common.cancel')}
                 </button>
               </div>
@@ -382,6 +412,10 @@ export function EquipmentPage() {
                       color: selected.status === s ? STATUS_COLORS[s][1] : '#94a3b8',
                     }}>{STATUS_LABELS[s]}</button>
                   ))}
+                  <button onClick={startEditEquipment} style={{
+                    padding: '6px 14px', borderRadius: 20, border: '1px solid #6366f1',
+                    background: '#fff', color: '#6366f1', fontWeight: 700, fontSize: 11, cursor: 'pointer',
+                  }}>✏️ Editează</button>
                   <button onClick={() => { setShowMove(!showMove); setShowCost(false); }} style={{
                     padding: '6px 14px', borderRadius: 20, border: '1px solid #22C55E',
                     background: '#fff', color: '#22C55E', fontWeight: 700, fontSize: 11, cursor: 'pointer',
