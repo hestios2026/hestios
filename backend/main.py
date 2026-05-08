@@ -13,6 +13,7 @@ from app.api import tagesbericht
 from app.api import bauzeitenplan
 from app.api import reclamatii
 from app.api import folder_shares
+from app.api import advances
 
 
 def _run_migrations():
@@ -29,6 +30,7 @@ def _run_migrations():
     import app.models.tagesbericht, app.models.bauzeitenplan
     import app.models.reclamatie, app.models.reclamatie_attachment
     import app.models.document_version, app.models.folder_share
+    import app.models.advance
     logger = logging.getLogger(__name__)
     try:
         Base.metadata.create_all(bind=engine)
@@ -288,6 +290,7 @@ app.include_router(situatii.router,      prefix="/api")
 app.include_router(tagesbericht.router,    prefix="/api")
 app.include_router(bauzeitenplan.router,  prefix="/api")
 app.include_router(reclamatii.router,     prefix="/api")
+app.include_router(advances.router,       prefix="/api")
 app.include_router(folder_shares.router,  prefix="/api")
 
 

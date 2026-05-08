@@ -12,6 +12,8 @@ import {
   fetchPayroll, calculatePayroll, lockPayroll, downloadDatevExport,
 } from '../api/timesheets';
 import { downloadArbeitsvertrag } from '../api/contracts';
+import { fetchAdvances, createAdvance, settleAdvance, deleteAdvance } from '../api/advances';
+import type { Advance } from '../api/advances';
 import type { User } from '../types';
 
 interface Props { user: User; }
@@ -195,7 +197,7 @@ function dateFmt(d: Date) { return d.toLocaleDateString(i18n.language, { day: '2
 
 export function HRPage({ user }: Props) {
   const { t } = useTranslation();
-  const [mainTab, setMainTab] = useState<'angajati' | 'pontaj' | 'concedii' | 'salarii'>('angajati');
+  const [mainTab, setMainTab] = useState<'angajati' | 'pontaj' | 'concedii' | 'salarii' | 'avansuri'>('angajati');
 
   // ── Angajați state ──────────────────────────────────────────────────────────
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -236,6 +238,18 @@ export function HRPage({ user }: Props) {
   const [payroll, setPayroll]   = useState<PayrollRecord[]>([]);
   const [salLoading, setSalLoading] = useState(false);
 
+  // ── Avansuri state ──────────────────────────────────────────────────────────
+  const [advances, setAdvances]         = useState<Advance[]>([]);
+  const [advTotalOpen, setAdvTotalOpen] = useState(0);
+  const [advFilter, setAdvFilter]       = useState<'all' | 'open' | 'settled'>('all');
+  const [advEmpFilter, setAdvEmpFilter] = useState('');
+  const [showAdvForm, setShowAdvForm]   = useState(false);
+  const [advForm, setAdvForm] = useState({
+    employee_id: '', amount: '', currency: 'EUR', date: '', description: '', site_id: '', notes: '',
+  });
+  const [settleId, setSettleId]     = useState<number | null>(null);
+  const [settleNote, setSettleNote] = useState('');
+
   useEffect(() => {
     fetchEmployees().then(setEmployees).catch(() => {});
   }, []);
@@ -262,6 +276,21 @@ export function HRPage({ user }: Props) {
     setSalLoading(true);
     fetchPayroll(salYear, salMonth).then(setPayroll).catch(() => {}).finally(() => setSalLoading(false));
   }, [mainTab, salYear, salMonth]);
+
+  // ── Avansuri load ───────────────────────────────────────────────────────────
+  async function loadAdvances() {
+    const params: { settled?: boolean } = {};
+    if (advFilter === 'open') params.settled = false;
+    if (advFilter === 'settled') params.settled = true;
+    const res = await fetchAdvances(params);
+    setAdvances(res.items);
+    setAdvTotalOpen(res.total_open);
+  }
+
+  useEffect(() => {
+    if (mainTab !== 'avansuri') return;
+    loadAdvances().catch(() => {});
+  }, [mainTab, advFilter]);
 
   // ── Employee form ───────────────────────────────────────────────────────────
   const f = (key: keyof FormState, val: unknown) => setForm(p => ({ ...p, [key]: val }));
@@ -405,6 +434,103 @@ export function HRPage({ user }: Props) {
       const updated = await fetchPayroll(salYear, salMonth);
       setPayroll(updated);
     } catch { toast.error(t('common.error')); }
+  }
+
+  // ── Avansuri actions ────────────────────────────────────────────────────────
+  async function submitAdvance(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await createAdvance({
+        employee_id: Number(advForm.employee_id),
+        amount: parseFloat(advForm.amount),
+        currency: advForm.currency || 'EUR',
+        date: advForm.date || undefined,
+        description: advForm.description || undefined,
+        site_id: advForm.site_id ? Number(advForm.site_id) : undefined,
+        notes: advForm.notes || undefined,
+      });
+      toast.success('Avans înregistrat');
+      setShowAdvForm(false);
+      setAdvForm({ employee_id: '', amount: '', currency: 'EUR', date: '', description: '', site_id: '', notes: '' });
+      await loadAdvances();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || t('common.error'));
+    }
+  }
+
+  async function handleSettleAdvance() {
+    if (!settleId) return;
+    try {
+      await settleAdvance(settleId, settleNote || undefined);
+      toast.success('Sold închis');
+      setSettleId(null);
+      setSettleNote('');
+      await loadAdvances();
+    } catch { toast.error(t('common.error')); }
+  }
+
+  async function handleDeleteAdvance(id: number) {
+    if (!confirm('Ștergi avansul?')) return;
+    try {
+      await deleteAdvance(id);
+      toast.success('Șters');
+      await loadAdvances();
+    } catch { toast.error(t('common.error')); }
+  }
+
+  function exportAdvancesExcel() {
+    const rows = advances.filter(a => {
+      if (!advEmpFilter) return true;
+      return (a.employee_name || '').toLowerCase().includes(advEmpFilter.toLowerCase());
+    });
+    const headers = ['Angajat', 'Sumă', 'Monedă', 'Data', 'Descriere', 'Șantier', 'Sold', 'Data închidere', 'Notă închidere', 'Note'];
+    const data = rows.map(a => [
+      a.employee_name || '',
+      a.amount,
+      a.currency,
+      a.date ? a.date.split('T')[0] : '',
+      a.description || '',
+      a.site_name || '',
+      a.settled ? 'Închis' : 'Deschis',
+      a.settled_at ? a.settled_at.split('T')[0] : '',
+      a.settled_note || '',
+      a.notes || '',
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Avansuri');
+    XLSX.writeFile(wb, `avansuri_${new Date().toISOString().split('T')[0]}.xlsx`);
+  }
+
+  function exportAdvancesPDF() {
+    const rows = advances.filter(a => {
+      if (!advEmpFilter) return true;
+      return (a.employee_name || '').toLowerCase().includes(advEmpFilter.toLowerCase());
+    });
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(13);
+    doc.text('Avansuri Angajați — HestiOS', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Export: ${new Date().toLocaleDateString('ro-RO')} · Total deschis: €${advTotalOpen.toFixed(2)}`, 14, 21);
+    autoTable(doc, {
+      startY: 26,
+      head: [['Angajat', 'Sumă', 'Monedă', 'Data', 'Descriere', 'Șantier', 'Sold', 'Data închidere']],
+      body: rows.map(a => [
+        a.employee_name || '',
+        `€${a.amount.toFixed(2)}`,
+        a.currency,
+        a.date ? a.date.split('T')[0] : '',
+        a.description || '',
+        a.site_name || '',
+        a.settled ? 'Închis' : 'Deschis',
+        a.settled_at ? a.settled_at.split('T')[0] : '',
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    doc.save(`avansuri_${new Date().toISOString().split('T')[0]}.pdf`);
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -573,6 +699,7 @@ export function HRPage({ user }: Props) {
         {mainTabBtn('pontaj',   t('hr.tabs.timesheets'))}
         {mainTabBtn('concedii', t('hr.tabs.leaves'))}
         {mainTabBtn('salarii',  t('hr.tabs.payroll'))}
+        {mainTabBtn('avansuri', 'Avansuri')}
       </div>
 
       {/* ── ANGAJAȚI ─────────────────────────────────────────────────────────── */}
@@ -1364,6 +1491,186 @@ export function HRPage({ user }: Props) {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── AVANSURI ─────────────────────────────────────────────────────────── */}
+      {mainTab === 'avansuri' && (
+        <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+
+          {/* Settle modal */}
+          {settleId !== null && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Închide sold avans</h3>
+                <label style={lbl}>Notă de regularizare (opțional)</label>
+                <textarea
+                  value={settleNote}
+                  onChange={e => setSettleNote(e.target.value)}
+                  rows={3}
+                  placeholder="ex: Reținut din salariu luna mai..."
+                  style={{ ...inp, resize: 'vertical', marginBottom: 16 }}
+                />
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button onClick={() => { setSettleId(null); setSettleNote(''); }} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Anulează</button>
+                  <button onClick={handleSettleAdvance} style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Confirmă</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Toolbar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 800, fontSize: 16, color: '#1e293b' }}>Avansuri Angajați</span>
+            <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '4px 14px', fontSize: 13, fontWeight: 700, color: '#92400e' }}>
+              Total deschis: €{advTotalOpen.toFixed(2)}
+            </div>
+
+            <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', borderRadius: 6, padding: 2 }}>
+              {(['all', 'open', 'settled'] as const).map(f => (
+                <button key={f} onClick={() => setAdvFilter(f)} style={{
+                  padding: '4px 12px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: advFilter === f ? 700 : 500,
+                  background: advFilter === f ? '#fff' : 'transparent',
+                  color: advFilter === f ? '#1e293b' : '#64748b',
+                  boxShadow: advFilter === f ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}>
+                  {f === 'all' ? 'Toate' : f === 'open' ? 'Deschise' : 'Închise'}
+                </button>
+              ))}
+            </div>
+
+            <input
+              placeholder="Filtrează angajat..."
+              value={advEmpFilter}
+              onChange={e => setAdvEmpFilter(e.target.value)}
+              style={{ ...inp, width: 180, fontSize: 12 }}
+            />
+
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              <button onClick={exportAdvancesExcel} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#1e293b', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>↓ Excel</button>
+              <button onClick={exportAdvancesPDF} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#1e293b', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>↓ PDF</button>
+              <button onClick={() => setShowAdvForm(v => !v)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>+ Avans nou</button>
+            </div>
+          </div>
+
+          {/* Add form */}
+          {showAdvForm && (
+            <form onSubmit={submitAdvance} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 20, marginBottom: 20, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              <div style={{ gridColumn: '1/-1', fontWeight: 700, fontSize: 13, color: '#22C55E', marginBottom: 4 }}>Înregistrare avans</div>
+
+              <div>
+                <label style={lbl}>Angajat *</label>
+                <select value={advForm.employee_id} onChange={e => setAdvForm(p => ({ ...p, employee_id: e.target.value }))} required style={inp}>
+                  <option value="">— Selectează —</option>
+                  {employees.filter(e => e.is_active).map(e => (
+                    <option key={e.id} value={e.id}>{e.nachname} {e.vorname}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={lbl}>Sumă *</label>
+                <input type="number" step="0.01" min="0.01" required value={advForm.amount} onChange={e => setAdvForm(p => ({ ...p, amount: e.target.value }))} style={inp} placeholder="0.00" />
+              </div>
+
+              <div>
+                <label style={lbl}>Monedă</label>
+                <select value={advForm.currency} onChange={e => setAdvForm(p => ({ ...p, currency: e.target.value }))} style={inp}>
+                  <option>EUR</option>
+                  <option>RON</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={lbl}>Data</label>
+                <input type="date" value={advForm.date} onChange={e => setAdvForm(p => ({ ...p, date: e.target.value }))} style={inp} />
+              </div>
+
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={lbl}>Descriere</label>
+                <input value={advForm.description} onChange={e => setAdvForm(p => ({ ...p, description: e.target.value }))} style={inp} placeholder="ex: Avans salariu mai..." />
+              </div>
+
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={lbl}>Note (opțional)</label>
+                <input value={advForm.notes} onChange={e => setAdvForm(p => ({ ...p, notes: e.target.value }))} style={inp} />
+              </div>
+
+              <div style={{ gridColumn: '1/-1', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowAdvForm(false)} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Anulează</button>
+                <button type="submit" style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Salvează</button>
+              </div>
+            </form>
+          )}
+
+          {/* Table */}
+          <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  {['Angajat', 'Sumă', 'Data', 'Descriere', 'Șantier', 'Înregistrat de', 'Sold', 'Note', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {advances
+                  .filter(a => !advEmpFilter || (a.employee_name || '').toLowerCase().includes(advEmpFilter.toLowerCase()))
+                  .map(a => (
+                    <tr key={a.id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{a.employee_name || `#${a.employee_id}`}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: a.settled ? '#94a3b8' : '#d97706' }}>
+                        {a.currency} {a.amount.toFixed(2)}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {a.date ? new Date(a.date).toLocaleDateString('ro-RO') : '—'}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: 12, color: '#475569', maxWidth: 200 }}>{a.description || '—'}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 12, color: '#64748b' }}>{a.site_name || '—'}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 12, color: '#64748b' }}>{a.recorded_by || '—'}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        {a.settled ? (
+                          <div>
+                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: '#d1fae5', color: '#059669' }}>Închis</span>
+                            {a.settled_at && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{new Date(a.settled_at).toLocaleDateString('ro-RO')}</div>}
+                            {a.settled_note && <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{a.settled_note}</div>}
+                          </div>
+                        ) : (
+                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>Deschis</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: 11, color: '#94a3b8', maxWidth: 160 }}>{a.notes || ''}</td>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {!a.settled && (
+                            <button
+                              onClick={() => { setSettleId(a.id); setSettleNote(''); }}
+                              style={{ padding: '3px 10px', border: 'none', borderRadius: 4, background: '#e0e7ff', color: '#22C55E', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
+                            >✓ Închide</button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteAdvance(a.id)}
+                            style={{ padding: '3px 10px', border: 'none', borderRadius: 4, background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
+                          >✕</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                {advances.length === 0 && (
+                  <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Niciun avans înregistrat</td></tr>
+                )}
+              </tbody>
+              {advances.length > 0 && (
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f8fafc' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 700, fontSize: 12, color: '#64748b' }}>TOTAL deschis</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 13, color: '#d97706' }}>€{advTotalOpen.toFixed(2)}</td>
+                    <td colSpan={7} />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
         </div>
       )}
     </div>
