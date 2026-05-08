@@ -33,7 +33,7 @@ def _dict(a: EmployeeAdvance):
     return {
         "id": a.id,
         "employee_id": a.employee_id,
-        "employee_name": f"{a.employee.first_name} {a.employee.last_name}" if a.employee else None,
+        "employee_name": f"{a.employee.vorname} {a.employee.nachname}" if a.employee else None,
         "amount": a.amount,
         "currency": a.currency,
         "date": a.date,
