@@ -9,7 +9,7 @@ import os
 
 from app.core.database import get_db
 from app.api.auth import get_current_user
-from app.core.storage import upload_file, get_presigned_url, delete_file, get_file_content
+from app.core.storage import upload_file, upload_file_stream, get_presigned_url, delete_file, get_file_content
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
 from app.models.user import User
@@ -18,13 +18,24 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 ALLOWED_TYPES = {
     "application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif",
+    "image/bmp", "image/tiff", "image/svg+xml",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/plain", "application/zip",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain", "text/csv", "text/html",
+    "application/zip", "application/x-zip-compressed",
+    "application/x-rar-compressed", "application/vnd.rar",
+    "application/x-7z-compressed",
+    "application/octet-stream",
+    "application/json", "application/xml",
+    "video/mp4", "video/mpeg", "video/quicktime",
+    "audio/mpeg", "audio/wav",
+    "application/dwg", "image/vnd.dwg", "application/acad",
 }
-MAX_SIZE = 50 * 1024 * 1024  # 50 MB
+MAX_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB
 
 CATEGORIES_FALLBACK = ("contract", "invoice", "offer", "permit", "plan", "photo", "report", "technical", "safety", "certificate", "correspondence", "other")
 
@@ -119,19 +130,32 @@ async def upload_document(
     current: User = Depends(get_current_user),
 ):
     content_type = file.content_type or "application/octet-stream"
-    if content_type not in ALLOWED_TYPES:
-        raise HTTPException(400, f"Tip de fișier nepermis: {content_type}")
+    # Accept unknown types via octet-stream fallback
+    if content_type not in ALLOWED_TYPES and not content_type.startswith(("image/", "text/", "video/", "audio/")):
+        content_type = "application/octet-stream"
 
-    data = await file.read()
-    if len(data) > MAX_SIZE:
-        raise HTTPException(400, "Fișierul depășește limita de 50 MB")
     if category not in _valid_categories(db):
         category = "other"
 
     ext = os.path.splitext(file.filename or "file")[1].lower()
     file_key = f"{category}/{datetime.utcnow().strftime('%Y/%m')}/{uuid.uuid4().hex}{ext}"
 
-    upload_file(file_key, data, content_type)
+    # Stream directly to MinIO — no full read into RAM
+    try:
+        upload_file_stream(file_key, file.file, content_type)
+    except Exception as exc:
+        raise HTTPException(500, f"Eroare la upload: {exc}")
+
+    # Determine actual file size (seek to end after stream)
+    try:
+        file.file.seek(0, 2)
+        file_size = file.file.tell()
+    except Exception:
+        file_size = 0
+
+    if file_size > MAX_SIZE:
+        delete_file(file_key)
+        raise HTTPException(400, "Fișierul depășește limita de 2 GB")
 
     exp = None
     if expires_at:
@@ -149,7 +173,7 @@ async def upload_document(
         equipment_id=int(equipment_id) if equipment_id else None,
         folder_id=int(folder_id) if folder_id else None,
         file_key=file_key,
-        file_size=len(data),
+        file_size=file_size,
         content_type=content_type,
         uploaded_by=current.id,
         notes=notes or None,

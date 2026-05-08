@@ -145,3 +145,77 @@ def delete_folder(
     db.delete(f)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/{folder_id}/stats/")
+def folder_stats(folder_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    """Return recursive count of subfolders and files under a folder."""
+    from app.models.document import Document as Doc
+
+    def _collect(fid: int):
+        folder_count = 0
+        file_count = 0
+        total_size = 0
+        children = db.query(Folder).filter(Folder.parent_id == fid).all()
+        for child in children:
+            folder_count += 1
+            fc, ff, fs = _collect(child.id)
+            folder_count += fc
+            file_count += ff
+            total_size += fs
+        docs = db.query(Doc).filter(Doc.folder_id == fid).all()
+        file_count += len(docs)
+        total_size += sum(d.file_size or 0 for d in docs)
+        return folder_count, file_count, total_size
+
+    f = db.query(Folder).filter(Folder.id == folder_id).first()
+    if not f:
+        raise HTTPException(404, "Folder negăsit")
+    fc, ff, fs = _collect(folder_id)
+    return {"folder_count": fc, "file_count": ff, "total_size": fs}
+
+
+@router.delete("/{folder_id}/recursive/")
+def delete_folder_recursive(
+    folder_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """Delete folder and all its contents (subfolders + files) recursively."""
+    from app.models.document import Document as Doc
+    from app.core.storage import delete_file
+
+    if current.role not in ("director", "projekt_leiter"):
+        raise HTTPException(403, "Acces interzis")
+
+    f = db.query(Folder).filter(Folder.id == folder_id).first()
+    if not f:
+        raise HTTPException(404, "Folder negăsit")
+
+    deleted_folders = 0
+    deleted_files = 0
+
+    def _delete_recursive(fid: int):
+        nonlocal deleted_folders, deleted_files
+        # Recurse into children first
+        children = db.query(Folder).filter(Folder.parent_id == fid).all()
+        for child in children:
+            _delete_recursive(child.id)
+        # Delete all documents in this folder
+        docs = db.query(Doc).filter(Doc.folder_id == fid).all()
+        for doc in docs:
+            try:
+                delete_file(doc.file_key)
+            except Exception:
+                pass
+            db.delete(doc)
+            deleted_files += 1
+        # Delete the folder itself
+        folder = db.query(Folder).filter(Folder.id == fid).first()
+        if folder:
+            db.delete(folder)
+            deleted_folders += 1
+
+    _delete_recursive(folder_id)
+    db.commit()
+    return {"ok": True, "deleted_folders": deleted_folders, "deleted_files": deleted_files}

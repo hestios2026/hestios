@@ -26,3 +26,9 @@ export const renameFolder = (id: number, data: { name?: string; description?: st
 
 export const deleteFolder = (id: number) =>
   api.delete(`/folders/${id}/`).then(r => r.data);
+
+export const deleteFolderRecursive = (id: number) =>
+  api.delete(`/folders/${id}/recursive/`).then(r => r.data as { ok: boolean; deleted_folders: number; deleted_files: number });
+
+export const getFolderStats = (id: number) =>
+  api.get(`/folders/${id}/stats/`).then(r => r.data as { folder_count: number; file_count: number; total_size: number });

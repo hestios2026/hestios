@@ -37,6 +37,22 @@ def upload_file(object_key: str, data: bytes, content_type: str) -> None:
     )
 
 
+def upload_file_stream(object_key: str, stream, content_type: str, length: int = -1) -> None:
+    """Stream a file directly to MinIO without loading it into memory.
+    Use length=-1 for unknown size (triggers multipart upload).
+    """
+    client = get_client()
+    ensure_bucket()
+    client.put_object(
+        settings.MINIO_BUCKET,
+        object_key,
+        stream,
+        length=length,
+        part_size=10 * 1024 * 1024,  # 10 MB chunks for multipart
+        content_type=content_type,
+    )
+
+
 def get_presigned_url(object_key: str, expires_seconds: int = 3600) -> str:
     from datetime import timedelta
     client = get_client()

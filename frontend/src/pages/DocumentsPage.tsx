@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { fetchDocuments, uploadDocument, deleteDocument, moveDocument, updateDocMeta, getDocVersions, bulkDocAction } from '../api/documents';
-import { fetchFolders, createFolder, deleteFolder, renameFolder, FolderItem } from '../api/folders';
+import { fetchFolders, createFolder, deleteFolder, renameFolder, deleteFolderRecursive, getFolderStats, FolderItem } from '../api/folders';
 import { listShares, createShare, revokeShare } from '../api/folder_shares';
 import { fetchDocumentCategories, DocCategory } from '../api/settings';
 import { fetchSites } from '../api/sites';
@@ -1290,96 +1290,791 @@ function EmptyState({ icon, text, sub }: { icon: React.ReactNode; text: string; 
   );
 }
 
+
+// ─── Pane State ───────────────────────────────────────────────────────────────
+
+interface PaneState {
+  folderId: number | null;
+  path: FolderItem[];
+  docs: Document[];
+  loading: boolean;
+  sortCol: 'name' | 'date' | 'size' | 'type';
+  sortDir: 'asc' | 'desc';
+  selected: Document | null;
+}
+
+const EMPTY_PANE: PaneState = {
+  folderId: null, path: [], docs: [], loading: false,
+  sortCol: 'name', sortDir: 'asc', selected: null,
+};
+
+interface DragState {
+  type: 'doc' | 'folder';
+  id: number;
+  paneId: 1 | 2;
+}
+
+// ─── File List Row ─────────────────────────────────────────────────────────────
+
+function FileListRow({
+  id, name, contentType, fileSize, date, isFolder, isSelected, isDropTarget, isDragging,
+  docCount, onClick, onDblClick, onContextMenu, onDragStart, onDragOver, onDragLeave, onDrop,
+}: {
+  id: number; name: string; contentType: string; fileSize: number; date: string;
+  isFolder: boolean; isSelected: boolean; isDropTarget: boolean; isDragging: boolean;
+  docCount?: number;
+  onClick: () => void;
+  onDblClick: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+}) {
+  const locale = 'de-DE';
+  const dateStr = date ? new Date(date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  const timeStr = date ? new Date(date).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onClick={onClick}
+      onDoubleClick={onDblClick}
+      onContextMenu={onContextMenu}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '26px 1fr 130px 80px 50px',
+        alignItems: 'center',
+        height: 34,
+        padding: '0 10px 0 6px',
+        borderBottom: '1px solid rgba(255,255,255,0.03)',
+        cursor: 'pointer',
+        userSelect: 'none',
+        opacity: isDragging ? 0.4 : 1,
+        background: isDropTarget
+          ? 'rgba(34,197,94,0.12)'
+          : isSelected
+          ? 'rgba(34,197,94,0.07)'
+          : 'transparent',
+        borderLeft: isDropTarget
+          ? '2px solid #22C55E'
+          : isSelected
+          ? '2px solid rgba(34,197,94,0.5)'
+          : '2px solid transparent',
+        transition: 'background 0.08s',
+      }}
+    >
+      {/* Icon */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {isFolder ? (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="rgba(251,191,36,0.35)" stroke="#FBbf24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+          </svg>
+        ) : (
+          <FileTypeBadge contentType={contentType} size={20} />
+        )}
+      </div>
+
+      {/* Name */}
+      <div style={{
+        fontSize: 12.5, fontWeight: isFolder ? 600 : 400,
+        color: isSelected ? '#22C55E' : 'var(--text)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        paddingRight: 10,
+      }}>
+        {cleanDocName(name)}
+      </div>
+
+      {/* Date */}
+      <div style={{ fontSize: 11, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+        {dateStr}{timeStr ? <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>{timeStr}</span> : null}
+      </div>
+
+      {/* Size */}
+      <div style={{ fontSize: 11, color: 'var(--text-2)', textAlign: 'right', paddingRight: 8 }}>
+        {isFolder
+          ? (docCount !== undefined && docCount > 0 ? `${docCount} fișiere` : '—')
+          : formatSize(fileSize)}
+      </div>
+
+      {/* Type */}
+      <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>
+        {isFolder ? 'Folder' : contentType.split('/').pop()?.toUpperCase().slice(0, 6) || '—'}
+      </div>
+    </div>
+  );
+}
+
+// ─── File List Pane ───────────────────────────────────────────────────────────
+
+function FileListPane({
+  paneState, paneId, isActive, allFolders, search,
+  dragState, dropTargetKey,
+  onActivate, onNavigate,
+  onDocSelect, onDocDblClick, onDocContextMenu,
+  onFolderContextMenu,
+  onDragStart, onDragOver, onDragLeave, onDrop,
+  onSortChange,
+  onPaneDropTarget,
+}: {
+  paneState: PaneState;
+  paneId: 1 | 2;
+  isActive: boolean;
+  allFolders: FolderItem[];
+  search: string;
+  dragState: DragState | null;
+  dropTargetKey: string | null;
+  onActivate: () => void;
+  onNavigate: (folder: FolderItem | null) => void;
+  onDocSelect: (doc: Document) => void;
+  onDocDblClick: (doc: Document) => void;
+  onDocContextMenu: (e: React.MouseEvent, doc: Document) => void;
+  onFolderContextMenu: (e: React.MouseEvent, folder: FolderItem) => void;
+  onDragStart: (e: React.DragEvent, type: 'doc' | 'folder', id: number) => void;
+  onDragOver: (e: React.DragEvent, key: string) => void;
+  onDragLeave: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent, targetFolderId: number | null) => void;
+  onSortChange: (col: PaneState['sortCol']) => void;
+  onPaneDropTarget: (e: React.DragEvent) => void;
+}) {
+  const subFolders = allFolders.filter(f => f.parent_id === paneState.folderId);
+
+  // Sort
+  const sortedFolders = [...subFolders].sort((a, b) => {
+    if (paneState.sortCol === 'name') {
+      const cmp = a.name.localeCompare(b.name);
+      return paneState.sortDir === 'asc' ? cmp : -cmp;
+    }
+    return 0;
+  });
+
+  const filteredDocs = paneState.docs.filter(d =>
+    !search || cleanDocName(d.name).toLowerCase().includes(search.toLowerCase())
+  );
+
+  const sortedDocs = [...filteredDocs].sort((a, b) => {
+    let cmp = 0;
+    if (paneState.sortCol === 'name') cmp = cleanDocName(a.name).localeCompare(cleanDocName(b.name));
+    else if (paneState.sortCol === 'date') cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    else if (paneState.sortCol === 'size') cmp = a.file_size - b.file_size;
+    else if (paneState.sortCol === 'type') cmp = a.content_type.localeCompare(b.content_type);
+    return paneState.sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const paneDrop = dropTargetKey === `pane-${paneId}`;
+
+  function SortHeader({ col, label, width }: { col: PaneState['sortCol']; label: string; width: string }) {
+    const active = paneState.sortCol === col;
+    return (
+      <div
+        onClick={() => onSortChange(col)}
+        style={{
+          width, fontSize: 10, fontWeight: 700, color: active ? '#22C55E' : 'var(--text-3)',
+          textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 3, userSelect: 'none',
+          paddingRight: col !== 'name' ? 8 : 0,
+          justifyContent: col === 'name' ? 'flex-start' : 'flex-end',
+        }}
+      >
+        {label}
+        {active && <span style={{ fontSize: 9 }}>{paneState.sortDir === 'asc' ? '↑' : '↓'}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={onActivate}
+      style={{
+        flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0,
+        background: 'var(--surface)',
+        border: `1px solid ${isActive ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
+        borderRadius: 10,
+        overflow: 'hidden',
+        boxShadow: isActive ? '0 0 0 1px rgba(34,197,94,0.15)' : 'none',
+      }}
+    >
+      {/* Breadcrumb */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 4, padding: '8px 10px',
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--surface-2)', flexShrink: 0, flexWrap: 'wrap',
+      }}>
+        <button
+          onClick={e => { e.stopPropagation(); onNavigate(null); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-2)', padding: '2px 4px', borderRadius: 4 }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </button>
+        {paneState.path.map((f, i) => (
+          <span key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-3)' }}>›</span>
+            <button
+              onClick={e => { e.stopPropagation(); onNavigate(f); }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, padding: '2px 4px', borderRadius: 4,
+                color: i === paneState.path.length - 1 ? 'var(--green)' : 'var(--text-2)',
+                fontWeight: i === paneState.path.length - 1 ? 700 : 400,
+              }}
+            >
+              {f.name}
+            </button>
+          </span>
+        ))}
+      </div>
+
+      {/* Column headers */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: '26px 1fr 130px 80px 50px',
+        alignItems: 'center', height: 28, padding: '0 10px 0 6px',
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--surface-2)', flexShrink: 0,
+      }}>
+        <div />
+        <SortHeader col="name" label="Nume" width="100%" />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <SortHeader col="date" label="Dată" width="130px" />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <SortHeader col="size" label="Mărime" width="80px" />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <SortHeader col="type" label="Tip" width="50px" />
+        </div>
+      </div>
+
+      {/* List content */}
+      <div
+        style={{ flex: 1, overflowY: 'auto', background: paneDrop ? 'rgba(34,197,94,0.04)' : 'transparent' }}
+        onDragOver={e => { e.preventDefault(); onPaneDropTarget(e); }}
+        onDragLeave={onDragLeave}
+        onDrop={e => onDrop(e, paneState.folderId)}
+      >
+        {paneState.loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 80, color: 'var(--text-2)', fontSize: 12 }}>
+            Încărcare...
+          </div>
+        ) : sortedFolders.length === 0 && sortedDocs.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: 'var(--text-3)', fontSize: 12 }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 10, opacity: 0.4 }}>
+              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+            </svg>
+            Folder gol
+          </div>
+        ) : (
+          <>
+            {sortedFolders.map(folder => (
+              <FileListRow
+                key={`folder-${folder.id}`}
+                id={folder.id}
+                name={folder.name}
+                contentType="folder"
+                fileSize={0}
+                date={folder.created_at}
+                isFolder
+                docCount={folder.doc_count}
+                isSelected={false}
+                isDropTarget={dropTargetKey === `folder-${folder.id}`}
+                isDragging={dragState?.type === 'folder' && dragState.id === folder.id}
+                onClick={() => {}}
+                onDblClick={() => onNavigate(folder)}
+                onContextMenu={e => onFolderContextMenu(e, folder)}
+                onDragStart={e => onDragStart(e, 'folder', folder.id)}
+                onDragOver={e => onDragOver(e, `folder-${folder.id}`)}
+                onDragLeave={onDragLeave}
+                onDrop={e => onDrop(e, folder.id)}
+              />
+            ))}
+            {sortedDocs.map(doc => (
+              <FileListRow
+                key={`doc-${doc.id}`}
+                id={doc.id}
+                name={doc.name}
+                contentType={doc.content_type}
+                fileSize={doc.file_size}
+                date={doc.created_at}
+                isFolder={false}
+                isSelected={paneState.selected?.id === doc.id}
+                isDropTarget={false}
+                isDragging={dragState?.type === 'doc' && dragState.id === doc.id}
+                onClick={() => onDocSelect(doc)}
+                onDblClick={() => onDocDblClick(doc)}
+                onContextMenu={e => onDocContextMenu(e, doc)}
+                onDragStart={e => onDragStart(e, 'doc', doc.id)}
+                onDragOver={e => e.preventDefault()}
+                onDragLeave={onDragLeave}
+                onDrop={e => onDrop(e, paneState.folderId)}
+              />
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Status bar */}
+      <div style={{
+        padding: '4px 10px', borderTop: '1px solid var(--border)',
+        fontSize: 10, color: 'var(--text-3)', display: 'flex', gap: 10, flexShrink: 0,
+        background: 'var(--surface-2)',
+      }}>
+        <span>{sortedFolders.length} foldere</span>
+        <span>·</span>
+        <span>{sortedDocs.length} fișiere</span>
+        {sortedDocs.length > 0 && (
+          <>
+            <span>·</span>
+            <span>{formatSize(sortedDocs.reduce((s, d) => s + d.file_size, 0))}</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Folder Upload Modal ───────────────────────────────────────────────────────
+
+function FolderUploadModal({ parentFolderId, allFolders, onDone, onClose }: {
+  parentFolderId: number | null;
+  allFolders: FolderItem[];
+  onDone: () => void;
+  onClose: () => void;
+}) {
+  const [files, setFiles] = useState<FileList | null>(null);
+  const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [done, setDone] = useState(0);
+  const cancelRef = useRef(false);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files?.length) setFiles(e.target.files);
+  }
+
+  async function startUpload() {
+    if (!files || files.length === 0) return;
+    cancelRef.current = false;
+    setStatus('running');
+    setDone(0);
+
+    // Parse paths
+    const allPaths: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const rel = (files[i] as any).webkitRelativePath as string;
+      const parts = rel.split('/');
+      for (let j = 1; j < parts.length; j++) {
+        const p = parts.slice(0, j).join('/');
+        if (!allPaths.includes(p)) allPaths.push(p);
+      }
+    }
+    // Sort by depth
+    allPaths.sort((a, b) => a.split('/').length - b.split('/').length);
+
+    const pathToId = new Map<string, number>();
+    setTotal(allPaths.length + files.length);
+
+    // Step 1: Create folders
+    for (const path of allPaths) {
+      if (cancelRef.current) break;
+      const parts = path.split('/');
+      const folderName = parts[parts.length - 1];
+      const parentPath = parts.slice(0, parts.length - 1).join('/');
+      const parentId = parentPath === '' ? parentFolderId : (pathToId.get(parentPath) ?? null);
+      setMessage(`Creare folder: ${path}`);
+      try {
+        const folder = await createFolder({ name: folderName, parent_id: parentId ?? undefined });
+        pathToId.set(path, folder.id);
+      } catch {
+        // Folder may already exist — try to find it in allFolders
+        const existing = allFolders.find(f => f.name === folderName && f.parent_id === parentId);
+        if (existing) pathToId.set(path, existing.id);
+      }
+      setDone(d => d + 1);
+      setProgress(prev => prev + (40 / allPaths.length));
+    }
+
+    // Step 2: Upload files
+    for (let i = 0; i < files.length; i++) {
+      if (cancelRef.current) break;
+      const file = files[i];
+      const rel = (file as any).webkitRelativePath as string;
+      const parts = rel.split('/');
+      const dirPath = parts.slice(0, parts.length - 1).join('/');
+      const folderId = dirPath === parts[0] ? parentFolderId : (pathToId.get(dirPath) ?? parentFolderId);
+
+      setMessage(`Upload: ${file.name} (${formatSize(file.size)})`);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('category', 'other');
+        if (folderId != null) fd.append('folder_id', String(folderId));
+        await uploadDocument(fd);
+      } catch {
+        // Continue on individual file errors
+      }
+      setDone(d => d + 1);
+      setProgress(40 + ((i + 1) / files.length) * 60);
+    }
+
+    if (!cancelRef.current) {
+      setStatus('done');
+      setMessage('Gata! Toate fișierele au fost încărcate.');
+    }
+  }
+
+  const fileCount = files ? files.length : 0;
+  const folderName = files && files.length > 0 ? (files[0] as any).webkitRelativePath?.split('/')[0] : '';
+
+  return (
+    <ModalOverlay onClose={onClose} width={480}>
+      <ModalHeader title="Upload folder întreg" onClose={onClose} />
+      <div style={{ padding: '18px 20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {status === 'idle' && (
+          <>
+            <div
+              onClick={() => folderInputRef.current?.click()}
+              style={{
+                border: '2px dashed var(--border)', borderRadius: 10, padding: '32px 20px',
+                textAlign: 'center', cursor: 'pointer', background: 'var(--surface-2)',
+              }}
+            >
+              <input
+                ref={folderInputRef}
+                type="file"
+                style={{ display: 'none' }}
+                // @ts-ignore
+                webkitdirectory=""
+                multiple
+                onChange={handleFileChange}
+              />
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', margin: '0 auto 12px' }}>
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+              </svg>
+              {fileCount > 0 ? (
+                <>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>📁 {folderName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--green)' }}>{fileCount} fișiere selectate</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Click pentru a selecta un folder</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>Structura de subfoldere va fi recreată automat · Max 2 GB per fișier</div>
+                </>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={startUpload}
+                disabled={fileCount === 0}
+                className="btn-primary"
+                style={{ flex: 1, opacity: fileCount === 0 ? 0.5 : 1 }}
+              >
+                ↑ Încarcă {fileCount > 0 ? `(${fileCount} fișiere)` : ''}
+              </button>
+              <button onClick={onClose} className="btn-ghost">Anulează</button>
+            </div>
+          </>
+        )}
+
+        {status === 'running' && (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{message}</div>
+            <div style={{ background: 'var(--surface-3)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: '#22C55E', width: `${Math.min(progress, 100)}%`, transition: 'width 0.3s', borderRadius: 6 }} />
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{done} / {total} procesate</div>
+            <button onClick={() => { cancelRef.current = true; onClose(); }} className="btn-ghost" style={{ color: 'var(--red)' }}>
+              Anulează
+            </button>
+          </>
+        )}
+
+        {status === 'done' && (
+          <>
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>✓</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>{message}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{fileCount} fișiere uploadate</div>
+            </div>
+            <button onClick={() => { onDone(); onClose(); }} className="btn-primary">Închide</button>
+          </>
+        )}
+      </div>
+    </ModalOverlay>
+  );
+}
+
+// ─── Delete Folder Confirm Modal ───────────────────────────────────────────────
+
+function DeleteFolderConfirmModal({ folder, onConfirm, onClose }: {
+  folder: FolderItem;
+  onConfirm: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [stats, setStats] = useState<{ folder_count: number; file_count: number; total_size: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    getFolderStats(folder.id)
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
+  }, [folder.id]);
+
+  async function handleConfirm() {
+    setDeleting(true);
+    try { await onConfirm(); } finally { setDeleting(false); }
+  }
+
+  return (
+    <ModalOverlay onClose={onClose} width={420}>
+      <ModalHeader title="Șterge folder recursiv" onClose={onClose} />
+      <div style={{ padding: '18px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '12px 14px' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)', marginBottom: 6 }}>⚠ Acțiune ireversibilă</div>
+          <div style={{ fontSize: 13, color: 'var(--text)' }}>
+            Vei șterge folderul <strong>"{folder.name}"</strong> și tot conținutul său:
+          </div>
+          {loading ? (
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8 }}>Calculare...</div>
+          ) : stats ? (
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8, display: 'flex', gap: 12 }}>
+              <span>{stats.folder_count} subfoldere</span>
+              <span>·</span>
+              <span>{stats.file_count} fișiere</span>
+              <span>·</span>
+              <span>{formatSize(stats.total_size)}</span>
+            </div>
+          ) : null}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={handleConfirm}
+            disabled={deleting || loading}
+            style={{
+              flex: 1, padding: '8px 16px', border: 'none', borderRadius: 7,
+              background: 'var(--red)', color: '#fff', fontWeight: 700, fontSize: 13,
+              cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1,
+            }}
+          >
+            {deleting ? 'Ștergere...' : 'Șterge definitiv'}
+          </button>
+          <button onClick={onClose} className="btn-ghost" disabled={deleting}>Anulează</button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+// ─── Context Menu ─────────────────────────────────────────────────────────────
+
+function ContextMenuPopup({ x, y, items, onClose }: {
+  x: number; y: number;
+  items: { label: string; icon?: string; color?: string; onClick: () => void }[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = () => onClose();
+    document.addEventListener('click', handler);
+    document.addEventListener('contextmenu', handler);
+    return () => { document.removeEventListener('click', handler); document.removeEventListener('contextmenu', handler); };
+  }, [onClose]);
+
+  return (
+    <div style={{
+      position: 'fixed', left: x, top: y, zIndex: 9999,
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 8,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+      padding: '4px 0',
+      minWidth: 180,
+    }}>
+      {items.map((item, i) => (
+        <div
+          key={i}
+          onClick={() => { item.onClick(); onClose(); }}
+          style={{
+            padding: '8px 14px', fontSize: 12.5, cursor: 'pointer',
+            color: item.color || 'var(--text)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          {item.icon && <span style={{ fontSize: 13 }}>{item.icon}</span>}
+          {item.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function DocumentsPage() {
   useDocPageStyles();
   const { t } = useTranslation();
-  const isMobile = window.innerWidth < 768;
-  const [docs, setDocs] = useState<Document[]>([]);
+
+  // ── Data ─────────────────────────────────────────────────────────────────────
+  const [allFolders, setAllFolders] = useState<FolderItem[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [folders, setFolders] = useState<FolderItem[]>([]);
   const [categories, setCategories] = useState<DocCategory[]>(DEFAULT_CATEGORIES);
-  const [selectedFolder, setSelectedFolder] = useState<FolderItem | null>(null);
+
+  // ── Pane state ───────────────────────────────────────────────────────────────
+  const [pane1, setPane1] = useState<PaneState>(EMPTY_PANE);
+  const [pane2, setPane2] = useState<PaneState>(EMPTY_PANE);
+  const [activePaneId, setActivePaneId] = useState<1 | 2>(1);
+
+  // ── UI flags ─────────────────────────────────────────────────────────────────
+  const [dualPane, setDualPane] = useState(true);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailDoc, setDetailDoc] = useState<Document | null>(null);
+  const [search, setSearch] = useState('');
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Drag & drop ──────────────────────────────────────────────────────────────
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [dropTargetKey, setDropTargetKey] = useState<string | null>(null);
+
+  // ── Modals ───────────────────────────────────────────────────────────────────
+  const [showUpload, setShowUpload] = useState<1 | 2 | null>(null);
+  const [showFolderUpload, setShowFolderUpload] = useState<1 | 2 | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
-  const [selected, setSelected] = useState<Document | null>(null);
-  const [showUpload, setShowUpload] = useState(false);
-  const [viewingDocId, setViewingDocId] = useState<number | null>(null);
-  const [editingDoc, setEditingDoc] = useState<{ id: number; name: string } | null>(null);
-  const [officeDoc, setOfficeDoc] = useState<{ id: number; name: string } | null>(null);
   const [movingDoc, setMovingDoc] = useState<Document | null>(null);
   const [movingFolder, setMovingFolder] = useState<FolderItem | null>(null);
   const [sharingFolder, setSharingFolder] = useState<FolderItem | null>(null);
-  const [versionsDocId, setVersionsDocId] = useState<{ id: number; name: string } | null>(null);
-  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkMoving, setBulkMoving] = useState(false);
-  const [filterCat, setFilterCat] = useState('');
-  const [filterSite, setFilterSite] = useState('');
-  const [search, setSearch] = useState('');
-  const [docsTotal, setDocsTotal] = useState(0);
-  const [docsOffset, setDocsOffset] = useState(0);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const PAGE_SIZE = 100;
-  const searchRef = useRef<HTMLInputElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [versionsDoc, setVersionsDoc] = useState<{ id: number; name: string } | null>(null);
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<FolderItem | null>(null);
+  const [viewingDocId, setViewingDocId] = useState<number | null>(null);
+  const [editingDoc, setEditingDoc] = useState<{ id: number; name: string } | null>(null);
+  const [officeDoc, setOfficeDoc] = useState<{ id: number; name: string } | null>(null);
 
+  // ── Context menu ─────────────────────────────────────────────────────────────
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: any[] } | null>(null);
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
   const catMap = Object.fromEntries(categories.map(c => [c.key, c]));
-  const hasFilter = !!(filterCat || filterSite || search);
 
-  const loadDocs = (cat = filterCat, site = filterSite, q = search, folderId?: number | null, currentOffset = 0) => {
-    const hasF = !!(cat || site || q);
-    if (folderId === undefined && !hasF) { setDocs([]); setDocsTotal(0); setDocsOffset(0); return; }
-    const params: Record<string, string | number> = { limit: PAGE_SIZE, offset: currentOffset };
-    if (cat) params.category = cat;
-    if (site) params.site_id = parseInt(site);
-    if (q) params.search = q;
-    if (folderId !== undefined && folderId !== null) params.folder_id = folderId;
-    setDocsLoading(true);
-    fetchDocuments(params)
-      .then(res => {
-        if (currentOffset > 0) setDocs(prev => [...prev, ...res.items]);
-        else setDocs(res.items);
-        setDocsTotal(res.total);
-        setDocsOffset(currentOffset + res.items.length);
-      })
-      .catch(() => toast.error(t('common.error')))
-      .finally(() => setDocsLoading(false));
-  };
+  function buildPath(folder: FolderItem | null): FolderItem[] {
+    if (!folder) return [];
+    const path: FolderItem[] = [];
+    let cur: FolderItem | undefined = folder;
+    while (cur) {
+      path.unshift(cur);
+      cur = cur.parent_id ? allFolders.find(f => f.id === cur!.parent_id) : undefined;
+    }
+    return path;
+  }
+
+  function getPane(id: 1 | 2) { return id === 1 ? pane1 : pane2; }
+  function setPane(id: 1 | 2, updater: (p: PaneState) => PaneState) {
+    if (id === 1) setPane1(updater); else setPane2(updater);
+  }
+
+  // ── Data loading ─────────────────────────────────────────────────────────────
+  async function loadPaneDocs(paneId: 1 | 2, folderId: number | null) {
+    setPane(paneId, p => ({ ...p, loading: true }));
+    try {
+      const params: Record<string, any> = { limit: 500 };
+      if (folderId !== null) params.folder_id = folderId;
+      else params.folder_id = 'null';  // root docs
+      const res = await fetchDocuments(folderId !== null ? params : { limit: 500, folder_id: folderId as any });
+      setPane(paneId, p => ({ ...p, docs: res.items, loading: false }));
+    } catch {
+      setPane(paneId, p => ({ ...p, loading: false }));
+    }
+  }
+
+  async function reloadFolders() {
+    const data = await fetchFolders();
+    setAllFolders(flattenFolders(data));
+  }
 
   useEffect(() => {
     fetchSites().then(setSites);
-    fetchFolders().then(data => setFolders(flattenFolders(data)));
     fetchDocumentCategories().then(setCategories).catch(() => {});
+    reloadFolders();
+    // Load root docs in pane1 by default
+    loadPaneDocs(1, null);
   }, []);
 
-  useEffect(() => {
-    loadDocs(filterCat, filterSite, search, selectedFolder ? selectedFolder.id : undefined);
-    if (isMobile && selectedFolder && contentRef.current) {
-      setTimeout(() => contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    }
-  }, [selectedFolder]);
-
-  async function handleDelete() {
-    if (!selected) return;
-    if (!confirm(t('documents.confirmDelete', { name: selected.name }))) return;
+  // ── Navigation ────────────────────────────────────────────────────────────────
+  async function navigateTo(paneId: 1 | 2, folder: FolderItem | null) {
+    const path = buildPath(folder);
+    setPane(paneId, p => ({ ...p, folderId: folder?.id ?? null, path, loading: true, docs: [], selected: null }));
     try {
-      await deleteDocument(selected.id);
+      const params: Record<string, any> = { limit: 500 };
+      if (folder !== null) params.folder_id = folder.id;
+      const res = await fetchDocuments(params);
+      setPane(paneId, p => ({ ...p, docs: res.items, loading: false }));
+    } catch {
+      setPane(paneId, p => ({ ...p, loading: false }));
+    }
+  }
+
+  // ── Drag & drop ──────────────────────────────────────────────────────────────
+  function handleDragStart(e: React.DragEvent, type: 'doc' | 'folder', id: number, paneId: 1 | 2) {
+    e.dataTransfer.effectAllowed = 'move';
+    setDragState({ type, id, paneId });
+  }
+
+  function handleDragOver(e: React.DragEvent, key: string) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetKey(key);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    // Only clear if leaving to outside
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDropTargetKey(null);
+    }
+  }
+
+  async function handleDrop(e: React.DragEvent, targetFolderId: number | null) {
+    e.preventDefault();
+    if (!dragState) return;
+    const sourcePaneId = dragState.paneId;
+    const targetPaneId = dropTargetKey?.startsWith('pane-') ? (parseInt(dropTargetKey.split('-')[1]) as 1 | 2) : sourcePaneId;
+    setDropTargetKey(null);
+
+    try {
+      if (dragState.type === 'doc') {
+        await moveDocument(dragState.id, targetFolderId);
+        toast.success('Document mutat');
+        await navigateTo(sourcePaneId, getPane(sourcePaneId).folderId !== null ? allFolders.find(f => f.id === getPane(sourcePaneId).folderId) ?? null : null);
+        if (targetPaneId !== sourcePaneId) {
+          await navigateTo(targetPaneId, getPane(targetPaneId).folderId !== null ? allFolders.find(f => f.id === getPane(targetPaneId).folderId) ?? null : null);
+        }
+      } else {
+        await renameFolder(dragState.id, targetFolderId === null ? { clear_parent: true } : { parent_id: targetFolderId });
+        toast.success('Folder mutat');
+        await reloadFolders();
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || t('common.error'));
+    }
+    setDragState(null);
+  }
+
+  // ── Document actions ─────────────────────────────────────────────────────────
+  async function handleDocDelete(doc: Document, paneId: 1 | 2) {
+    if (!confirm(t('documents.confirmDelete', { name: doc.name }))) return;
+    try {
+      await deleteDocument(doc.id);
       toast.success(t('documents.deletedOk'));
-      setSelected(null);
-      loadDocs(filterCat, filterSite, search, selectedFolder?.id);
+      const pane = getPane(paneId);
+      setPane(paneId, p => ({ ...p, docs: p.docs.filter(d => d.id !== doc.id), selected: p.selected?.id === doc.id ? null : p.selected }));
+      if (detailDoc?.id === doc.id) { setDetailDoc(null); setShowDetail(false); }
     } catch (err: any) { toast.error(err?.response?.data?.detail || t('common.error')); }
-  }
-
-  function handleFolderRenamed(updated: FolderItem) {
-    setFolders(prev => prev.map(f => f.id === updated.id ? updated : f));
-    if (selectedFolder?.id === updated.id) setSelectedFolder(updated);
-  }
-
-  function handleFolderDeleted(folderId: number) {
-    setFolders(prev => prev.filter(f => f.id !== folderId));
-    if (selectedFolder?.id === folderId) setSelectedFolder(null);
   }
 
   async function handleMoveDoc(targetFolderId: number | null) {
@@ -1387,521 +2082,376 @@ export function DocumentsPage() {
     try {
       await moveDocument(movingDoc.id, targetFolderId);
       toast.success(t('documentsExtra.docMoved'));
-      setMovingDoc(null); setSelected(null);
-      loadDocs(filterCat, filterSite, search, selectedFolder ? selectedFolder.id : undefined);
+      setMovingDoc(null);
+      // Reload both panes
+      await navigateTo(1, allFolders.find(f => f.id === pane1.folderId) ?? null);
+      await navigateTo(2, allFolders.find(f => f.id === pane2.folderId) ?? null);
     } catch (err: any) { toast.error(err?.response?.data?.detail || t('documentsExtra.docMoveError')); }
   }
 
   async function handleMoveFolder(targetParentId: number | null) {
     if (!movingFolder) return;
     try {
-      const updated = await renameFolder(movingFolder.id, targetParentId === null ? { clear_parent: true } : { parent_id: targetParentId });
+      await renameFolder(movingFolder.id, targetParentId === null ? { clear_parent: true } : { parent_id: targetParentId });
       toast.success(t('documentsExtra.folderRenamed'));
       setMovingFolder(null);
-      fetchFolders().then(data => setFolders(flattenFolders(data)));
-      if (selectedFolder?.id === movingFolder.id) setSelectedFolder(updated);
+      await reloadFolders();
     } catch (err: any) { toast.error(err?.response?.data?.detail || t('documentsExtra.folderMoveError')); }
   }
 
-  async function handleBulkDelete() {
-    if (!bulkSelected.size) return;
-    if (!confirm(t('documentsExtra.bulkDeleteConfirm', { count: bulkSelected.size }))) return;
+  async function handleDeleteFolderRecursive(folder: FolderItem) {
     try {
-      await bulkDocAction([...bulkSelected], 'delete');
-      toast.success(t('documentsExtra.bulkDeleteOk', { count: bulkSelected.size }));
-      setBulkSelected(new Set()); setBulkMode(false); setSelected(null);
-      loadDocs(filterCat, filterSite, search, selectedFolder?.id);
-    } catch (e: any) { toast.error(e?.response?.data?.detail || t('common.error')); }
+      const result = await deleteFolderRecursive(folder.id);
+      toast.success(`Șters: ${result.deleted_folders} foldere, ${result.deleted_files} fișiere`);
+      setDeleteFolderTarget(null);
+      await reloadFolders();
+      // If active pane was in this folder, navigate to root
+      if (pane1.folderId === folder.id) await navigateTo(1, null);
+      if (pane2.folderId === folder.id) await navigateTo(2, null);
+    } catch (err: any) { toast.error(err?.response?.data?.detail || t('common.error')); }
   }
 
-  async function handleBulkMove(targetFolderId: number | null) {
-    try {
-      await bulkDocAction([...bulkSelected], 'move', targetFolderId);
-      toast.success(t('documentsExtra.bulkMoveOk', { count: bulkSelected.size }));
-      setBulkSelected(new Set()); setBulkMode(false); setBulkMoving(false); setSelected(null);
-      loadDocs(filterCat, filterSite, search, selectedFolder?.id);
-    } catch (e: any) { toast.error(e?.response?.data?.detail || t('common.error')); }
+  function openDocContextMenu(e: React.MouseEvent, doc: Document, paneId: 1 | 2) {
+    e.preventDefault();
+    const canEdit = doc.content_type.startsWith('text/');
+    const canOffice = OFFICE_TYPES.has(doc.content_type);
+    setCtxMenu({
+      x: e.clientX, y: e.clientY,
+      items: [
+        { label: 'Previzualizare', icon: '👁', onClick: () => setViewingDocId(doc.id) },
+        { label: 'Descarcă', icon: '↓', onClick: () => { window.open(`/api/documents/${doc.id}/download/`, '_blank'); } },
+        ...(canEdit ? [{ label: 'Editează text', icon: '✏', onClick: () => setEditingDoc({ id: doc.id, name: doc.name }) }] : []),
+        ...(canOffice ? [{ label: 'Deschide Office', icon: '📝', onClick: () => setOfficeDoc({ id: doc.id, name: doc.name }) }] : []),
+        { label: 'Mută', icon: '↗', onClick: () => setMovingDoc(doc) },
+        { label: 'Versiuni', icon: '🕐', onClick: () => setVersionsDoc({ id: doc.id, name: doc.name }) },
+        { label: 'Detalii', icon: 'ⓘ', onClick: () => { setDetailDoc(doc); setShowDetail(true); } },
+        { label: 'Șterge', icon: '✕', color: 'var(--red)', onClick: () => handleDocDelete(doc, paneId) },
+      ],
+    });
   }
 
-  const catCounts = categories.map(c => ({ ...c, count: docs.filter(d => d.category === c.key).length }));
-  // always show all categories (count is just informational)
-  const subfolders = selectedFolder ? folders.filter(f => f.parent_id === selectedFolder.id) : folders.filter(f => f.parent_id === null);
-
-  function getFolderPath(folder: FolderItem | null): FolderItem[] {
-    if (!folder) return [];
-    const path: FolderItem[] = [];
-    let cur: FolderItem | undefined = folder;
-    while (cur) { path.unshift(cur); cur = cur.parent_id ? folders.find(f => f.id === cur!.parent_id) : undefined; }
-    return path;
+  function openFolderContextMenu(e: React.MouseEvent, folder: FolderItem) {
+    e.preventDefault();
+    setCtxMenu({
+      x: e.clientX, y: e.clientY,
+      items: [
+        { label: 'Deschide', icon: '📂', onClick: () => navigateTo(activePaneId, folder) },
+        { label: 'Mută', icon: '↗', onClick: () => setMovingFolder(folder) },
+        { label: 'Partajează', icon: '⇧', onClick: () => setSharingFolder(folder) },
+        { label: 'Șterge recursiv', icon: '✕', color: 'var(--red)', onClick: () => setDeleteFolderTarget(folder) },
+      ],
+    });
   }
-  const breadcrumb = getFolderPath(selectedFolder);
 
-  function doSearch() {
-    loadDocs(filterCat, filterSite, search, selectedFolder ? selectedFolder.id : undefined);
-  }
+  // ── Render ───────────────────────────────────────────────────────────────────
+  const activePane = activePaneId === 1 ? pane1 : pane2;
+  const activeFolderInPane = allFolders.find(f => f.id === activePane.folderId) ?? null;
 
   return (
-    <div className="page-root" style={{ display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0 }}>
-
-      {/* ── Top bar ── */}
-      <div className="dp-topbar" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0, letterSpacing: '-0.02em' }}>
-            {t('documents.title')}
-          </h1>
-        </div>
-
-        {/* Search */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <div style={{ position: 'relative' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth={2} strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input
-              ref={searchRef}
-              className="dp-search"
-              placeholder={t('documents.searchPlaceholder')}
-              value={search}
-              onChange={e => {
-                const val = e.target.value;
-                setSearch(val);
-                if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-                searchDebounceRef.current = setTimeout(() => {
-                  loadDocs(filterCat, filterSite, val, selectedFolder?.id);
-                }, 400);
-              }}
-              onKeyDown={e => { if (e.key === 'Enter') { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); loadDocs(filterCat, filterSite, search, selectedFolder?.id); } }}
-              style={{ paddingLeft: 32, paddingRight: 10, width: 220, height: 34, fontSize: 13 }}
-            />
-          </div>
-          <select
-            value={filterSite}
-            onChange={e => { const v = e.target.value; setFilterSite(v); if (v) { setSelectedFolder(null); loadDocs(filterCat, v, search, undefined); } else { loadDocs(filterCat, '', search, selectedFolder?.id); } }}
-            style={{ height: 34, fontSize: 12.5, paddingLeft: 10, paddingRight: 10, minWidth: 170 }}
-          >
-            <option value="">{t('documents.allSites')}</option>
-            {sites.map(s => <option key={s.id} value={s.id}>{s.kostenstelle} — {s.name}</option>)}
-          </select>
-          {hasFilter && (
-            <button
-              className="btn-ghost"
-              onClick={() => { setFilterCat(''); setFilterSite(''); setSearch(''); loadDocs('', '', '', selectedFolder?.id); }}
-              style={{ height: 34, padding: '0 12px', fontSize: 12, color: 'var(--red)' }}
-            >
-              ✕ Reset
-            </button>
-          )}
-        </div>
-
-        {/* Bulk toggle */}
-        <button
-          className="btn-ghost"
-          onClick={() => { setBulkMode(p => !p); setBulkSelected(new Set()); }}
-          style={{ height: 34, display: 'flex', alignItems: 'center', gap: 6, color: bulkMode ? 'var(--green)' : 'var(--text-2)', borderColor: bulkMode ? 'rgba(34,197,94,0.4)' : undefined }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/>
-          </svg>
-          {t('documentsExtra.bulkToggle')}
-        </button>
-
-        {/* Upload toggle */}
-        <button
-          className="btn-primary"
-          onClick={() => { setShowUpload(p => !p); setSelected(null); }}
-          style={{ height: 34, display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          {showUpload ? (
-            <>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              {t('documents.cancelUpload')}
-            </>
-          ) : (
-            <>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              {t('documents.upload')}
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* ── Category filter chips ── */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-        <button
-          className="dp-cat-chip"
-          onClick={() => { setFilterCat(''); loadDocs('', filterSite, search, selectedFolder?.id); }}
-          style={{
-            padding: '4px 12px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
-            background: filterCat === '' ? 'var(--green)' : 'var(--surface-2)',
-            color: filterCat === '' ? '#fff' : 'var(--text-2)',
-            border: filterCat === '' ? 'none' : '1px solid var(--border)',
-          }}
-        >
-          {t('documents.filterAll', { count: docs.length })}
-        </button>
-        {catCounts.map(c => (
-          <button
-            key={c.key}
-            className="dp-cat-chip"
-            onClick={() => { setFilterCat(c.key); loadDocs(c.key, filterSite, search, selectedFolder?.id); }}
-            style={{
-              padding: '4px 12px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
-              background: filterCat === c.key ? c.color : 'var(--surface-2)',
-              color: filterCat === c.key ? '#fff' : 'var(--text-2)',
-              border: filterCat === c.key ? 'none' : '1px solid var(--border)',
-            }}
-          >
-            {t(`documents.categories.${c.key}` as any, c.label)} {c.count > 0 && `(${c.count})`}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Bulk action bar ── */}
-      {bulkMode && (
-        <div className="dp-fade-in" style={{
-          background: bulkSelected.size > 0 ? 'rgba(34,197,94,0.06)' : 'var(--surface-2)',
-          border: `1px solid ${bulkSelected.size > 0 ? 'rgba(34,197,94,0.25)' : 'var(--border)'}`,
-          borderRadius: 10, padding: '10px 16px', marginBottom: 12,
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)' }}>
-            <input type="checkbox"
-              checked={docs.length > 0 && bulkSelected.size === docs.length}
-              onChange={e => setBulkSelected(e.target.checked ? new Set(docs.map(d => d.id)) : new Set())} />
-            {t('documentsExtra.bulkSelectAll')}
-          </label>
-          <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>
-            {bulkSelected.size > 0 ? t('documentsExtra.bulkCount', { count: bulkSelected.size }) : t('documentsExtra.bulkNone')}
-          </span>
-          {bulkSelected.size > 0 && (
-            <>
-              <button onClick={() => setBulkMoving(true)} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: '#60A5FA' }}>↗ {t('documentsExtra.bulkMoveBtn')}</button>
-              <button onClick={handleBulkDelete} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12, color: 'var(--red)' }}>✕ {t('documentsExtra.bulkDeleteBtn')}</button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── Upload panel ── */}
-      {showUpload && (
-        <div className="dp-fade-in" style={{
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 12, padding: '20px 20px', marginBottom: 16,
-        }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            {t('documents.uploadTitle')}
-          </div>
-          <UploadForm
-            sites={sites} folders={folders} categories={categories}
-            onUploaded={doc => { setShowUpload(false); loadDocs(filterCat, filterSite, search, selectedFolder?.id); setSelected(doc); }}
-            onCancel={() => setShowUpload(false)}
-          />
-        </div>
-      )}
-
-      {/* ── Three-panel layout ── */}
-      <div className="dp-three-panel" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1 }}>
-
-        {/* LEFT: Folder sidebar */}
-        <FolderSidebar
-          folders={folders}
-          sites={sites}
-          selectedFolder={selectedFolder}
-          onSelect={folder => { setSelectedFolder(folder); setSelected(null); }}
-          onNewFolder={() => setShowCreateFolder(true)}
-          onFolderRenamed={handleFolderRenamed}
-          onFolderDeleted={handleFolderDeleted}
-          onMoveFolder={setMovingFolder}
-          onShare={setSharingFolder}
-        />
-
-        {/* MIDDLE: Content browser */}
-        <div ref={contentRef} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-          {/* Breadcrumb */}
-          {breadcrumb.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', padding: '2px 0' }}>
-              <button
-                onClick={() => { setSelectedFolder(null); setSelected(null); }}
-                style={{ background: 'none', border: 'none', padding: '2px 4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, borderRadius: 4 }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
-                </svg>
-                <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>
-                  {t('documentsExtra.allDocuments')}
-                </span>
-              </button>
-              {breadcrumb.map((f, i) => (
-                <span key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                  {i < breadcrumb.length - 1 ? (
-                    <button
-                      onClick={() => setSelectedFolder(f)}
-                      style={{ background: 'none', border: 'none', padding: '2px 4px', cursor: 'pointer', borderRadius: 4 }}
-                    >
-                      <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>{f.name}</span>
-                    </button>
-                  ) : (
-                    <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, padding: '2px 4px' }}>{f.name}</span>
-                  )}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Content panel */}
-          <div style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-            overflow: 'hidden',
-            maxHeight: 'calc(100vh - 230px)',
-            overflowY: 'auto',
-          }}>
-
-            {/* Subfolders grid */}
-            {subfolders.length > 0 && !hasFilter && (
-              <div style={{ padding: '12px 12px 8px' }}>
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-                  {t('documentsExtra.subfolderCount', { count: subfolders.length })}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 6, marginBottom: docs.length > 0 ? 12 : 0 }}>
-                  {subfolders.map(sf => (
-                    <div
-                      key={sf.id}
-                      className="dp-subfolder-card"
-                      onClick={() => { setSelectedFolder(sf); setSelected(null); }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px',
-                        borderRadius: 8, border: '1px solid var(--border)',
-                        background: 'var(--surface-2)',
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(34,197,94,0.2)" stroke="var(--green)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-                      </svg>
-                      <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {sf.name}
-                      </span>
-                      {sf.doc_count > 0 && (
-                        <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--surface-3)', color: 'var(--text-2)', borderRadius: 8, padding: '1px 5px', flexShrink: 0 }}>
-                          {sf.doc_count}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Divider between folders and docs */}
-            {subfolders.length > 0 && !hasFilter && docs.length > 0 && (
-              <div style={{ height: 1, background: 'var(--border)', margin: '0 12px' }} />
-            )}
-
-            {/* Document section header */}
-            {docs.length > 0 && (
-              <div style={{ padding: '10px 14px 6px', fontSize: 9.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                {docs.length}{docsTotal > docs.length ? ` / ${docsTotal}` : ''} {docs.length === 1 ? 'document' : 'documente'}
-              </div>
-            )}
-
-            {/* Document rows */}
-            {docs.map(d => (
-              <div key={d.id} style={{ display: 'flex', alignItems: 'center' }}>
-                {bulkMode && (
-                  <div style={{ paddingLeft: 12, flexShrink: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={bulkSelected.has(d.id)}
-                      onChange={e => {
-                        setBulkSelected(prev => {
-                          const next = new Set(prev);
-                          e.target.checked ? next.add(d.id) : next.delete(d.id);
-                          return next;
-                        });
-                      }}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  </div>
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <DocRow
-                    doc={d as any}
-                    selected={!bulkMode && selected?.id === d.id}
-                    catMap={catMap}
-                    onClick={() => {
-                      if (bulkMode) {
-                        setBulkSelected(prev => { const next = new Set(prev); next.has(d.id) ? next.delete(d.id) : next.add(d.id); return next; });
-                      } else {
-                        setSelected(d); setShowUpload(false);
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-
-            {/* Load more */}
-            {docs.length < docsTotal && (
-              <div style={{ padding: '12px 14px', textAlign: 'center' }}>
-                <button
-                  onClick={() => loadDocs(filterCat, filterSite, search, selectedFolder?.id, docsOffset)}
-                  disabled={docsLoading}
-                  style={{ padding: '7px 20px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 12, cursor: docsLoading ? 'default' : 'pointer', opacity: docsLoading ? 0.6 : 1 }}
-                >
-                  {docsLoading ? t('common.loading') : t('documentsExtra.loadMore', { count: docsTotal - docs.length })}
-                </button>
-              </div>
-            )}
-            {docsLoading && docs.length === 0 && (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>{t('documentsExtra.loadingDocs')}</div>
-            )}
-
-            {/* Empty states */}
-            {docs.length === 0 && subfolders.length === 0 && (
-              hasFilter ? (
-                <EmptyState
-                  icon={<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>}
-                  text={t('documents.noDocumentsFiltered')}
-                  sub="Încearcă alt termen de căutare"
-                />
-              ) : selectedFolder ? (
-                <EmptyState
-                  icon={<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
-                  text={t('documents.noDocuments')}
-                  sub="Folderul este gol"
-                />
-              ) : (
-                <EmptyState
-                  icon={<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
-                  text="Selectează un folder"
-                  sub="sau folosește căutarea pentru a găsi documente"
-                />
-              )
-            )}
-
-            {/* When no folder, no filter, but there are subfolders — show hint */}
-            {docs.length === 0 && subfolders.length > 0 && !hasFilter && !selectedFolder && (
-              <div style={{ padding: '8px 14px 14px', fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
-                Dă click pe un folder pentru a vedea documentele
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT: Detail panel */}
-        <div className="dp-detail-panel" style={{ width: 300, flexShrink: 0 }}>
-          {selected ? (
-            <DocDetail
-              doc={selected as any} catMap={catMap}
-              onDelete={handleDelete}
-              onClose={() => setSelected(null)}
-              onView={() => setViewingDocId(selected.id)}
-              onEdit={() => setEditingDoc({ id: selected.id, name: selected.name })}
-              onOfficeEdit={() => setOfficeDoc({ id: selected.id, name: selected.name })}
-              onMove={() => setMovingDoc(selected)}
-              onMetaUpdated={(updated) => { setSelected(updated); setDocs(prev => prev.map(d => d.id === updated.id ? updated : d)); }}
-              onVersions={() => setVersionsDocId({ id: selected.id, name: selected.name })}
-            />
-          ) : (
-            <div style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '40px 20px',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-            }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-              </svg>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.5 }}>
-                {t('documents.selectDocument')}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', flexDirection: 'column', background: 'var(--bg)' }}>
 
       {/* ── Modals ── */}
-      {viewingDocId !== null && <DocumentViewerModal docId={viewingDocId} onClose={() => setViewingDocId(null)} />}
-      {editingDoc !== null && <TextEditorModal docId={editingDoc.id} docName={editingDoc.name} onClose={() => setEditingDoc(null)} />}
-      {officeDoc !== null && (
-        <OnlyOfficeEditor
-          docId={officeDoc.id} docName={officeDoc.name}
-          onClose={() => { setOfficeDoc(null); loadDocs(filterCat, filterSite, search, selectedFolder?.id); }}
+      {showUpload !== null && (
+        <ModalOverlay onClose={() => setShowUpload(null)} width={560}>
+          <ModalHeader title={t('documents.uploadTitle')} onClose={() => setShowUpload(null)} />
+          <div style={{ padding: '16px 20px 20px' }}>
+            <UploadForm
+              sites={sites}
+              folders={allFolders}
+              categories={categories}
+              onUploaded={async doc => {
+                toast.success(t('documents.uploadedOk'));
+                setShowUpload(null);
+                const pid = showUpload as 1 | 2;
+                await navigateTo(pid, allFolders.find(f => f.id === getPane(pid).folderId) ?? null);
+              }}
+              onCancel={() => setShowUpload(null)}
+            />
+          </div>
+        </ModalOverlay>
+      )}
+
+      {showFolderUpload !== null && (
+        <FolderUploadModal
+          parentFolderId={getPane(showFolderUpload).folderId}
+          allFolders={allFolders}
+          onDone={async () => {
+            const pid = showFolderUpload as 1 | 2;
+            await reloadFolders();
+            await navigateTo(pid, allFolders.find(f => f.id === getPane(pid).folderId) ?? null);
+          }}
+          onClose={() => setShowFolderUpload(null)}
         />
       )}
-      {movingDoc && (
-        <MovePicker
-          folders={folders} currentFolderId={movingDoc.folder_id ?? null}
-          title={`Mută: ${movingDoc.name}`}
-          onConfirm={handleMoveDoc} onClose={() => setMovingDoc(null)}
-        />
-      )}
-      {movingFolder && (
-        <MovePicker
-          folders={folders} currentFolderId={movingFolder.parent_id}
-          excludeFolderId={movingFolder.id}
-          title={`Mută folderul: ${movingFolder.name}`}
-          onConfirm={handleMoveFolder} onClose={() => setMovingFolder(null)}
-        />
-      )}
+
       {showCreateFolder && (
         <CreateFolderModal
           sites={sites}
-          onCreated={folder => { setFolders(prev => [...prev, folder]); setShowCreateFolder(false); }}
+          onCreated={async folder => {
+            setShowCreateFolder(false);
+            await reloadFolders();
+          }}
           onClose={() => setShowCreateFolder(false)}
         />
       )}
-      {versionsDocId && (
-        <VersionHistoryModal
-          docId={versionsDocId.id}
-          docName={versionsDocId.name}
-          onClose={() => setVersionsDocId(null)}
-        />
-      )}
-      {sharingFolder && (
-        <ShareFolderModal
-          folder={sharingFolder}
-          onClose={() => setSharingFolder(null)}
-        />
-      )}
-      {bulkMoving && (
+
+      {movingDoc && (
         <MovePicker
-          folders={folders} currentFolderId={selectedFolder?.id ?? null}
-          title={`${t('documentsExtra.bulkMoveBtn')} — ${t('documentsExtra.bulkCount', { count: bulkSelected.size })}`}
-          onConfirm={async (fid) => { await handleBulkMove(fid); setBulkMoving(false); }}
-          onClose={() => setBulkMoving(false)}
+          folders={allFolders}
+          currentFolderId={movingDoc.folder_id ?? null}
+          title={t('documentsExtra.moveDocTitle', { name: cleanDocName(movingDoc.name) })}
+          onConfirm={handleMoveDoc}
+          onClose={() => setMovingDoc(null)}
         />
       )}
 
-      {/* ── Mobile detail overlay (shown instead of side panel on phones) ── */}
-      {isMobile && selected && (
-        <div className="dp-mobile-detail-overlay">
-          <div className="dp-mobile-detail-back" onClick={() => setSelected(null)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            {t('common.back', 'Înapoi')}
-          </div>
-          <div style={{ padding: '12px' }}>
-            <DocDetail
-              doc={selected as any} catMap={catMap}
-              onDelete={handleDelete}
-              onClose={() => setSelected(null)}
-              onView={() => setViewingDocId(selected.id)}
-              onEdit={() => setEditingDoc({ id: selected.id, name: selected.name })}
-              onOfficeEdit={() => setOfficeDoc({ id: selected.id, name: selected.name })}
-              onMove={() => setMovingDoc(selected)}
-              onMetaUpdated={(updated) => { setSelected(updated); setDocs(prev => prev.map(d => d.id === updated.id ? updated : d)); }}
-              onVersions={() => setVersionsDocId({ id: selected.id, name: selected.name })}
-            />
-          </div>
-        </div>
+      {movingFolder && (
+        <MovePicker
+          folders={allFolders}
+          currentFolderId={movingFolder.parent_id}
+          excludeFolderId={movingFolder.id}
+          title={t('documentsExtra.moveFolderTitle', { name: movingFolder.name })}
+          onConfirm={handleMoveFolder}
+          onClose={() => setMovingFolder(null)}
+        />
       )}
+
+      {sharingFolder && (
+        <ShareFolderModal folder={sharingFolder} onClose={() => setSharingFolder(null)} />
+      )}
+
+      {versionsDoc && (
+        <VersionHistoryModal docId={versionsDoc.id} docName={versionsDoc.name} onClose={() => setVersionsDoc(null)} />
+      )}
+
+      {deleteFolderTarget && (
+        <DeleteFolderConfirmModal
+          folder={deleteFolderTarget}
+          onConfirm={() => handleDeleteFolderRecursive(deleteFolderTarget)}
+          onClose={() => setDeleteFolderTarget(null)}
+        />
+      )}
+
+      {viewingDocId && (
+        <DocumentViewerModal docId={viewingDocId} onClose={() => setViewingDocId(null)} />
+      )}
+
+      {editingDoc && (
+        <TextEditorModal
+          docId={editingDoc.id}
+          docName={editingDoc.name}
+          onClose={() => { setEditingDoc(null); navigateTo(activePaneId, activeFolderInPane); }}
+        />
+      )}
+
+      {officeDoc && (
+        <OnlyOfficeEditor
+          docId={officeDoc.id}
+          docName={officeDoc.name}
+          onClose={() => setOfficeDoc(null)}
+        />
+      )}
+
+      {ctxMenu && (
+        <ContextMenuPopup x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />
+      )}
+
+      {/* ── Toolbar ── */}
+      <div style={{
+        padding: '10px 16px', borderBottom: '1px solid var(--border)',
+        background: 'var(--surface)',
+        display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em', marginRight: 4 }}>
+          Documente
+        </span>
+
+        {/* Search */}
+        <div style={{ position: 'relative', flex: 1, maxWidth: 260 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth={2} strokeLinecap="round" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            className="dp-search"
+            placeholder="Caută fișiere..."
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+              searchDebounceRef.current = setTimeout(() => setSearch(e.target.value), 200);
+            }}
+            style={{ paddingLeft: 30, paddingRight: 10, width: '100%', height: 32, fontSize: 12.5 }}
+          />
+        </div>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+          {/* New folder */}
+          <button onClick={() => setShowCreateFolder(true)} className="btn-ghost" style={{ height: 32, fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+              <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+            </svg>
+            Folder nou
+          </button>
+
+          {/* Upload folder */}
+          <button onClick={() => setShowFolderUpload(activePaneId)} className="btn-ghost" style={{ height: 32, fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+              <polyline points="16 8 12 4 8 8"/><line x1="12" y1="4" x2="12" y2="14"/>
+            </svg>
+            ↑ Folder
+          </button>
+
+          {/* Upload file */}
+          <button onClick={() => setShowUpload(activePaneId)} className="btn-primary" style={{ height: 32, fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
+            </svg>
+            ↑ Fișier
+          </button>
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+
+          {/* Toggle dual pane */}
+          <button
+            onClick={() => setDualPane(p => !p)}
+            title={dualPane ? 'Pane unic' : 'Dual pane'}
+            style={{
+              width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border)',
+              background: dualPane ? 'rgba(34,197,94,0.1)' : 'var(--surface)',
+              color: dualPane ? 'var(--green)' : 'var(--text-2)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/>
+            </svg>
+          </button>
+
+          {/* Toggle detail */}
+          <button
+            onClick={() => setShowDetail(p => !p)}
+            title="Detalii"
+            style={{
+              width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border)',
+              background: showDetail ? 'rgba(34,197,94,0.1)' : 'var(--surface)',
+              color: showDetail ? 'var(--green)' : 'var(--text-2)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Body ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', gap: 0 }}>
+
+        {/* ── Folder sidebar ── */}
+        <div style={{ flexShrink: 0, padding: '12px 0 12px 12px' }}>
+          <FolderSidebar
+            folders={allFolders}
+            sites={sites}
+            selectedFolder={activeFolderInPane}
+            onSelect={folder => navigateTo(activePaneId, folder)}
+            onNewFolder={() => setShowCreateFolder(true)}
+            onFolderRenamed={async updated => {
+              await reloadFolders();
+            }}
+            onFolderDeleted={async folderId => {
+              await reloadFolders();
+              if (pane1.folderId === folderId) navigateTo(1, null);
+              if (pane2.folderId === folderId) navigateTo(2, null);
+            }}
+            onMoveFolder={folder => setMovingFolder(folder)}
+            onShare={folder => setSharingFolder(folder)}
+          />
+        </div>
+
+        {/* ── Panes ── */}
+        <div style={{ flex: 1, padding: 12, display: 'flex', gap: 8, overflow: 'hidden', minWidth: 0 }}>
+          <FileListPane
+            paneState={pane1}
+            paneId={1}
+            isActive={activePaneId === 1}
+            allFolders={allFolders}
+            search={search}
+            dragState={dragState}
+            dropTargetKey={dropTargetKey}
+            onActivate={() => setActivePaneId(1)}
+            onNavigate={folder => navigateTo(1, folder)}
+            onDocSelect={doc => {
+              setActivePaneId(1);
+              setPane1(p => ({ ...p, selected: doc }));
+              if (showDetail) setDetailDoc(doc);
+            }}
+            onDocDblClick={doc => { setViewingDocId(doc.id); }}
+            onDocContextMenu={(e, doc) => openDocContextMenu(e, doc, 1)}
+            onFolderContextMenu={(e, folder) => openFolderContextMenu(e, folder)}
+            onDragStart={(e, type, id) => handleDragStart(e, type, id, 1)}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onSortChange={col => setPane1(p => ({ ...p, sortCol: col, sortDir: p.sortCol === col ? (p.sortDir === 'asc' ? 'desc' : 'asc') : 'asc' }))}
+            onPaneDropTarget={e => handleDragOver(e, 'pane-1')}
+          />
+
+          {dualPane && (
+            <FileListPane
+              paneState={pane2}
+              paneId={2}
+              isActive={activePaneId === 2}
+              allFolders={allFolders}
+              search={search}
+              dragState={dragState}
+              dropTargetKey={dropTargetKey}
+              onActivate={() => setActivePaneId(2)}
+              onNavigate={folder => navigateTo(2, folder)}
+              onDocSelect={doc => {
+                setActivePaneId(2);
+                setPane2(p => ({ ...p, selected: doc }));
+                if (showDetail) setDetailDoc(doc);
+              }}
+              onDocDblClick={doc => { setViewingDocId(doc.id); }}
+              onDocContextMenu={(e, doc) => openDocContextMenu(e, doc, 2)}
+              onFolderContextMenu={(e, folder) => openFolderContextMenu(e, folder)}
+              onDragStart={(e, type, id) => handleDragStart(e, type, id, 2)}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onSortChange={col => setPane2(p => ({ ...p, sortCol: col, sortDir: p.sortCol === col ? (p.sortDir === 'asc' ? 'desc' : 'asc') : 'asc' }))}
+              onPaneDropTarget={e => handleDragOver(e, 'pane-2')}
+            />
+          )}
+
+          {/* ── Detail panel ── */}
+          {showDetail && detailDoc && (
+            <div style={{ width: 280, flexShrink: 0, overflowY: 'auto' }}>
+              <DocDetail
+                doc={detailDoc}
+                catMap={catMap}
+                onDelete={() => { handleDocDelete(detailDoc, activePaneId); setDetailDoc(null); setShowDetail(false); }}
+                onClose={() => { setShowDetail(false); setDetailDoc(null); }}
+                onView={() => setViewingDocId(detailDoc.id)}
+                onEdit={() => setEditingDoc({ id: detailDoc.id, name: detailDoc.name })}
+                onOfficeEdit={() => setOfficeDoc({ id: detailDoc.id, name: detailDoc.name })}
+                onMove={() => setMovingDoc(detailDoc)}
+                onMetaUpdated={updated => {
+                  setDetailDoc(updated as any);
+                  setPane1(p => ({ ...p, docs: p.docs.map(d => d.id === updated.id ? updated as Document : d) }));
+                  setPane2(p => ({ ...p, docs: p.docs.map(d => d.id === updated.id ? updated as Document : d) }));
+                }}
+                onVersions={() => setVersionsDoc({ id: detailDoc.id, name: detailDoc.name })}
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
