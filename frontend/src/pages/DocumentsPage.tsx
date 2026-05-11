@@ -1913,7 +1913,7 @@ function ContextMenuPopup({ x, y, items, onClose }: {
       {items.map((item, i) => (
         <div
           key={i}
-          onClick={() => { item.onClick(); onClose(); }}
+          onClick={e => { e.stopPropagation(); item.onClick(); onClose(); }}
           style={{
             padding: '8px 14px', fontSize: 12.5, cursor: 'pointer',
             color: item.color || 'var(--text)',
@@ -2035,14 +2035,15 @@ export function DocumentsPage() {
 
   // ── Drag & drop ──────────────────────────────────────────────────────────────
   function handleDragStart(e: React.DragEvent, type: 'doc' | 'folder', id: number, paneId: 1 | 2) {
-    const isCopy = e.ctrlKey && type === 'doc';
+    const isCopy = (e.ctrlKey || e.altKey) && type === 'doc';
     e.dataTransfer.effectAllowed = isCopy ? 'copy' : 'move';
     setDragState({ type, id, paneId, isCopy });
   }
 
   function handleDragOver(e: React.DragEvent, key: string) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    const isCopy = e.ctrlKey || e.altKey;
+    e.dataTransfer.dropEffect = isCopy ? 'copy' : 'move';
     setDropTargetKey(key);
   }
 
@@ -2062,7 +2063,7 @@ export function DocumentsPage() {
 
     try {
       if (dragState.type === 'doc') {
-        if (dragState.isCopy) {
+        if (dragState.isCopy || e.ctrlKey || e.altKey) {
           await copyDocument(dragState.id, targetFolderId);
           toast.success('Document copiat');
           // Refresh only target pane (source unchanged)
