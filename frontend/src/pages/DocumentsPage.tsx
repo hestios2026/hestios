@@ -1454,6 +1454,7 @@ function FileListPane({
   onSortChange: (col: PaneState['sortCol']) => void;
   onPaneDropTarget: (e: React.DragEvent) => void;
 }) {
+  const { t } = useTranslation();
   const subFolders = allFolders.filter(f => f.parent_id === paneState.folderId);
 
   // Sort
@@ -1571,14 +1572,14 @@ function FileListPane({
       >
         {paneState.loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 80, color: 'var(--text-2)', fontSize: 12 }}>
-            Încărcare...
+            {t('documentsExtra.loadingFiles')}
           </div>
         ) : sortedFolders.length === 0 && sortedDocs.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: 'var(--text-3)', fontSize: 12 }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 10, opacity: 0.4 }}>
               <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
             </svg>
-            Folder gol
+            {t('documentsExtra.folderEmpty')}
           </div>
         ) : (
           <>
@@ -1657,6 +1658,7 @@ function FolderUploadModal({ parentFolderId, allFolders, onDone, onClose }: {
   onDone: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [files, setFiles] = useState<FileList | null>(null);
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -1737,7 +1739,7 @@ function FolderUploadModal({ parentFolderId, allFolders, onDone, onClose }: {
 
     if (!cancelRef.current) {
       setStatus('done');
-      setMessage('Gata! Toate fișierele au fost încărcate.');
+      setMessage(t('documentsExtra.uploadFolderDone'));
     }
   }
 
@@ -1746,7 +1748,7 @@ function FolderUploadModal({ parentFolderId, allFolders, onDone, onClose }: {
 
   return (
     <ModalOverlay onClose={onClose} width={480}>
-      <ModalHeader title="Upload folder întreg" onClose={onClose} />
+      <ModalHeader title={t('documentsExtra.uploadFolderTitle')} onClose={onClose} />
       <div style={{ padding: '18px 20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {status === 'idle' && (
           <>
@@ -1830,6 +1832,7 @@ function DeleteFolderConfirmModal({ folder, onConfirm, onClose }: {
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<{ folder_count: number; file_count: number; total_size: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -1848,15 +1851,15 @@ function DeleteFolderConfirmModal({ folder, onConfirm, onClose }: {
 
   return (
     <ModalOverlay onClose={onClose} width={420}>
-      <ModalHeader title="Șterge folder recursiv" onClose={onClose} />
+      <ModalHeader title={t('documentsExtra.deleteFolderTitle')} onClose={onClose} />
       <div style={{ padding: '18px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '12px 14px' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)', marginBottom: 6 }}>⚠ Acțiune ireversibilă</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)', marginBottom: 6 }}>{t('documentsExtra.deleteFolderWarning')}</div>
           <div style={{ fontSize: 13, color: 'var(--text)' }}>
-            Vei șterge folderul <strong>"{folder.name}"</strong> și tot conținutul său:
+            {t('documentsExtra.deleteFolderMsg', { name: '' })}<strong>"{folder.name}"</strong>
           </div>
           {loading ? (
-            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8 }}>Calculare...</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8 }}>{t('documentsExtra.deleteFolderCalculating')}</div>
           ) : stats ? (
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8, display: 'flex', gap: 12 }}>
               <span>{stats.folder_count} subfoldere</span>
@@ -1877,9 +1880,9 @@ function DeleteFolderConfirmModal({ folder, onConfirm, onClose }: {
               cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1,
             }}
           >
-            {deleting ? 'Ștergere...' : 'Șterge definitiv'}
+            {deleting ? t('documentsExtra.deleteFolderDeleting') : t('documentsExtra.deleteFolderConfirmBtn')}
           </button>
-          <button onClick={onClose} className="btn-ghost" disabled={deleting}>Anulează</button>
+          <button onClick={onClose} className="btn-ghost" disabled={deleting}>{t('common.cancel')}</button>
         </div>
       </div>
     </ModalOverlay>
@@ -2065,12 +2068,12 @@ export function DocumentsPage() {
       if (dragState.type === 'doc') {
         if (dragState.isCopy || e.ctrlKey || e.altKey) {
           await copyDocument(dragState.id, targetFolderId);
-          toast.success('Document copiat');
+          toast.success(t('documentsExtra.docCopied'));
           // Refresh only target pane (source unchanged)
           await navigateTo(targetPaneId, getPane(targetPaneId).folderId !== null ? allFolders.find(f => f.id === getPane(targetPaneId).folderId) ?? null : null);
         } else {
           await moveDocument(dragState.id, targetFolderId);
-          toast.success('Document mutat');
+          toast.success(t('documentsExtra.docMoved'));
           await navigateTo(sourcePaneId, getPane(sourcePaneId).folderId !== null ? allFolders.find(f => f.id === getPane(sourcePaneId).folderId) ?? null : null);
           if (targetPaneId !== sourcePaneId) {
             await navigateTo(targetPaneId, getPane(targetPaneId).folderId !== null ? allFolders.find(f => f.id === getPane(targetPaneId).folderId) ?? null : null);
@@ -2078,7 +2081,7 @@ export function DocumentsPage() {
         }
       } else {
         await renameFolder(dragState.id, targetFolderId === null ? { clear_parent: true } : { parent_id: targetFolderId });
-        toast.success('Folder mutat');
+        toast.success(t('documentsExtra.folderMovedOk'));
         await reloadFolders();
       }
     } catch (err: any) {
@@ -2141,26 +2144,26 @@ export function DocumentsPage() {
     setCtxMenu({
       x: e.clientX, y: e.clientY,
       items: [
-        { label: 'Previzualizare', icon: '👁', onClick: () => setViewingDocId(doc.id) },
-        { label: 'Descarcă', icon: '↓', onClick: () => { window.open(`/api/documents/${doc.id}/download/`, '_blank'); } },
-        ...(canEdit ? [{ label: 'Editează text', icon: '✏', onClick: () => setEditingDoc({ id: doc.id, name: doc.name }) }] : []),
-        ...(canOffice ? [{ label: 'Deschide Office', icon: '📝', onClick: () => setOfficeDoc({ id: doc.id, name: doc.name }) }] : []),
-        { label: 'Mută', icon: '↗', onClick: () => setMovingDoc(doc) },
+        { label: t('documentsExtra.ctxPreview'), icon: '👁', onClick: () => setViewingDocId(doc.id) },
+        { label: t('documentsExtra.ctxDownload'), icon: '↓', onClick: () => { window.open(`/api/documents/${doc.id}/download/`, '_blank'); } },
+        ...(canEdit ? [{ label: t('documentsExtra.ctxEditText'), icon: '✏', onClick: () => setEditingDoc({ id: doc.id, name: doc.name }) }] : []),
+        ...(canOffice ? [{ label: t('documentsExtra.ctxOffice'), icon: '📝', onClick: () => setOfficeDoc({ id: doc.id, name: doc.name }) }] : []),
+        { label: t('documentsExtra.ctxMove'), icon: '↗', onClick: () => setMovingDoc(doc) },
         {
-          label: 'Copiază în celălalt pane', icon: '⎘',
+          label: t('documentsExtra.ctxCopyOtherPane'), icon: '⎘',
           onClick: async () => {
             const otherPaneId: 1 | 2 = paneId === 1 ? 2 : 1;
             const targetFolderId = getPane(otherPaneId).folderId;
             try {
               await copyDocument(doc.id, targetFolderId);
-              toast.success('Document copiat');
+              toast.success(t('documentsExtra.docCopied'));
               await navigateTo(otherPaneId, allFolders.find(f => f.id === targetFolderId) ?? null);
             } catch (err: any) { toast.error(err?.response?.data?.detail || t('common.error')); }
           },
         },
-        { label: 'Versiuni', icon: '🕐', onClick: () => setVersionsDoc({ id: doc.id, name: doc.name }) },
-        { label: 'Detalii', icon: 'ⓘ', onClick: () => { setDetailDoc(doc); setShowDetail(true); } },
-        { label: 'Șterge', icon: '✕', color: 'var(--red)', onClick: () => handleDocDelete(doc, paneId) },
+        { label: t('documentsExtra.ctxVersions'), icon: '🕐', onClick: () => setVersionsDoc({ id: doc.id, name: doc.name }) },
+        { label: t('documentsExtra.ctxDetails'), icon: 'ⓘ', onClick: () => { setDetailDoc(doc); setShowDetail(true); } },
+        { label: t('documentsExtra.ctxDelete'), icon: '✕', color: 'var(--red)', onClick: () => handleDocDelete(doc, paneId) },
       ],
     });
   }
@@ -2171,10 +2174,10 @@ export function DocumentsPage() {
     setCtxMenu({
       x: e.clientX, y: e.clientY,
       items: [
-        { label: 'Deschide', icon: '📂', onClick: () => navigateTo(activePaneId, folder) },
-        { label: 'Mută', icon: '↗', onClick: () => setMovingFolder(folder) },
-        { label: 'Partajează', icon: '⇧', onClick: () => setSharingFolder(folder) },
-        { label: 'Șterge recursiv', icon: '✕', color: 'var(--red)', onClick: () => setDeleteFolderTarget(folder) },
+        { label: t('documentsExtra.ctxFolderOpen'), icon: '📂', onClick: () => navigateTo(activePaneId, folder) },
+        { label: t('documentsExtra.ctxMove'), icon: '↗', onClick: () => setMovingFolder(folder) },
+        { label: t('documentsExtra.ctxFolderShare'), icon: '⇧', onClick: () => setSharingFolder(folder) },
+        { label: t('documentsExtra.ctxFolderDeleteRecursive'), icon: '✕', color: 'var(--red)', onClick: () => setDeleteFolderTarget(folder) },
       ],
     });
   }
@@ -2354,7 +2357,7 @@ export function DocumentsPage() {
           {/* Toggle dual pane */}
           <button
             onClick={() => setDualPane(p => !p)}
-            title={dualPane ? 'Pane unic' : 'Dual pane'}
+            title={dualPane ? t('documentsExtra.singlePaneToggle') : t('documentsExtra.dualPaneToggle')}
             style={{
               width: 32, height: 32, borderRadius: 6, border: '1px solid var(--border)',
               background: dualPane ? 'rgba(34,197,94,0.1)' : 'var(--surface)',

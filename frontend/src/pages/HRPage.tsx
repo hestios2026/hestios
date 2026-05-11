@@ -449,7 +449,7 @@ export function HRPage({ user }: Props) {
         site_id: advForm.site_id ? Number(advForm.site_id) : undefined,
         notes: advForm.notes || undefined,
       });
-      toast.success('Avans înregistrat');
+      toast.success(t('hr.advances.savedOk'));
       setShowAdvForm(false);
       setAdvForm({ employee_id: '', amount: '', currency: 'EUR', date: '', description: '', site_id: '', notes: '' });
       await loadAdvances();
@@ -462,7 +462,7 @@ export function HRPage({ user }: Props) {
     if (!settleId) return;
     try {
       await settleAdvance(settleId, settleNote || undefined);
-      toast.success('Sold închis');
+      toast.success(t('hr.advances.settledOk'));
       setSettleId(null);
       setSettleNote('');
       await loadAdvances();
@@ -470,7 +470,7 @@ export function HRPage({ user }: Props) {
   }
 
   async function handleDeleteAdvance(id: number) {
-    if (!confirm('Ștergi avansul?')) return;
+    if (!confirm(t('hr.advances.deleteConfirm'))) return;
     try {
       await deleteAdvance(id);
       toast.success('Șters');
@@ -699,7 +699,7 @@ export function HRPage({ user }: Props) {
         {mainTabBtn('pontaj',   t('hr.tabs.timesheets'))}
         {mainTabBtn('concedii', t('hr.tabs.leaves'))}
         {mainTabBtn('salarii',  t('hr.tabs.payroll'))}
-        {mainTabBtn('avansuri', 'Avansuri')}
+        {mainTabBtn('avansuri', t('hr.tabs.avansuri'))}
       </div>
 
       {/* ── ANGAJAȚI ─────────────────────────────────────────────────────────── */}
@@ -1502,18 +1502,18 @@ export function HRPage({ user }: Props) {
           {settleId !== null && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
-                <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Închide sold avans</h3>
-                <label style={lbl}>Notă de regularizare (opțional)</label>
+                <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{t('hr.advances.settleModalTitle')}</h3>
+                <label style={lbl}>{t('hr.advances.settleNote')}</label>
                 <textarea
                   value={settleNote}
                   onChange={e => setSettleNote(e.target.value)}
                   rows={3}
-                  placeholder="ex: Reținut din salariu luna mai..."
+                  placeholder={t('hr.advances.settleNotePlaceholder')}
                   style={{ ...inp, resize: 'vertical', marginBottom: 16 }}
                 />
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                  <button onClick={() => { setSettleId(null); setSettleNote(''); }} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Anulează</button>
-                  <button onClick={handleSettleAdvance} style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Confirmă</button>
+                  <button onClick={() => { setSettleId(null); setSettleNote(''); }} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}>{t('hr.advances.cancel')}</button>
+                  <button onClick={handleSettleAdvance} style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('hr.advances.settleConfirm')}</button>
                 </div>
               </div>
             </div>
@@ -1521,9 +1521,9 @@ export function HRPage({ user }: Props) {
 
           {/* Toolbar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 800, fontSize: 16, color: '#1e293b' }}>Avansuri Angajați</span>
+            <span style={{ fontWeight: 800, fontSize: 16, color: '#1e293b' }}>{t('hr.advances.title')}</span>
             <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '4px 14px', fontSize: 13, fontWeight: 700, color: '#92400e' }}>
-              Total deschis: €{advTotalOpen.toFixed(2)}
+              {t('hr.advances.totalOpen')}: €{advTotalOpen.toFixed(2)}
             </div>
 
             <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', borderRadius: 6, padding: 2 }}>
@@ -1534,13 +1534,13 @@ export function HRPage({ user }: Props) {
                   color: advFilter === f ? '#1e293b' : '#64748b',
                   boxShadow: advFilter === f ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 }}>
-                  {f === 'all' ? 'Toate' : f === 'open' ? 'Deschise' : 'Închise'}
+                  {f === 'all' ? t('hr.advances.filterAll') : f === 'open' ? t('hr.advances.filterOpen') : t('hr.advances.filterSettled')}
                 </button>
               ))}
             </div>
 
             <input
-              placeholder="Filtrează angajat..."
+              placeholder={t('hr.advances.filterEmployee')}
               value={advEmpFilter}
               onChange={e => setAdvEmpFilter(e.target.value)}
               style={{ ...inp, width: 180, fontSize: 12 }}
@@ -1549,17 +1549,17 @@ export function HRPage({ user }: Props) {
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button onClick={exportAdvancesExcel} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#1e293b', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>↓ Excel</button>
               <button onClick={exportAdvancesPDF} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#1e293b', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>↓ PDF</button>
-              <button onClick={() => setShowAdvForm(v => !v)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>+ Avans nou</button>
+              <button onClick={() => setShowAdvForm(v => !v)} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{t('hr.advances.newBtn')}</button>
             </div>
           </div>
 
           {/* Add form */}
           {showAdvForm && (
             <form onSubmit={submitAdvance} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 20, marginBottom: 20, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              <div style={{ gridColumn: '1/-1', fontWeight: 700, fontSize: 13, color: '#22C55E', marginBottom: 4 }}>Înregistrare avans</div>
+              <div style={{ gridColumn: '1/-1', fontWeight: 700, fontSize: 13, color: '#22C55E', marginBottom: 4 }}>{t('hr.advances.formTitle')}</div>
 
               <div>
-                <label style={lbl}>Angajat *</label>
+                <label style={lbl}>{t('hr.advances.employee')}</label>
                 <select value={advForm.employee_id} onChange={e => setAdvForm(p => ({ ...p, employee_id: e.target.value }))} required style={inp}>
                   <option value="">— Selectează —</option>
                   {employees.filter(e => e.is_active).map(e => (
@@ -1569,12 +1569,12 @@ export function HRPage({ user }: Props) {
               </div>
 
               <div>
-                <label style={lbl}>Sumă *</label>
+                <label style={lbl}>{t('hr.advances.amount')}</label>
                 <input type="number" step="0.01" min="0.01" required value={advForm.amount} onChange={e => setAdvForm(p => ({ ...p, amount: e.target.value }))} style={inp} placeholder="0.00" />
               </div>
 
               <div>
-                <label style={lbl}>Monedă</label>
+                <label style={lbl}>{t('hr.advances.currency')}</label>
                 <select value={advForm.currency} onChange={e => setAdvForm(p => ({ ...p, currency: e.target.value }))} style={inp}>
                   <option>EUR</option>
                   <option>RON</option>
@@ -1582,23 +1582,23 @@ export function HRPage({ user }: Props) {
               </div>
 
               <div>
-                <label style={lbl}>Data</label>
+                <label style={lbl}>{t('hr.advances.date')}</label>
                 <input type="date" value={advForm.date} onChange={e => setAdvForm(p => ({ ...p, date: e.target.value }))} style={inp} />
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={lbl}>Descriere</label>
-                <input value={advForm.description} onChange={e => setAdvForm(p => ({ ...p, description: e.target.value }))} style={inp} placeholder="ex: Avans salariu mai..." />
+                <label style={lbl}>{t('hr.advances.description')}</label>
+                <input value={advForm.description} onChange={e => setAdvForm(p => ({ ...p, description: e.target.value }))} style={inp} placeholder={t('hr.advances.descriptionPlaceholder')} />
               </div>
 
               <div style={{ gridColumn: '1/-1' }}>
-                <label style={lbl}>Note (opțional)</label>
+                <label style={lbl}>{t('hr.advances.notes')}</label>
                 <input value={advForm.notes} onChange={e => setAdvForm(p => ({ ...p, notes: e.target.value }))} style={inp} />
               </div>
 
               <div style={{ gridColumn: '1/-1', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowAdvForm(false)} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Anulează</button>
-                <button type="submit" style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Salvează</button>
+                <button type="button" onClick={() => setShowAdvForm(false)} style={{ padding: '7px 18px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}>{t('hr.advances.cancel')}</button>
+                <button type="submit" style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t('hr.advances.save')}</button>
               </div>
             </form>
           )}
@@ -1608,7 +1608,7 @@ export function HRPage({ user }: Props) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
-                  {['Angajat', 'Sumă', 'Data', 'Descriere', 'Șantier', 'Înregistrat de', 'Sold', 'Note', ''].map(h => (
+                  {[t('hr.advances.colEmployee'), t('hr.advances.colAmount'), t('hr.advances.colDate'), t('hr.advances.colDescription'), t('hr.advances.colSite'), t('hr.advances.colRecordedBy'), t('hr.advances.colBalance'), t('hr.advances.colNotes'), ''].map(h => (
                     <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
                   ))}
                 </tr>
@@ -1631,12 +1631,12 @@ export function HRPage({ user }: Props) {
                       <td style={{ padding: '10px 12px' }}>
                         {a.settled ? (
                           <div>
-                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: '#d1fae5', color: '#059669' }}>Închis</span>
+                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: '#d1fae5', color: '#059669' }}>{t('hr.advances.statusSettled')}</span>
                             {a.settled_at && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{new Date(a.settled_at).toLocaleDateString('ro-RO')}</div>}
                             {a.settled_note && <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{a.settled_note}</div>}
                           </div>
                         ) : (
-                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>Deschis</span>
+                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>{t('hr.advances.statusOpen')}</span>
                         )}
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 11, color: '#94a3b8', maxWidth: 160 }}>{a.notes || ''}</td>
@@ -1646,7 +1646,7 @@ export function HRPage({ user }: Props) {
                             <button
                               onClick={() => { setSettleId(a.id); setSettleNote(''); }}
                               style={{ padding: '3px 10px', border: 'none', borderRadius: 4, background: '#e0e7ff', color: '#22C55E', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
-                            >✓ Închide</button>
+                            >{t('hr.advances.settleBtn')}</button>
                           )}
                           <button
                             onClick={() => handleDeleteAdvance(a.id)}
@@ -1657,13 +1657,13 @@ export function HRPage({ user }: Props) {
                     </tr>
                   ))}
                 {advances.length === 0 && (
-                  <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Niciun avans înregistrat</td></tr>
+                  <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{t('hr.advances.none')}</td></tr>
                 )}
               </tbody>
               {advances.length > 0 && (
                 <tfoot>
                   <tr style={{ borderTop: '2px solid #e2e8f0', background: '#f8fafc' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 700, fontSize: 12, color: '#64748b' }}>TOTAL deschis</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 700, fontSize: 12, color: '#64748b' }}>{t('hr.advances.totalFooter')}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 13, color: '#d97706' }}>€{advTotalOpen.toFixed(2)}</td>
                     <td colSpan={7} />
                   </tr>
