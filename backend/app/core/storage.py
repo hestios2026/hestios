@@ -85,3 +85,15 @@ def delete_file(object_key: str) -> None:
         client.remove_object(settings.MINIO_BUCKET, object_key)
     except S3Error:
         pass
+
+
+def copy_file(source_key: str, dest_key: str) -> None:
+    """Server-side copy within the same MinIO bucket."""
+    from minio.commonconfig import CopySource
+    client = get_client()
+    ensure_bucket()
+    client.copy_object(
+        settings.MINIO_BUCKET,
+        dest_key,
+        CopySource(settings.MINIO_BUCKET, source_key),
+    )

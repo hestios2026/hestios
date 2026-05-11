@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { fetchDocuments, uploadDocument, deleteDocument, moveDocument, updateDocMeta, getDocVersions, bulkDocAction } from '../api/documents';
+import { fetchDocuments, uploadDocument, deleteDocument, moveDocument, copyDocument, updateDocMeta, getDocVersions, bulkDocAction } from '../api/documents';
 import { fetchFolders, createFolder, deleteFolder, renameFolder, deleteFolderRecursive, getFolderStats, FolderItem } from '../api/folders';
 import { listShares, createShare, revokeShare } from '../api/folder_shares';
 import { fetchDocumentCategories, DocCategory } from '../api/settings';
@@ -477,6 +477,7 @@ function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, 
   const [renameValue, setRenameValue] = useState('');
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [editingFolder, setEditingFolder] = useState<FolderItem | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState<FolderItem | null>(null);
 
   const topLevel = folders.filter(f => !f.parent_id);
   const grouped: { siteKey: string; siteLabel: string; items: FolderItem[] }[] = [];
@@ -511,10 +512,14 @@ function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, 
   }
 
   async function handleDelete(folder: FolderItem) {
-    if (!confirm(t('documentsExtra.folderDeleteConfirm', { name: folder.name }))) return;
+    setDeletingFolder(folder);
+  }
+
+  async function confirmSidebarDelete(folder: FolderItem) {
     try {
-      await deleteFolder(folder.id);
-      toast.success(t('documentsExtra.folderDeleted'));
+      const result = await deleteFolderRecursive(folder.id);
+      toast.success(`Șters: ${result.deleted_folders} foldere, ${result.deleted_files} fișiere`);
+      setDeletingFolder(null);
       onFolderDeleted(folder.id);
     } catch (err: any) { toast.error(err?.response?.data?.detail || t('common.error')); }
   }
@@ -610,6 +615,13 @@ function FolderSidebar({ folders, sites, selectedFolder, onSelect, onNewFolder, 
         sites={sites}
         onSaved={updated => { onFolderRenamed(updated); setEditingFolder(null); }}
         onClose={() => setEditingFolder(null)}
+      />
+    )}
+    {deletingFolder && (
+      <DeleteFolderConfirmModal
+        folder={deletingFolder}
+        onConfirm={() => confirmSidebarDelete(deletingFolder)}
+        onClose={() => setDeletingFolder(null)}
       />
     )}
     <div className="dp-folder-sidebar" style={{
@@ -1312,6 +1324,7 @@ interface DragState {
   type: 'doc' | 'folder';
   id: number;
   paneId: 1 | 2;
+  isCopy?: boolean;
 }
 
 // ─── File List Row ─────────────────────────────────────────────────────────────
@@ -1706,7 +1719,7 @@ function FolderUploadModal({ parentFolderId, allFolders, onDone, onClose }: {
       const rel = (file as any).webkitRelativePath as string;
       const parts = rel.split('/');
       const dirPath = parts.slice(0, parts.length - 1).join('/');
-      const folderId = dirPath === parts[0] ? parentFolderId : (pathToId.get(dirPath) ?? parentFolderId);
+      const folderId = pathToId.get(dirPath) ?? parentFolderId;
 
       setMessage(`Upload: ${file.name} (${formatSize(file.size)})`);
       try {
@@ -2022,8 +2035,9 @@ export function DocumentsPage() {
 
   // ── Drag & drop ──────────────────────────────────────────────────────────────
   function handleDragStart(e: React.DragEvent, type: 'doc' | 'folder', id: number, paneId: 1 | 2) {
-    e.dataTransfer.effectAllowed = 'move';
-    setDragState({ type, id, paneId });
+    const isCopy = e.ctrlKey && type === 'doc';
+    e.dataTransfer.effectAllowed = isCopy ? 'copy' : 'move';
+    setDragState({ type, id, paneId, isCopy });
   }
 
   function handleDragOver(e: React.DragEvent, key: string) {
@@ -2048,11 +2062,18 @@ export function DocumentsPage() {
 
     try {
       if (dragState.type === 'doc') {
-        await moveDocument(dragState.id, targetFolderId);
-        toast.success('Document mutat');
-        await navigateTo(sourcePaneId, getPane(sourcePaneId).folderId !== null ? allFolders.find(f => f.id === getPane(sourcePaneId).folderId) ?? null : null);
-        if (targetPaneId !== sourcePaneId) {
+        if (dragState.isCopy) {
+          await copyDocument(dragState.id, targetFolderId);
+          toast.success('Document copiat');
+          // Refresh only target pane (source unchanged)
           await navigateTo(targetPaneId, getPane(targetPaneId).folderId !== null ? allFolders.find(f => f.id === getPane(targetPaneId).folderId) ?? null : null);
+        } else {
+          await moveDocument(dragState.id, targetFolderId);
+          toast.success('Document mutat');
+          await navigateTo(sourcePaneId, getPane(sourcePaneId).folderId !== null ? allFolders.find(f => f.id === getPane(sourcePaneId).folderId) ?? null : null);
+          if (targetPaneId !== sourcePaneId) {
+            await navigateTo(targetPaneId, getPane(targetPaneId).folderId !== null ? allFolders.find(f => f.id === getPane(targetPaneId).folderId) ?? null : null);
+          }
         }
       } else {
         await renameFolder(dragState.id, targetFolderId === null ? { clear_parent: true } : { parent_id: targetFolderId });
@@ -2123,6 +2144,18 @@ export function DocumentsPage() {
         ...(canEdit ? [{ label: 'Editează text', icon: '✏', onClick: () => setEditingDoc({ id: doc.id, name: doc.name }) }] : []),
         ...(canOffice ? [{ label: 'Deschide Office', icon: '📝', onClick: () => setOfficeDoc({ id: doc.id, name: doc.name }) }] : []),
         { label: 'Mută', icon: '↗', onClick: () => setMovingDoc(doc) },
+        {
+          label: 'Copiază în celălalt pane', icon: '⎘',
+          onClick: async () => {
+            const otherPaneId: 1 | 2 = paneId === 1 ? 2 : 1;
+            const targetFolderId = getPane(otherPaneId).folderId;
+            try {
+              await copyDocument(doc.id, targetFolderId);
+              toast.success('Document copiat');
+              await navigateTo(otherPaneId, allFolders.find(f => f.id === targetFolderId) ?? null);
+            } catch (err: any) { toast.error(err?.response?.data?.detail || t('common.error')); }
+          },
+        },
         { label: 'Versiuni', icon: '🕐', onClick: () => setVersionsDoc({ id: doc.id, name: doc.name }) },
         { label: 'Detalii', icon: 'ⓘ', onClick: () => { setDetailDoc(doc); setShowDetail(true); } },
         { label: 'Șterge', icon: '✕', color: 'var(--red)', onClick: () => handleDocDelete(doc, paneId) },

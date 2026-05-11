@@ -548,6 +548,50 @@ def move_document(
     return _doc_dict(d)
 
 
+class CopyDocumentBody(BaseModel):
+    folder_id: Optional[int] = None
+
+
+@router.post("/{doc_id}/copy/", status_code=201)
+def copy_document(
+    doc_id: int,
+    body: CopyDocumentBody,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """Copy a document (file + metadata) to another folder."""
+    from app.core.storage import copy_file
+    d = db.query(Document).filter(Document.id == doc_id).first()
+    if not d:
+        raise HTTPException(404, "Document negăsit")
+    if body.folder_id is not None:
+        from app.models.folder import Folder
+        if not db.query(Folder).filter(Folder.id == body.folder_id).first():
+            raise HTTPException(404, "Folder negăsit")
+    # Generate new key for the copy
+    ext = os.path.splitext(d.file_key)[1]
+    new_key = f"documents/{uuid.uuid4().hex}{ext}"
+    copy_file(d.file_key, new_key)
+    new_doc = Document(
+        name=d.name,
+        description=d.description,
+        category=d.category,
+        file_key=new_key,
+        file_size=d.file_size,
+        content_type=d.content_type,
+        site_id=d.site_id,
+        folder_id=body.folder_id,
+        employee_id=d.employee_id,
+        equipment_id=d.equipment_id,
+        uploaded_by=current.id,
+        tags=d.tags,
+    )
+    db.add(new_doc)
+    db.commit()
+    db.refresh(new_doc)
+    return _doc_dict(new_doc)
+
+
 @router.delete("/{doc_id}/")
 def delete_document(doc_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     d = db.query(Document).filter(Document.id == doc_id).first()

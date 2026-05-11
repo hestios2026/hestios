@@ -21,6 +21,9 @@ export const updateDocumentContent = (id: number, content: string) =>
 export const moveDocument = (id: number, folder_id: number | null) =>
   api.patch(`/documents/${id}/move/`, { folder_id }).then(r => r.data);
 
+export const copyDocument = (id: number, folder_id: number | null) =>
+  api.post(`/documents/${id}/copy/`, { folder_id }).then(r => r.data);
+
 export const updateDocMeta = (id: number, body: { name?: string; tags?: string; expires_at?: string }) =>
   api.patch(`/documents/${id}/meta/`, body).then(r => r.data);
 
