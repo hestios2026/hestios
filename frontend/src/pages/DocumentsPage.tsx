@@ -2135,6 +2135,7 @@ export function DocumentsPage() {
 
   function openDocContextMenu(e: React.MouseEvent, doc: Document, paneId: 1 | 2) {
     e.preventDefault();
+    e.stopPropagation();
     const canEdit = doc.content_type.startsWith('text/');
     const canOffice = OFFICE_TYPES.has(doc.content_type);
     setCtxMenu({
@@ -2166,6 +2167,7 @@ export function DocumentsPage() {
 
   function openFolderContextMenu(e: React.MouseEvent, folder: FolderItem) {
     e.preventDefault();
+    e.stopPropagation();
     setCtxMenu({
       x: e.clientX, y: e.clientY,
       items: [
