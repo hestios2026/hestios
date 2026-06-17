@@ -4,6 +4,7 @@ import {
   Alert, Image, Modal, FlatList,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { PhotoEntry } from '../types';
 import { useLang } from '../i18n';
@@ -11,7 +12,9 @@ import { useLang } from '../i18n';
 const PHOTOS_DIR = (FileSystem.documentDirectory ?? '') + 'hestios_photos/';
 
 /**
- * Copy photo to app's permanent documentDirectory.
+ * Compress + resize photo, then copy to app's permanent documentDirectory.
+ * - Resize to max 1280px width (keeps aspect ratio) + 70% JPEG quality.
+ *   Reduces typical camera photo from 3-5MB to ~200-400KB (10x smaller).
  * - Prevents Android from clearing cache-dir photos before sync.
  * - Converts content:// gallery URIs to file:// (required for uploadAsync).
  * - Falls back to original URI on failure.
@@ -22,8 +25,13 @@ async function persistPhoto(uri: string): Promise<string> {
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(PHOTOS_DIR, { intermediates: true });
     }
+    const compressed = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1280 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+    );
     const dest = `${PHOTOS_DIR}photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
-    await FileSystem.copyAsync({ from: uri, to: dest });
+    await FileSystem.copyAsync({ from: compressed.uri, to: dest });
     return dest;
   } catch (e) {
     console.warn('[PhotoPicker] persistPhoto failed, using original URI:', e);
@@ -46,7 +54,7 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label }: Prop
   const takePicture = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) { Alert.alert(tr.cameraPermission); return; }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: false });
+    const result = await ImagePicker.launchCameraAsync({ quality: 1, allowsEditing: false });
     if (!result.canceled && result.assets[0]) {
       const uri = await persistPhoto(result.assets[0].uri);
       onChange([...photos, { uri, category: tr.photoCategories[0], uploaded: false }]);
@@ -56,7 +64,7 @@ export default function PhotoPicker({ photos, onChange, minPhotos, label }: Prop
   const pickFromGallery = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert(tr.galleryPermission); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsMultipleSelection: true });
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 1, allowsMultipleSelection: true });
     if (!result.canceled && result.assets.length > 0) {
       const newPhotos: PhotoEntry[] = await Promise.all(
         result.assets.map(async (asset) => {

@@ -78,6 +78,11 @@ export async function syncQueue(
           const url = await uploadPhoto(remoteId, photo.uri, photo.category, filename);
           photo.remote_url = url;
           photo.uploaded = true;
+
+          // Save progress after each photo so interrupted syncs resume from here.
+          const snap = await getQueue();
+          const snapMap = new Map(queue.map(e => [e.id, e]));
+          await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(snap.map(e => snapMap.get(e.id) ?? e)));
         }
       }
 
