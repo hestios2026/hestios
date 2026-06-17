@@ -91,6 +91,11 @@ export async function syncQueue(
     }
   }
 
-  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  // Re-read queue to capture any entries added while sync was running,
+  // then merge updated states by id so new entries are never overwritten.
+  const currentQueue = await getQueue();
+  const updatedById = new Map(queue.map(e => [e.id, e]));
+  const merged = currentQueue.map(e => updatedById.get(e.id) ?? e);
+  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(merged));
   return { synced, failed, lastError };
 }
