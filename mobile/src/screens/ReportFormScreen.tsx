@@ -137,6 +137,7 @@ export default function ReportFormScreen({
         break;
       case 'hp_plus':
         if (!hasPin(hpData.locatie)) return tr.vPinRequired;
+        if (!hpData.adresa.trim()) return tr.vAddressRequired;
         if (hpData.photos.length < 2) return tr.vMinPhotos(2);
         break;
       case 'ha':
@@ -359,7 +360,7 @@ export default function ReportFormScreen({
               startValue={hpData.locatie}
               onChangeStart={v => setHpData(p => ({ ...p, locatie: v }))}
             />
-            <TextField label={tr.fAddress} value={hpData.adresa}
+            <TextField label={tr.fAddress} value={hpData.adresa} required
               onChangeText={v => setHpData(p => ({ ...p, adresa: v }))}
               placeholder="ex: Hauptstraße 12, 73230 Kirchheim"
             />

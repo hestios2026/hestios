@@ -163,6 +163,7 @@ export const translations = {
     vPinRequired: 'Plasează pinul de start pe hartă.',
     vPinStopRequired: 'Plasează pinul de stop pe hartă.',
     vNrCasaRequired: 'Completează numărul casei.',
+    vAddressRequired: 'Completează adresa.',
 
     // Photo picker labels
     photoPickerLabels: {
@@ -385,6 +386,7 @@ export const translations = {
     vPinRequired: 'Startpin auf der Karte setzen.',
     vPinStopRequired: 'Stoppin auf der Karte setzen.',
     vNrCasaRequired: 'Hausnummer eingeben.',
+    vAddressRequired: 'Adresse eingeben.',
 
     // Photo picker labels
     photoPickerLabels: {
