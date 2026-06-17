@@ -86,6 +86,8 @@ export interface DataMontajNvtPdp {
 
 export interface DataHpPlus {
   locatie: string;
+  adresa: string;
+  comentarii: string;
   photos: PhotoEntry[];
 }
 

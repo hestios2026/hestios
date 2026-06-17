@@ -109,6 +109,7 @@ export const translations = {
     fUrgenta: 'Urgență',
     fNotesOptional: 'Observații (opțional)',
     fComentarii: 'Comentarii (opțional)',
+    fAddress: 'Adresă',
     fNrCasa: 'Nr. Casă',
 
     // Map / location
@@ -330,6 +331,7 @@ export const translations = {
     fUrgenta: 'Dringlichkeit',
     fNotesOptional: 'Bemerkungen (optional)',
     fComentarii: 'Kommentare (optional)',
+    fAddress: 'Adresse',
     fNrCasa: 'Hausnummer',
 
     // Map / location

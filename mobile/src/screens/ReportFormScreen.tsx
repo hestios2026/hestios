@@ -62,7 +62,7 @@ export default function ReportFormScreen({
 
   // F — HP+
   const [hpData, setHpData] = useState<DataHpPlus>({
-    locatie: '', photos: [],
+    locatie: '', adresa: '', comentarii: '', photos: [],
   });
 
   // G — HA
@@ -358,6 +358,14 @@ export default function ReportFormScreen({
             <LocationField label={tr.fLocationStreetNr} mode="single" required
               startValue={hpData.locatie}
               onChangeStart={v => setHpData(p => ({ ...p, locatie: v }))}
+            />
+            <TextField label={tr.fAddress} value={hpData.adresa}
+              onChangeText={v => setHpData(p => ({ ...p, adresa: v }))}
+              placeholder="ex: Hauptstraße 12, 73230 Kirchheim"
+            />
+            <TextField label={tr.fComentarii} value={hpData.comentarii}
+              onChangeText={v => setHpData(p => ({ ...p, comentarii: v }))}
+              numberOfLines={3}
             />
             <PhotoPicker photos={hpData.photos}
               onChange={ph => setHpData(p => ({ ...p, photos: ph }))}
