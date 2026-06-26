@@ -156,7 +156,7 @@ function MiniMap({ data }: { data: Record<string, unknown> }) {
 
 export function TagesberichtPage({ userRole }: { userRole: string }) {
   const { t } = useTranslation();
-  const [mainTab, setMainTab]       = useState<'desktop' | 'mobile'>('desktop');
+  const [mainTab, setMainTab]       = useState<'desktop' | 'mobile'>('mobile');
   const [reports, setReports]       = useState<DailyReport[]>([]);
   const [sites, setSites]           = useState<Site[]>([]);
   const [employees, setEmployees]   = useState<{ id: number; vorname: string; nachname: string }[]>([]);
@@ -608,6 +608,28 @@ export function TagesberichtPage({ userRole }: { userRole: string }) {
                                     📷 {p.category || 'foto'}
                                   </a>
                                 ))}
+                                {e.photos?.length > 0 && (
+                                  <a
+                                    href={`/api/tagesbericht/${e.id}/photos/zip/?token=${localStorage.getItem('hestios_token') || ''}`}
+                                    onClick={ev => {
+                                      ev.preventDefault();
+                                      const token = localStorage.getItem('hestios_token');
+                                      fetch(`/api/tagesbericht/${e.id}/photos/zip/`, { headers: { Authorization: `Bearer ${token}` } })
+                                        .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+                                        .then(blob => {
+                                          const url = URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          a.download = `poze_entry${e.id}.zip`;
+                                          a.click();
+                                          URL.revokeObjectURL(url);
+                                        })
+                                        .catch(() => toast.error('Download ZIP eșuat'));
+                                    }}
+                                    style={{ background: '#1e3a8a', border: '1px solid #1e40af', borderRadius: 6, padding: '6px 12px', fontSize: 12, color: '#fff', textDecoration: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                                    ↓ ZIP ({e.photos.length} poze)
+                                  </a>
+                                )}
                               </div>
                               {/* Map */}
                               <MiniMap data={e.data} />

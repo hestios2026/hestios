@@ -582,6 +582,52 @@ def export_entries(
     )
 
 
+@router.get("/{entry_id}/photos/zip/")
+def download_photos_zip(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download all photos for an entry as a ZIP archive."""
+    import zipfile
+
+    entry = db.query(TagesberichtEntry).filter_by(id=entry_id).first()
+    if not entry:
+        raise HTTPException(404, "Entry not found")
+
+    photos = db.query(TagesberichtPhoto).filter_by(entry_id=entry_id).all()
+    if not photos:
+        raise HTTPException(404, "No photos for this entry")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for i, p in enumerate(photos, 1):
+            content: Optional[bytes] = None
+            if STORAGE_AVAILABLE and p.s3_key and not p.s3_key.startswith("http"):
+                try:
+                    from app.core.storage import get_file_content
+                    content = get_file_content(p.s3_key)
+                except Exception:
+                    pass
+            if content is None:
+                fresh_url = _fresh_url(p.s3_key)
+                content = _fetch_photo_bytes(fresh_url)
+            if content is None:
+                continue
+            ext = p.filename.rsplit(".", 1)[-1].lower() if "." in p.filename else "jpg"
+            name = f"{i:03d}_{p.category or 'foto'}.{ext}"
+            zf.writestr(name, content)
+
+    buf.seek(0)
+    date_str = entry.created_at.strftime("%Y%m%d") if entry.created_at else "unknown"
+    zip_name = f"poze_{entry.work_type}_{date_str}_entry{entry_id}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
+    )
+
+
 @router.get("/{entry_id}/")
 def get_entry(
     entry_id: int,
