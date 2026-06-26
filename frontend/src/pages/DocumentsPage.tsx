@@ -2441,7 +2441,15 @@ export function DocumentsPage() {
               setPane1(p => ({ ...p, selected: doc }));
               if (showDetail) setDetailDoc(doc);
             }}
-            onDocDblClick={doc => { setViewingDocId(doc.id); }}
+            onDocDblClick={doc => {
+              if (doc.content_type.startsWith('image/') || doc.content_type === 'application/pdf') {
+                setViewingDocId(doc.id);
+              } else {
+                const tok = localStorage.getItem('hestios_token');
+                fetch(`/api/documents/${doc.id}/download/`, { headers: { Authorization: `Bearer ${tok}` }, redirect: 'follow' })
+                  .then(r => r.blob()).then(blob => { const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = doc.name; a.click(); URL.revokeObjectURL(u); });
+              }
+            }}
             onDocContextMenu={(e, doc) => openDocContextMenu(e, doc, 1)}
             onFolderContextMenu={(e, folder) => openFolderContextMenu(e, folder)}
             onDragStart={(e, type, id) => handleDragStart(e, type, id, 1)}
@@ -2468,7 +2476,15 @@ export function DocumentsPage() {
                 setPane2(p => ({ ...p, selected: doc }));
                 if (showDetail) setDetailDoc(doc);
               }}
-              onDocDblClick={doc => { setViewingDocId(doc.id); }}
+              onDocDblClick={doc => {
+                if (doc.content_type.startsWith('image/') || doc.content_type === 'application/pdf') {
+                  setViewingDocId(doc.id);
+                } else {
+                  const tok = localStorage.getItem('hestios_token');
+                  fetch(`/api/documents/${doc.id}/download/`, { headers: { Authorization: `Bearer ${tok}` }, redirect: 'follow' })
+                    .then(r => r.blob()).then(blob => { const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = doc.name; a.click(); URL.revokeObjectURL(u); });
+                }
+              }}
               onDocContextMenu={(e, doc) => openDocContextMenu(e, doc, 2)}
               onFolderContextMenu={(e, folder) => openFolderContextMenu(e, folder)}
               onDragStart={(e, type, id) => handleDragStart(e, type, id, 2)}

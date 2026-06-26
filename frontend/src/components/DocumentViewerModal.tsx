@@ -178,9 +178,32 @@ export function DocumentViewerModal({ docId, onClose }: Props) {
           </div>
         )}
         {!loading && !error && doc && !canView && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: '#94a3b8' }}>
-            <div style={{ fontSize: 56 }}>📁</div>
-            <div style={{ fontSize: 15 }}>{t('documents.noPreview')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 20, color: '#94a3b8', padding: 32 }}>
+            <div style={{ fontSize: 64 }}>
+              {doc.content_type.includes('word') || doc.content_type === 'application/msword' ? '📝'
+                : doc.content_type.includes('excel') || doc.content_type.includes('spreadsheet') ? '📊'
+                : doc.content_type.includes('zip') ? '🗜'
+                : doc.content_type.startsWith('text/') ? '📄'
+                : '📁'}
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9', marginBottom: 6 }}>{doc.name}</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{doc.content_type}</div>
+            </div>
+            <div style={{ fontSize: 14, color: '#94a3b8' }}>{t('documents.noPreview')}</div>
+            <button
+              onClick={() => {
+                fetch(`/api/documents/${docId}/download/`, { headers: { Authorization: `Bearer ${token}` }, redirect: 'follow' })
+                  .then(r => r.blob()).then(blob => {
+                    const u = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = u; a.download = doc!.name; a.click(); URL.revokeObjectURL(u);
+                  });
+              }}
+              style={{ background: '#22C55E', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            >
+              ↓ {t('documents.downloadBtn')}
+            </button>
           </div>
         )}
       </div>
