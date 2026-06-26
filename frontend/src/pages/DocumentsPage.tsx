@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { fetchDocuments, uploadDocument, deleteDocument, moveDocument, copyDocument, updateDocMeta, getDocVersions, bulkDocAction } from '../api/documents';
@@ -46,7 +47,11 @@ function useDocPageStyles() {
       .dp-cat-chip:hover { opacity: 0.85; }
       .dp-icon-btn { transition: all 0.12s; background: none; border: none; cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; }
       .dp-icon-btn:hover { background: var(--surface-3) !important; }
+      .dp-row-menu-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: none; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; border-radius: 5px; background: transparent; cursor: pointer; color: var(--text-2); font-size: 16px; z-index: 2; line-height: 1; padding: 0; }
+      .dp-doc-row:hover .dp-row-menu-btn { display: flex; }
+      .dp-row-menu-btn:hover { background: var(--surface-3) !important; color: var(--text) !important; }
       @media (max-width: 767px) {
+        .dp-row-menu-btn { display: flex !important; }
         .dp-three-panel { flex-direction: column !important; }
         .dp-folder-sidebar { width: 100% !important; max-height: 220px !important; }
         .dp-detail-panel { display: none !important; }
@@ -1359,6 +1364,7 @@ function FileListRow({
       onDoubleClick={onDblClick}
       onContextMenu={onContextMenu}
       style={{
+        position: 'relative',
         display: 'grid',
         gridTemplateColumns: '26px 1fr 130px 80px 50px',
         alignItems: 'center',
@@ -1381,6 +1387,11 @@ function FileListRow({
         transition: 'background 0.08s',
       }}
     >
+      <button
+        className="dp-row-menu-btn"
+        title="Acțiuni"
+        onClick={e => { e.stopPropagation(); onContextMenu(e); }}
+      >⋮</button>
       {/* Icon */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {isFolder ? (
@@ -1455,6 +1466,7 @@ function FileListPane({
   onPaneDropTarget: (e: React.DragEvent) => void;
 }) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const subFolders = allFolders.filter(f => f.parent_id === paneState.folderId);
 
   // Sort
@@ -1596,7 +1608,7 @@ function FileListPane({
                 isSelected={false}
                 isDropTarget={dropTargetKey === `folder-${folder.id}`}
                 isDragging={dragState?.type === 'folder' && dragState.id === folder.id}
-                onClick={() => {}}
+                onClick={isMobile ? () => onNavigate(folder) : () => {}}
                 onDblClick={() => onNavigate(folder)}
                 onContextMenu={e => onFolderContextMenu(e, folder)}
                 onDragStart={e => onDragStart(e, 'folder', folder.id)}
