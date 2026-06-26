@@ -189,26 +189,26 @@ def list_entries(
 # ─── Export helpers ───────────────────────────────────────────────────────────
 
 WORK_TYPE_LABELS = {
-    'poze_inainte': 'Poze Înainte', 'teratest': 'Teratest',
-    'semne_circulatie': 'Semne Circulație', 'liefer_scheine': 'Liefer Scheine',
-    'montaj_nvt_pdp': 'Montaj NVT/PDP', 'hp_plus': 'HP+', 'ha': 'HA',
-    'reparatie': 'Reparație', 'tras_teava': 'Tras Țeavă', 'groapa': 'Groapă',
-    'traversare': 'Traversare', 'sapatura': 'Săpătură',
-    'raport_zilnic': 'Raport Zilnic', 'comanda_materiale': 'Comandă Materiale',
+    'poze_inainte': 'Fotos Vorher', 'teratest': 'Teratest',
+    'semne_circulatie': 'Verkehrszeichen', 'liefer_scheine': 'Lieferscheine',
+    'montaj_nvt_pdp': 'Montage NVT/PDP', 'hp_plus': 'HP+', 'ha': 'HA',
+    'reparatie': 'Reparatur', 'tras_teava': 'Rohr verlegen', 'groapa': 'Grube',
+    'traversare': 'Querung', 'sapatura': 'Erdarbeiten',
+    'raport_zilnic': 'Tagesbericht', 'comanda_materiale': 'Materialbestellung',
 }
 
 DATA_FIELD_LABELS = {
-    'locatie': 'Locație', 'locatie_start': 'Start', 'locatie_stop': 'Stop',
+    'locatie': 'Standort', 'locatie_start': 'Start', 'locatie_stop': 'Stop',
     'start': 'Start', 'stop': 'Stop',
-    'nr_casa': 'Nr. Casă', 'tip_conectare': 'Tip Conectare', 'suprafata': 'Suprafață',
-    'suprafata_mixt_detalii': 'Detalii Mixt', 'lungime': 'Lungime (m)',
-    'terasament': 'Terasament', 'grosime_asfalt': 'Grosime Asfalt (cm)',
-    'latime': 'Lățime (m)', 'adancime': 'Adâncime (m)', 'tip': 'Tip Săpătură',
-    'nr_cabluri': 'Nr. Cabluri', 'teava_protectie': 'Țeavă Protecție',
-    'lungime_totala': 'Lungime Totală (m)', 'nr_bransamente_ha': 'Nr. Branșamente HA',
-    'nr_hp_plus': 'Nr. HP+', 'moment': 'Moment', 'descriere': 'Descriere',
-    'materiale': 'Materiale', 'urgenta': 'Urgență', 'notes': 'Observații',
-    'comentarii': 'Comentarii',
+    'nr_casa': 'Hausnr.', 'tip_conectare': 'Anschlussart', 'suprafata': 'Fläche (m²)',
+    'suprafata_mixt_detalii': 'Mixt Details', 'lungime': 'Länge (m)',
+    'terasament': 'Erdarbeiten', 'grosime_asfalt': 'Asphaltdicke (cm)',
+    'latime': 'Breite (m)', 'adancime': 'Tiefe (m)', 'tip': 'Art der Grabung',
+    'nr_cabluri': 'Kabelanzahl', 'teava_protectie': 'Schutzrohr',
+    'lungime_totala': 'Gesamtlänge (m)', 'nr_bransamente_ha': 'Anzahl HA',
+    'nr_hp_plus': 'Anzahl HP+', 'moment': 'Zeitpunkt', 'descriere': 'Beschreibung',
+    'materiale': 'Materialien', 'urgenta': 'Dringlichkeit', 'notes': 'Bemerkungen',
+    'comentarii': 'Kommentare',
 }
 
 SKIP_FIELDS = {'photos', 'waypoints'}
@@ -276,16 +276,16 @@ def _entry_to_row(e: TagesberichtEntry, site_name: str, photo_count: int) -> dic
     d = e.data or {}
     row = {
         'ID': e.id,
-        'Data': e.created_at.strftime('%d.%m.%Y %H:%M') if e.created_at else '',
-        'Tip Lucrare': WORK_TYPE_LABELS.get(e.work_type, e.work_type),
-        'Șantier': site_name,
+        'Datum': e.created_at.strftime('%d.%m.%Y %H:%M') if e.created_at else '',
+        'Arbeitsart': WORK_TYPE_LABELS.get(e.work_type, e.work_type),
+        'Baustelle': site_name,
         'NVT': e.nvt_number or '',
     }
     for k, v in d.items():
         if k in SKIP_FIELDS: continue
         if isinstance(v, list): v = ', '.join(str(x) for x in v)
         row[DATA_FIELD_LABELS.get(k, k)] = str(v) if v else ''
-    row['Nr. Fotografii'] = photo_count
+    row['Fotos'] = photo_count
     return row
 
 
@@ -304,7 +304,7 @@ def _build_excel(entries_data: list) -> bytes:
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = 'Rapoarte Mobile'
+    ws.title = 'Mobile Berichte'
 
     # Collect all keys
     all_keys: list[str] = []
@@ -332,7 +332,7 @@ def _build_excel(entries_data: list) -> bytes:
             cell.font = Font(size=10)
 
     # Maps & photos — separate sheet
-    map_ws = wb.create_sheet('Hărți & Poze')
+    map_ws = wb.create_sheet('Karten & Fotos')
     map_row = 1
     for item in entries_data:
         has_map = bool(item.get('map_png'))
@@ -342,7 +342,7 @@ def _build_excel(entries_data: list) -> bytes:
 
         # Entry header
         map_ws.cell(row=map_row, column=1,
-                    value=f"#{item['row']['ID']} — {item['row']['Tip Lucrare']} — {item['row']['Data']}")
+                    value=f"#{item['row']['ID']} — {item['row']['Arbeitsart']} — {item['row']['Datum']}")
         map_ws.cell(row=map_row, column=1).font = Font(bold=True, size=11)
         map_ws.cell(row=map_row, column=1).fill = PatternFill('solid', fgColor=DARK)
         map_ws.cell(row=map_row, column=1).font = Font(bold=True, size=11, color='FFFFFFFF')
@@ -417,7 +417,7 @@ def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
 
     story = []
     # Cover / title
-    story.append(Paragraph('HestiOS — Rapoarte Mobile', title_style))
+    story.append(Paragraph('HestiOS — Mobile Berichte', title_style))
     subtitle = f"Export {datetime.now().strftime('%d.%m.%Y %H:%M')}"
     if site_name_filter:
         subtitle += f" · {site_name_filter}"
@@ -426,16 +426,16 @@ def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
 
     for item in entries_data:
         row = item['row']
-        story.append(Paragraph(f"{row['Tip Lucrare']} — {row['Data']}", h2_style))
+        story.append(Paragraph(f"{row['Arbeitsart']} — {row['Datum']}", h2_style))
 
         # Info table
-        info_fields = [('Șantier', row.get('Șantier', '')),
-                       ('NVT',     row.get('NVT', '')),
-                       ('ID',      str(row.get('ID', '')))]
+        info_fields = [('Baustelle', row.get('Baustelle', '')),
+                       ('NVT',       row.get('NVT', '')),
+                       ('ID',        str(row.get('ID', '')))]
         info_data = [[Paragraph(k, label_style), Paragraph(str(v), value_style)] for k, v in info_fields if v]
 
         # Data fields
-        skip = {'ID', 'Data', 'Tip Lucrare', 'Șantier', 'NVT', 'Nr. Fotografii'}
+        skip = {'ID', 'Datum', 'Arbeitsart', 'Baustelle', 'NVT', 'Fotos'}
         for k, v in row.items():
             if k in skip or not v: continue
             info_data.append([Paragraph(k, label_style), Paragraph(str(v), value_style)])
@@ -456,7 +456,7 @@ def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
         # Map image
         if item.get('map_png'):
             story.append(Spacer(1, 8*mm))
-            story.append(Paragraph('Traseu pe Hartă', h2_style))
+            story.append(Paragraph('Route auf der Karte', h2_style))
             map_img = RLImage(io.BytesIO(item['map_png']),
                               width=W - 30*mm,
                               height=(W - 30*mm) * 400 / 640)
@@ -467,7 +467,7 @@ def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
         valid_photos = [p for p in photos if p.get('bytes')]
         if valid_photos:
             story.append(Spacer(1, 4*mm))
-            story.append(Paragraph(f"Fotografii ({len(valid_photos)})", h2_style))
+            story.append(Paragraph(f"Fotos ({len(valid_photos)})", h2_style))
             for p in valid_photos[:20]:
                 try:
                     p_img = RLImage(io.BytesIO(p['bytes']),
@@ -480,7 +480,7 @@ def _build_pdf(entries_data: list, site_name_filter: str = '') -> bytes:
                 except Exception:
                     pass
         else:
-            story.append(Paragraph(f"Fotografii: {row.get('Nr. Fotografii', 0)}", label_style))
+            story.append(Paragraph(f"Fotos: {row.get('Fotos', 0)}", label_style))
 
         story.append(Spacer(1, 6*mm))
         story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#E2E8F0'), spaceAfter=8))
